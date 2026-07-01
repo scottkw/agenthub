@@ -206,6 +206,9 @@ export interface HubPanelProps {
   onShellWebShareConfirm?: () => Promise<void>
   /** Cancel callback from App.tsx */
   onShellWebShareCancel?: () => void
+  // Phase 166 FUI-06 — opens the in-app Help tab at the Sharing Guide section.
+  // Threaded from App.tsx into the SessionShareModal risk-panel cross-link.
+  onOpenHelp?: () => void
 }
 
 // POL-05: SIDEBAR_COLLAPSED_KEY removed — hub-group-sidebar-collapsed localStorage key no longer used.
@@ -261,6 +264,7 @@ export function HubPanel({
   shellWebShareWarningEnabled,
   onShellWebShareConfirm,
   onShellWebShareCancel,
+  onOpenHelp,
 }: HubPanelProps): React.ReactElement {
   const [activeFilter, setActiveFilter] = useState<HubFilter>('all')
   const [searchText, setSearchText] = useState('')
@@ -588,6 +592,7 @@ export function HubPanel({
           shellWebShareWarningEnabled={shellWebShareWarningEnabled}
           onShellWebShareConfirm={onShellWebShareConfirm}
           onShellWebShareCancel={onShellWebShareCancel}
+          onOpenHelp={onOpenHelp}
         />
       )}
 

@@ -811,14 +811,23 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
   }, [tabs])
 
   // Phase 147 — find-or-add help tab (mirrors handleOpenSettings exactly).
-  const handleOpenHelp = useCallback(() => {
+  // Phase 166 FUI-06 — optional sectionId scrolls the Help tab to a specific section
+  // (e.g. 'help-sharing' from the Funnel risk-panel cross-link). HelpTab is mounted with
+  // a display-toggle (not conditional), so the section element exists in the DOM; defer
+  // the scroll until the tab is visible.
+  const handleOpenHelp = useCallback((sectionId?: string) => {
     const existing = tabs.find((t) => t.type === 'help')
     if (existing) {
       setActiveId(existing.id)
-      return
+    } else {
+      setTabs((prev) => [...prev, HELP_TAB])
+      setActiveId(HELP_TAB.id)
     }
-    setTabs((prev) => [...prev, HELP_TAB])
-    setActiveId(HELP_TAB.id)
+    if (sectionId) {
+      setTimeout(() => {
+        document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 50)
+    }
   }, [tabs])
 
   const handleCloseTab = useCallback(async (id: string) => {
@@ -1559,6 +1568,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
             shellWebShareWarningEnabled={shellWebShareWarningEnabled}
             onShellWebShareConfirm={handleShellWebShareConfirm}
             onShellWebShareCancel={handleShellWebShareCancel}
+            onOpenHelp={() => handleOpenHelp('help-sharing')}
           />
         )}
         {/* Phase 155-03 — WebShareSessionView render branch. Activated when

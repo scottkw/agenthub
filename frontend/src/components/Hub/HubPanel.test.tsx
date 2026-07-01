@@ -114,6 +114,9 @@ function renderPanel(overrides: {
     counts: Record<string, { running: number; total: number; attention: number; waiting: number }>,
     global: { running: number; total: number; attention: number; waiting: number }
   ) => void
+  // Phase 166 FUI-06
+  webServerMode?: 'tailscale' | 'local' | null
+  onOpenHelp?: () => void
 } = {}) {
   const container = document.createElement('div')
   document.body.appendChild(container)
@@ -135,6 +138,9 @@ function renderPanel(overrides: {
     groupDefs: overrides.groupDefs ?? [],
     onDropOnGroup: overrides.onDropOnGroup ?? vi.fn(),
     onGroupCountsChange: overrides.onGroupCountsChange ?? vi.fn(),
+    // Phase 166 FUI-06 — Share-modal Funnel toggle + Help cross-link wiring
+    webServerMode: overrides.webServerMode,
+    onOpenHelp: overrides.onOpenHelp,
   }
 
   act(() => {
@@ -165,6 +171,35 @@ describe('HubPanel', () => {
     const { container } = renderPanel({ sessions: [] })
     const groups = container.querySelectorAll('.hub__group')
     expect(groups.length).toBe(0)
+  })
+
+  // ---- Phase 166 FUI-06: Share-modal Help cross-link wiring (gap-closure) ----
+
+  it('FUI-06: threads onOpenHelp through the Share modal risk-panel Help cross-link', () => {
+    // Regression guard for the verifier BLOCKER: HubPanel must forward onOpenHelp to
+    // SessionShareModal, or clicking "See the Sharing Guide" in the Funnel risk panel
+    // just closes the modal with no navigation. A unit test on the modal alone (which
+    // injects onOpenHelp directly) does NOT catch a missing HubPanel forward.
+    const onOpenHelp = vi.fn()
+    const { container } = renderPanel({
+      sessions: [makeSession({ id: 'sess-1', name: 'S1' })],
+      webServerMode: 'tailscale',
+      onOpenHelp,
+    })
+    // Open the Share modal via the card's Share button.
+    const shareBtn = container.querySelector('.hub-card__share') as HTMLElement | null
+    expect(shareBtn).not.toBeNull()
+    act(() => { shareBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+    // Flip the Funnel toggle ON to reveal the risk panel + Help cross-link.
+    const funnelToggle = document.querySelector('input[aria-label="Enable internet sharing"]') as HTMLElement | null
+    expect(funnelToggle).not.toBeNull()
+    act(() => { funnelToggle!.click() })
+    const helpLink = Array.from(document.querySelectorAll('button')).find((b) =>
+      /See the Sharing Guide/i.test(b.textContent ?? ''),
+    ) as HTMLElement | null
+    expect(helpLink).not.toBeNull()
+    act(() => { helpLink!.click() })
+    expect(onOpenHelp).toHaveBeenCalled()
   })
 
   // ---- Sessions present: renders grid ----

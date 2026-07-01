@@ -8,7 +8,7 @@ Funnel lets anyone with the link reach your session over the internet — no Tai
 
 1. Open the **Share Session** modal from the status bar at the bottom of the window.
 2. Under **Internet (public)**, toggle **Enable internet share** on.
-3. Read the risk dialog and choose an expiry — 1 hour, 4 hours, 24 hours, or no auto-expiry. The Funnel link becomes public the moment you confirm.
+3. Read the risk dialog and choose an expiry — 30 minutes, 1 hour (default), 4 hours, 8 hours, or "Until I disable" (no auto-expiry). The Funnel link becomes public the moment you confirm.
 4. Copy the public URL from the modal and send it to your guest together with the join code displayed below it.
 
 The **join code is the only access gate**. Anyone who has both the URL and the join code can view the session. Codes expire when the Funnel expires or when you disable internet sharing — whichever comes first.
