@@ -1,47 +1,32 @@
 /**
- * Phase 101-03 SHELL-07/SHELL-08 — App.tsx web-toggle interception tests.
- * Phase 150 SET-01 — warningEnabled gate + re-arm re-sync + HubPanel prop threading.
+ * Phase 101-03 SHELL-07/SHELL-08 — App.tsx shell web-share warning state.
+ * Phase 150 SET-01 — warningEnabled gate + re-arm re-sync.
+ * Phase 168-05 (UX-02, #115) — RETIREMENT of the footer's direct-toggle interception.
  *
- * Source-inspection tests (matches App.exit.test.tsx / App.test.tsx patterns
- * — full App mount is gated by extensive Wails-binding mocking that the
- * existing test suite intentionally avoids). The contract is verified by
- * asserting that App.tsx contains the interception structure: shellWebShareWarned
- * state, SHELL_CLIS gate, pendingShellWebToggle state, ShellWebShareBanner
- * render slot at top of banner stack, GetShellWebShareWarned mount call,
- * SetShellWebShareWarned + ToggleWebServing parallel call, race mitigation
- * comment.
+ * D-14 removed the footer's direct `ToggleWebServing` call entirely — the footer
+ * "Share Session" button only opens the (lifted) Share modal now. That modal already
+ * had its OWN complete, independent shell-warning gate (Phase 150 SET-01,
+ * `SessionShareModal.tsx` — `isShellCli`/`pendingShellShare`/`ShellWebShareBanner`,
+ * covered by `SessionShareModal.test.tsx`). With the footer no longer toggling
+ * directly, App.tsx's footer-only interception mechanism — `handleToggleWeb`,
+ * `pendingShellWebToggle` state, and the App-level `<ShellWebShareBanner>` slot in
+ * `.banner-stack` — is retired as dead code (nothing sets `pendingShellWebToggle`
+ * anymore). This file's assertions that previously targeted that retired mechanism
+ * are removed/rewritten below; the parts that remain true (shellWebShareWarned
+ * hydration, the confirm/cancel handlers now sourced from `shareModalSession`, and
+ * threading into the App-level `<SessionShareModal>` render) are kept.
  *
- * The ShellWebShareBanner component itself is fully unit-tested in
- * ShellWebShareBanner.test.tsx with rendered DOM.
+ * Source-inspection tests (matches App.exit.test.tsx / App.test.tsx patterns —
+ * full App mount is gated by extensive Wails-binding mocking that the existing
+ * test suite intentionally avoids).
  */
 import { describe, it, expect } from 'vitest'
 import raw from '../../App.tsx?raw'
-import { SHELL_CLIS } from '../../lib/shellCli'
 
-describe('App.tsx shell web-share interception (Phase 101-03 SHELL-07/SHELL-08)', () => {
-  it('imports ShellWebShareBanner from components/ShellWebShareBanner', () => {
-    expect(raw).toContain(
-      "import { ShellWebShareBanner } from './components/ShellWebShareBanner'"
-    )
-  })
-
+describe('App.tsx shell web-share warned state (Phase 101-03 SHELL-07/SHELL-08)', () => {
   it('imports GetShellWebShareWarned and SetShellWebShareWarned Wails bindings', () => {
     expect(raw).toContain('GetShellWebShareWarned')
     expect(raw).toContain('SetShellWebShareWarned')
-  })
-
-  it('uses the shared path-aware isShellCli helper for the shell gate', () => {
-    // SET-01 gap-closure (live UAT): shell detection moved to lib/shellCli and
-    // made path-aware — a shell session's cli is its full path ('/bin/zsh'),
-    // which the old bare-name Set never matched. App must import and use it.
-    expect(raw).toContain("from './lib/shellCli'")
-    expect(raw).toContain('isShellCli(')
-    // The membership contract now lives in the shared module (runtime check).
-    expect(SHELL_CLIS.has('shell')).toBe(true)
-    expect(SHELL_CLIS.has('bash')).toBe(true)
-    expect(SHELL_CLIS.has('zsh')).toBe(true)
-    expect(SHELL_CLIS.has('pwsh')).toBe(true)
-    expect(SHELL_CLIS.has('powershell')).toBe(true)
   })
 
   it('declares shellWebShareWarned React state', () => {
@@ -49,9 +34,21 @@ describe('App.tsx shell web-share interception (Phase 101-03 SHELL-07/SHELL-08)'
     expect(raw).toContain('setShellWebShareWarned')
   })
 
-  it('declares pendingShellWebToggle React state for pending banner data', () => {
-    expect(raw).toContain('pendingShellWebToggle')
-    expect(raw).toContain('setPendingShellWebToggle')
+  it('does NOT declare pendingShellWebToggle as React state (retired — Phase 168-05 D-14)', () => {
+    // The footer-only pending-toggle state is dead now that the footer never
+    // toggles directly; the modal has its own independent pendingShellShare.
+    // (Explanatory comments may still reference the retired name for history —
+    // only the actual useState declaration is asserted absent here.)
+    expect(raw).not.toContain('const [pendingShellWebToggle')
+    expect(raw).not.toContain('setPendingShellWebToggle(')
+  })
+
+  it('does NOT import ShellWebShareBanner or isShellCli at the App.tsx level (retired — Phase 168-05 D-14)', () => {
+    // Both were used only by the retired footer-direct-toggle path. The equivalent
+    // gate now lives entirely inside SessionShareModal.tsx (imports there, tested
+    // by SessionShareModal.test.tsx).
+    expect(raw).not.toContain("from './components/ShellWebShareBanner'")
+    expect(raw).not.toContain("from './lib/shellCli'")
   })
 
   it('calls GetShellWebShareWarned in a mount useEffect to seed shellWebShareWarned', () => {
@@ -64,15 +61,6 @@ describe('App.tsx shell web-share interception (Phase 101-03 SHELL-07/SHELL-08)'
     expect(raw).toMatch(
       /GetShellWebShareWarned\(\)[\s\S]{0,250}\.then\([\s\S]{0,200}setShellWebShareWarned/
     )
-  })
-
-  it('intercepts handleToggleWeb: short-circuits when shell session + enabling + !shellWebShareWarned', () => {
-    // The interception is the load-bearing gate. Assert the guard structure.
-    expect(raw).toContain('isShellCli(')
-    expect(raw).toContain('!shellWebShareWarned')
-    // The handler must call setPendingShellWebToggle inside the intercept branch.
-    const interceptBlock = raw.slice(raw.indexOf('isShellCli('))
-    expect(interceptBlock.slice(0, 600)).toContain('setPendingShellWebToggle')
   })
 
   it('on confirm: calls SetShellWebShareWarned(true) and ToggleWebServing in parallel', () => {
@@ -97,59 +85,32 @@ describe('App.tsx shell web-share interception (Phase 101-03 SHELL-07/SHELL-08)'
     expect(promiseAllIdx).toBeGreaterThan(syncSetIdx)
   })
 
-  it('on cancel: clears pendingShellWebToggle without invoking any Wails RPC', () => {
-    const cancelIdx = raw.indexOf('handleShellWebShareCancel')
+  it('Phase 168-05: handleShellWebShareConfirm sources sessionId from shareModalSession (not the retired pendingShellWebToggle)', () => {
+    const confirmIdx = raw.indexOf('const handleShellWebShareConfirm')
+    expect(confirmIdx).toBeGreaterThan(-1)
+    const confirmBlock = raw.slice(confirmIdx, confirmIdx + 1500)
+    expect(confirmBlock).toContain('shareModalSession')
+    expect(confirmBlock).not.toContain('pendingShellWebToggle')
+  })
+
+  it('handleShellWebShareCancel exists and calls no Wails RPC (the modal owns its own pendingShellShare reset)', () => {
+    const cancelIdx = raw.indexOf('const handleShellWebShareCancel')
     expect(cancelIdx).toBeGreaterThan(-1)
-    const cancelBlock = raw.slice(cancelIdx, cancelIdx + 400)
-    expect(cancelBlock).toContain('setPendingShellWebToggle(null)')
-    // Cancel must NOT call either Wails RPC.
+    const cancelBlock = raw.slice(cancelIdx, cancelIdx + 300)
     expect(cancelBlock).not.toContain('SetShellWebShareWarned')
     expect(cancelBlock).not.toContain('ToggleWebServing')
   })
 
-  it('renders ShellWebShareBanner at the TOP of the banner-stack (priority slot #1)', () => {
-    // Find the banner-stack opening div, then assert ShellWebShareBanner
-    // appears BEFORE LocalNetworkBanner / UpdateBanner / WebGLRecoveryBanner /
-    // saveBanner / PluginToggleBanner inside that block.
-    const stackIdx = raw.indexOf('className="banner-stack"')
-    expect(stackIdx).toBeGreaterThan(-1)
-    const stackTail = raw.slice(stackIdx)
-    const shellIdx = stackTail.indexOf('<ShellWebShareBanner')
-    const localIdx = stackTail.indexOf('<LocalNetworkBanner')
-    const updateIdx = stackTail.indexOf('<UpdateBanner')
-    const webglIdx = stackTail.indexOf('<WebGLRecoveryBanner')
-    const pluginIdx = stackTail.indexOf('<PluginToggleBanner')
-    expect(shellIdx).toBeGreaterThan(-1)
-    // Banner must come before every other banner in the stack.
-    if (localIdx > -1) expect(shellIdx).toBeLessThan(localIdx)
-    if (updateIdx > -1) expect(shellIdx).toBeLessThan(updateIdx)
-    if (webglIdx > -1) expect(shellIdx).toBeLessThan(webglIdx)
-    if (pluginIdx > -1) expect(shellIdx).toBeLessThan(pluginIdx)
-  })
-
-  it('ShellWebShareBanner receives sessionName, onConfirm, onCancel props', () => {
-    const bannerIdx = raw.indexOf('<ShellWebShareBanner')
-    expect(bannerIdx).toBeGreaterThan(-1)
-    const bannerBlock = raw.slice(bannerIdx, bannerIdx + 500)
-    expect(bannerBlock).toContain('sessionName=')
-    expect(bannerBlock).toContain('onConfirm=')
-    expect(bannerBlock).toContain('onCancel=')
-  })
-
-  it('handleToggleWeb continues to work for AI CLIs (no banner short-circuit when cli !∈ SHELL_CLIS)', () => {
-    // Negative assertion — the interception MUST be gated on SHELL_CLIS.has,
-    // not on every session. If the SHELL_CLIS.has check is missing, AI CLI
-    // toggles would also be blocked, breaking unrelated workflows.
-    // Verify the original ToggleWebServing fall-through path still exists:
-    expect(raw).toContain('ToggleWebServing(')
-    // The interception must be conditional, not unconditional:
-    const handlerIdx = raw.indexOf('handleToggleWeb')
-    expect(handlerIdx).toBeGreaterThan(-1)
+  it('the retired App-level ShellWebShareBanner banner-stack slot is gone', () => {
+    // Phase 101-03 SHELL-08 previously rendered <ShellWebShareBanner> at the top of
+    // .banner-stack for the footer's direct toggle. The equivalent banner now lives
+    // only inside SessionShareModal.tsx (Phase 150 SET-01, tested separately).
+    expect(raw).not.toContain('<ShellWebShareBanner')
   })
 })
 
 // ---------------------------------------------------------------------------
-// Phase 150 SET-01 — warningEnabled gate + re-arm sync + HubPanel threading
+// Phase 150 SET-01 — warningEnabled gate + re-arm sync
 // ---------------------------------------------------------------------------
 describe('App.tsx shell web-share warning-enabled gate (Phase 150 SET-01)', () => {
   it('imports GetShellWebShareWarningEnabled from Wails bindings', () => {
@@ -169,29 +130,6 @@ describe('App.tsx shell web-share warning-enabled gate (Phase 150 SET-01)', () =
     expect(raw).toMatch(
       /GetShellWebShareWarningEnabled\(\)[\s\S]{0,300}\.then\([\s\S]{0,200}setShellWebShareWarningEnabled/
     )
-  })
-
-  it('handleToggleWeb gate includes shellWebShareWarningEnabled && before !shellWebShareWarned', () => {
-    // The gate must now be: isShellCli(...) && shellWebShareWarningEnabled && !shellWebShareWarned
-    expect(raw).toContain('shellWebShareWarningEnabled &&')
-    // Verify the order: warningEnabled check appears before !warned check in the same gate
-    const gateIdx = raw.indexOf('isShellCli(')
-    expect(gateIdx).toBeGreaterThan(-1)
-    const gateBlock = raw.slice(gateIdx, gateIdx + 300)
-    const enabledIdx = gateBlock.indexOf('shellWebShareWarningEnabled &&')
-    const warnedIdx = gateBlock.indexOf('!shellWebShareWarned')
-    expect(enabledIdx).toBeGreaterThan(-1)
-    expect(warnedIdx).toBeGreaterThan(-1)
-    expect(enabledIdx).toBeLessThan(warnedIdx)
-  })
-
-  it('handleToggleWeb useCallback includes shellWebShareWarningEnabled in its dependency array', () => {
-    // The new state must be added to the handleToggleWeb useCallback dep array
-    const cbIdx = raw.indexOf('handleToggleWeb')
-    expect(cbIdx).toBeGreaterThan(-1)
-    // Find the closing } of the callback deps: look for the ], [... pattern after the handleToggleWeb def
-    const cbBlock = raw.slice(cbIdx, cbIdx + 2000)
-    expect(cbBlock).toContain('shellWebShareWarningEnabled')
   })
 
   it('SettingsTab render passes onShellWarnEnabledChange callback', () => {
@@ -216,26 +154,42 @@ describe('App.tsx shell web-share warning-enabled gate (Phase 150 SET-01)', () =
     expect(cbBlock).toContain('GetShellWebShareWarned()')
     expect(cbBlock).toContain('setShellWebShareWarned')
   })
+})
 
-  it('HubPanel render receives shellWebShareWarned prop', () => {
-    const hubIdx = raw.indexOf('<HubPanel')
-    expect(hubIdx).toBeGreaterThan(-1)
-    const hubBlock = raw.slice(hubIdx, hubIdx + 2500)
-    expect(hubBlock).toContain('shellWebShareWarned=')
+// ---------------------------------------------------------------------------
+// Phase 168-05 (UX-02) — shellWebShareWarned/-WarningEnabled + confirm/cancel now
+// thread into the single App-level <SessionShareModal> render, not HubPanel.
+// ---------------------------------------------------------------------------
+describe('App.tsx SessionShareModal render site receives the shell-warn authority props (Phase 168-05)', () => {
+  it('the <SessionShareModal> render receives shellWebShareWarned and shellWebShareWarningEnabled', () => {
+    const idx = raw.indexOf('<SessionShareModal')
+    expect(idx).toBeGreaterThan(-1)
+    const block = raw.slice(idx, idx + 500)
+    expect(block).toContain('shellWebShareWarned={shellWebShareWarned}')
+    expect(block).toContain('shellWebShareWarningEnabled={shellWebShareWarningEnabled}')
   })
 
-  it('HubPanel render receives shellWebShareWarningEnabled prop', () => {
-    const hubIdx = raw.indexOf('<HubPanel')
-    expect(hubIdx).toBeGreaterThan(-1)
-    const hubBlock = raw.slice(hubIdx, hubIdx + 2500)
-    expect(hubBlock).toContain('shellWebShareWarningEnabled=')
+  it('the <SessionShareModal> render receives onShellWebShareConfirm and onShellWebShareCancel', () => {
+    const idx = raw.indexOf('<SessionShareModal')
+    expect(idx).toBeGreaterThan(-1)
+    const block = raw.slice(idx, idx + 500)
+    expect(block).toContain('onShellWebShareConfirm={handleShellWebShareConfirm}')
+    expect(block).toContain('onShellWebShareCancel={handleShellWebShareCancel}')
   })
 
-  it('HubPanel render receives onShellWebShareConfirm and onShellWebShareCancel callbacks', () => {
+  it('HubPanel no longer receives the shell-warn / SessionShareModal props (moved off HubPanel)', () => {
     const hubIdx = raw.indexOf('<HubPanel')
     expect(hubIdx).toBeGreaterThan(-1)
-    const hubBlock = raw.slice(hubIdx, hubIdx + 2500)
-    expect(hubBlock).toContain('onShellWebShareConfirm=')
-    expect(hubBlock).toContain('onShellWebShareCancel=')
+    const nextCloseIdx = raw.indexOf('/>', hubIdx)
+    const hubBlock = raw.slice(hubIdx, nextCloseIdx)
+    expect(hubBlock).not.toContain('shellWebShareWarned=')
+    expect(hubBlock).not.toContain('shellWebShareWarningEnabled=')
+    expect(hubBlock).not.toContain('onShellWebShareConfirm=')
+    expect(hubBlock).not.toContain('onShellWebShareCancel=')
+    expect(hubBlock).not.toContain('webServerMode=')
+    expect(hubBlock).not.toContain('webServerRunning=')
+    expect(hubBlock).not.toContain('onOpenHelp=')
+    // HubPanel now drives the lifted state via setShareModalSession only.
+    expect(hubBlock).toContain('setShareModalSession=')
   })
 })

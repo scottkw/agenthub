@@ -114,9 +114,9 @@ function renderPanel(overrides: {
     counts: Record<string, { running: number; total: number; attention: number; waiting: number }>,
     global: { running: number; total: number; attention: number; waiting: number }
   ) => void
-  // Phase 166 FUI-06
-  webServerMode?: 'tailscale' | 'local' | null
-  onOpenHelp?: () => void
+  // Phase 168-05 (UX-02) — shareModalSession is a controlled prop lifted to App.tsx;
+  // HubPanel only calls the setter (the Share modal itself renders in App.tsx now).
+  setShareModalSession?: (session: SessionInfo | null) => void
 } = {}) {
   const container = document.createElement('div')
   document.body.appendChild(container)
@@ -138,9 +138,8 @@ function renderPanel(overrides: {
     groupDefs: overrides.groupDefs ?? [],
     onDropOnGroup: overrides.onDropOnGroup ?? vi.fn(),
     onGroupCountsChange: overrides.onGroupCountsChange ?? vi.fn(),
-    // Phase 166 FUI-06 — Share-modal Funnel toggle + Help cross-link wiring
-    webServerMode: overrides.webServerMode,
-    onOpenHelp: overrides.onOpenHelp,
+    // Phase 168-05 (UX-02) — controlled Share-modal setter (required prop)
+    setShareModalSession: overrides.setShareModalSession ?? vi.fn(),
   }
 
   act(() => {
@@ -173,33 +172,33 @@ describe('HubPanel', () => {
     expect(groups.length).toBe(0)
   })
 
-  // ---- Phase 166 FUI-06: Share-modal Help cross-link wiring (gap-closure) ----
+  // ---- Phase 168-05 (UX-02): Share modal state lifted to App.tsx (RESEARCH Pattern 4) ----
+  // <SessionShareModal> itself no longer renders inside HubPanel (App.tsx unmounts
+  // HubPanel on non-Hub tabs, which would strand the footer "Share Session" button) —
+  // it moved to a single always-mounted instance in App.tsx. The onOpenHelp
+  // cross-link threading this test used to guard (Phase 166 FUI-06) is now covered at
+  // the App.tsx level by StatusBar.shareSession.test.tsx (source-inspection: exactly
+  // one <SessionShareModal>, wired directly to handleOpenHelp — no HubPanel forward to
+  // regress). HubPanel's remaining responsibility is simply calling the controlled
+  // setShareModalSession prop from the card's Share button.
 
-  it('FUI-06: threads onOpenHelp through the Share modal risk-panel Help cross-link', () => {
-    // Regression guard for the verifier BLOCKER: HubPanel must forward onOpenHelp to
-    // SessionShareModal, or clicking "See the Sharing Guide" in the Funnel risk panel
-    // just closes the modal with no navigation. A unit test on the modal alone (which
-    // injects onOpenHelp directly) does NOT catch a missing HubPanel forward.
-    const onOpenHelp = vi.fn()
+  it('card Share button calls setShareModalSession(session) (controlled prop, not local state)', () => {
+    const setShareModalSession = vi.fn()
+    const session = makeSession({ id: 'sess-1', name: 'S1' })
     const { container } = renderPanel({
-      sessions: [makeSession({ id: 'sess-1', name: 'S1' })],
-      webServerMode: 'tailscale',
-      onOpenHelp,
+      sessions: [session],
+      setShareModalSession,
     })
-    // Open the Share modal via the card's Share button.
     const shareBtn = container.querySelector('.hub-card__share') as HTMLElement | null
     expect(shareBtn).not.toBeNull()
     act(() => { shareBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
-    // Flip the Funnel toggle ON to reveal the risk panel + Help cross-link.
-    const funnelToggle = document.querySelector('input[aria-label="Enable internet sharing"]') as HTMLElement | null
-    expect(funnelToggle).not.toBeNull()
-    act(() => { funnelToggle!.click() })
-    const helpLink = Array.from(document.querySelectorAll('button')).find((b) =>
-      /See the Sharing Guide/i.test(b.textContent ?? ''),
-    ) as HTMLElement | null
-    expect(helpLink).not.toBeNull()
-    act(() => { helpLink!.click() })
-    expect(onOpenHelp).toHaveBeenCalled()
+    expect(setShareModalSession).toHaveBeenCalledTimes(1)
+    expect(setShareModalSession).toHaveBeenCalledWith(expect.objectContaining({ id: 'sess-1' }))
+  })
+
+  it('does not render <SessionShareModal> itself (moved to App.tsx — single top-level instance)', () => {
+    expect(hubPanelRaw).not.toContain('<SessionShareModal')
+    expect(hubPanelRaw).not.toContain("from './SessionShareModal'")
   })
 
   // ---- Sessions present: renders grid ----

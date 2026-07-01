@@ -38,7 +38,6 @@ import {
   SetTrayProgress,
 } from './wailsjs/go/main/App'
 import { aggregateProgress } from './lib/aggregateProgress'
-import { isShellCli } from './lib/shellCli'
 import type { DetectedCLI, SessionInfo, RemotePeerSessions } from './wailsjs/go/main/App'
 import type { daemon } from './wailsjs/go/models'
 type PluginSettings = daemon.PluginSettings
@@ -49,6 +48,7 @@ import { WelcomeTab } from './components/WelcomeTab'
 import { FileBrowserTab, fileBrowserTabId } from './components/FileBrowserTab'
 import { RemoteJoinCodeModal } from './components/RemoteJoinCodeModal'
 import { HubPanel } from './components/Hub/HubPanel'
+import { SessionShareModal } from './components/Hub/SessionShareModal'
 import { HelpTab } from './components/HelpTab'
 import { EnableWebSharingTakeover } from './components/FileBrowser/EnableWebSharingTakeover'
 import { findRemoteSession, remoteBaseURLFor } from './lib/remoteSession'
@@ -63,7 +63,6 @@ import { UpdateBanner } from './components/UpdateBanner'
 import type { UpdateInfo } from './components/UpdateBanner'
 import { WebGLRecoveryBanner } from './components/WebGLRecoveryBanner'
 import { PluginToggleBanner } from './components/PluginToggleBanner'
-import { ShellWebShareBanner } from './components/ShellWebShareBanner'
 import { ExitToast } from './components/ExitToast'
 import type { ExitState } from './components/ExitToast'
 import { ExitCountdownBanner } from './components/ExitCountdownBanner'
@@ -141,12 +140,10 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
   // sessions. `shellWebShareWarned` is hydrated from the daemon settings via
   // GetShellWebShareWarned() on mount; once the user confirms the banner, both
   // local state and the daemon-persisted flag flip to true permanently (per-
-  // machine, not per-session). `pendingShellWebToggle` holds the sessionId +
-  // displayName of an in-flight first-time toggle while the banner is shown.
+  // machine, not per-session). Phase 168-05: the in-flight pending state now
+  // lives inside SessionShareModal (pendingShellShare, local) — the App-level
+  // pendingShellWebToggle used only by the retired footer-direct-toggle path.
   const [shellWebShareWarned, setShellWebShareWarned] = useState(false)
-  const [pendingShellWebToggle, setPendingShellWebToggle] = useState<
-    { sessionId: string; sessionName: string } | null
-  >(null)
   // Phase 150 SET-01 — master warning-enabled switch (default true = ON per D-08).
   // Hydrated from daemon on mount; safe-degradation default is true (warning shows)
   // so that a daemon disconnect never silently disables the security guardrail.
@@ -206,6 +203,10 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
   // Phase 131 — Hub sessions and error state (polled when the Hub tab is active)
   const [hubSessions, setHubSessions] = useState<SessionInfo[]>([])
   const [hubError, setHubError] = useState(false)
+  // Phase 168-05 (UX-02) — Share modal open-state, lifted from HubPanel so both the Hub
+  // card click AND the footer "Share Session" button drive a single SessionShareModal
+  // instance (RESEARCH Pattern 4). null = closed; non-null = open for this session.
+  const [shareModalSession, setShareModalSession] = useState<SessionInfo | null>(null)
   // Remote peers for Hub remote cards (polled when the Hub tab is active — Phase 138 T-138-08)
   const [remotePeers, setRemotePeers] = useState<RemotePeerSessions[]>([])
   // WR-01: tracks whether the remote-sessions poll has completed at least
@@ -503,6 +504,11 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
         setDetectedCLIs(clis)
         setWebServerRunning(running)
         setTailscaleHealth(health)
+        // Phase 168-05 (UX-02): seed hubSessions from the same ListSessions() call used
+        // for tab restoration, so openShareModalForActiveSession works even before the
+        // user ever visits the Hub tab (the 3s Hub poll below only runs while Hub is
+        // active — SESS-02 restore can land the user directly on a session tab).
+        setHubSessions(sessions)
 
         // Phase 101-02 (SHELL-01 GUI half) — call ListShells() on mount.
         // Loaded in parallel via a separate promise so a slow daemon response
@@ -894,39 +900,28 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
     )
   }, [])
 
-  const handleToggleWeb = useCallback(async (sessionId: string) => {
-    const nowEnabled = !webEnabled[sessionId]
-
-    // Phase 101-03 SHELL-07/SHELL-08 — first-time security gate. Intercept
-    // ON-toggles for shell sessions when shellWebShareWarned has never been
-    // confirmed on this machine. AI-CLI toggles, shell OFF-toggles, and shell
-    // ON-toggles with warned=true fall through unchanged. The daemon already
-    // refuses to auto-enable web sharing for shells (Phase 87 SEC-01,
-    // api.go:407) — the banner is the user-visible defense-in-depth.
-    if (nowEnabled) {
-      const tab = tabs.find((t) => t.sessionId === sessionId)
-      if (tab && isShellCli(tab.cli) && shellWebShareWarningEnabled && !shellWebShareWarned) {
-        setPendingShellWebToggle({ sessionId, sessionName: tab.name })
-        return
-      }
-    }
-
-    try {
-      await ToggleWebServing(sessionId, nowEnabled)
-      setWebEnabled((prev) => ({ ...prev, [sessionId]: nowEnabled }))
-    } catch (err) {
-      console.warn('[App] ToggleWebServing failed:', err)
-    }
-  }, [webEnabled, shellWebShareWarned, shellWebShareWarningEnabled, tabs])
+  // Phase 168-05 (UX-02 / D-14): the footer no longer toggles web sharing
+  // directly — it opens the (lifted) Share modal for the active session.
+  // Toggling now happens exclusively inside SessionShareModal, which owns
+  // its own self-contained shell-warning gate (SET-01, D-10 cross-surface
+  // parity) — the App-level pendingShellWebToggle/ShellWebShareBanner path
+  // that used to back the footer's direct toggle is retired below.
+  const openShareModalForActiveSession = useCallback(() => {
+    const session = hubSessions.find((s) => s.id === activeId)
+    if (session) setShareModalSession(session)
+  }, [hubSessions, activeId])
 
   // Phase 101-03 — banner confirm: per RESEARCH §8 race mitigation, set the
   // local shellWebShareWarned flag SYNCHRONOUSLY (before awaiting either RPC).
   // If a second shell session's toggle fires while the SetShellWebShareWarned
   // disk write is still in flight, the second toggle's interception check
   // will already see the updated local state and skip the banner.
+  // Phase 168-05: sessionId now derives from shareModalSession (the single
+  // lifted modal-open state, D-14) instead of the retired pendingShellWebToggle
+  // — the modal is the only surface that can trigger this confirm.
   const handleShellWebShareConfirm = useCallback(async () => {
-    if (!pendingShellWebToggle) return
-    const { sessionId } = pendingShellWebToggle
+    if (!shareModalSession) return
+    const sessionId = shareModalSession.id
     // Race mitigation (RESEARCH §8): set local "warned" flag synchronously
     // before any await so a fast double-toggle doesn't re-show the banner.
     // The banner itself stays mounted during the await so its "Enabling…"
@@ -938,20 +933,18 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
         ToggleWebServing(sessionId, true),
       ])
       setWebEnabled((prev) => ({ ...prev, [sessionId]: true }))
-      setPendingShellWebToggle(null)
     } catch (err) {
       console.warn('[App] shell web-share confirm failed:', err)
       // Best-effort rollback: clear the banner and let the user retry. Avoid
       // leaving local "warned" true if the persist call failed — the next
       // toggle will re-prompt rather than silently downgrade.
       setShellWebShareWarned(false)
-      setPendingShellWebToggle(null)
     }
-  }, [pendingShellWebToggle])
+  }, [shareModalSession])
 
-  const handleShellWebShareCancel = useCallback(() => {
-    setPendingShellWebToggle(null)
-  }, [])
+  // Phase 168-05: the modal owns its own pendingShellShare local state and
+  // already resets it before calling this — no App-level state to clear.
+  const handleShellWebShareCancel = useCallback(() => {}, [])
 
   const handleFontSizeChange = useCallback((sessionId: string, delta: number) => {
     setFontSizes((prev) => {
@@ -1008,6 +1001,24 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
     const interval = setInterval(() => void refresh(), 3000)
     return () => { cancelled = true; clearInterval(interval) }
   }, [activeId])
+
+  // Phase 168-05 (UX-02, RESEARCH Pitfall 3 / Pattern 4): keep the lifted Share modal's
+  // session prop in sync with hubSessions. shareModalSession is a snapshot taken at
+  // open-time (either from a Hub card click or the footer's openShareModalForActiveSession);
+  // without this effect a server-side flip (e.g. funnelActive completing, viewerCount
+  // changing) never reaches an already-open modal. This is the single sync instance —
+  // SessionShareModal itself is now rendered once, here, at the App.tsx level (not inside
+  // HubPanel, which unmounts on non-Hub tabs — the footer button must work from any local
+  // session tab). Keyed on shareModalSession?.id (not the whole object) to avoid re-running
+  // from its own setState.
+  useEffect(() => {
+    if (!shareModalSession) return
+    const updated = hubSessions.find((s) => s.id === shareModalSession.id)
+    if (updated && updated !== shareModalSession) {
+      setShareModalSession(updated)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hubSessions, shareModalSession?.id])
 
   // Poll remote sessions when the Hub tab is active (Phase 138 — only the
   // HUB_TAB guard is retained; Hub still needs remote data — T-138-08).
@@ -1384,6 +1395,8 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
       setDetectedCLIs(clis)
       setWebServerRunning(running)
       setTailscaleHealth(health)
+      // Phase 168-05 (UX-02): mirror the mount-time hubSessions seed (see init above).
+      setHubSessions(sessions)
 
       // Phase 101-02 (SHELL-01 GUI half) — re-discover shells on daemon retry.
       setShellsLoading(true)
@@ -1437,24 +1450,18 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
           rendered inside .banner-stack below. A banner whose own render condition is
           true but whose trigger is missing here will never mount (the whole stack is
           conditionally rendered). Phase 129 DNS-03 regressed exactly this way. */}
-      {(pendingShellWebToggle ||
-        (webServerMode === 'local' && !localBannerDismissed) ||
+      {((webServerMode === 'local' && !localBannerDismissed) ||
         (tailscaleHealth?.connected === true && tailscaleHealth?.acceptDns === false) ||
         update ||
         ((webglContextLost || webglSoftwareDetected) && !webglBannerDismissed) ||
         saveBanner !== null ||
         pluginToggleBanners.length > 0) && (
         <div className="banner-stack">
-          {/* Phase 101-03 SHELL-08 — action-blocking security banner takes
-              top priority in the stack (per UI-SPEC §Stack ordering). Only
-              one is ever shown at a time (single sessionId in flight). */}
-          {pendingShellWebToggle && (
-            <ShellWebShareBanner
-              sessionName={pendingShellWebToggle.sessionName}
-              onConfirm={() => void handleShellWebShareConfirm()}
-              onCancel={handleShellWebShareCancel}
-            />
-          )}
+          {/* Phase 101-03 SHELL-08 — the action-blocking shell web-share security
+              banner used to render here (top priority) for the footer's direct
+              toggle. Phase 168-05 (D-14): the footer no longer toggles directly —
+              the equivalent banner (ShellWebShareBanner, same shared warned/
+              warningEnabled authority) now lives inside SessionShareModal only. */}
           {webServerMode === 'local' && !localBannerDismissed && (
             <LocalNetworkBanner
               visible={true}
@@ -1592,8 +1599,6 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
             onRegisterCapCancelled={(fn) => { capCancelledRef.current = fn }}
             fontSizes={fontSizes}
             onFontSizeChange={handleFontSizeChange}
-            webServerMode={webServerMode}
-            webServerRunning={webServerRunning}
             onKill={(id) => void handleCloseTab(id)}
             onOpenInBrowser={handleOpenRemoteSession}
             onBrowseFiles={handleBrowseFilesRemote}
@@ -1602,11 +1607,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
             groupDefs={groupDefs}
             onDropOnGroup={handleDropOnGroup}
             onGroupCountsChange={handleGroupCountsChange}
-            shellWebShareWarned={shellWebShareWarned}
-            shellWebShareWarningEnabled={shellWebShareWarningEnabled}
-            onShellWebShareConfirm={handleShellWebShareConfirm}
-            onShellWebShareCancel={handleShellWebShareCancel}
-            onOpenHelp={() => handleOpenHelp('help-sharing')}
+            setShareModalSession={setShareModalSession}
           />
         )}
         {/* Phase 155-03 — WebShareSessionView render branch. Activated when
@@ -1847,7 +1848,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
                   sessionId={tab.sessionId}
                   webServerRunning={webServerRunning}
                   webEnabled={!!webEnabled[tab.sessionId]}
-                  onToggleWeb={() => void handleToggleWeb(tab.sessionId)}
+                  onShareSession={openShareModalForActiveSession}
                 />
               </div>
             )
@@ -1855,6 +1856,29 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
         </div>
       </div>
       </div>{/* end app__row */}
+
+      {/* Phase 168-05 (UX-02) — Share modal: rendered here (App.tsx top level, always
+          mounted regardless of active tab) rather than inside HubPanel (which fully
+          unmounts on non-Hub tabs). This is the SINGLE SessionShareModal instance —
+          both the Hub card click (HubPanel's handleShare, via the setShareModalSession
+          prop) and the footer "Share Session" button (openShareModalForActiveSession)
+          drive this one shareModalSession state (RESEARCH Pattern 4). Do NOT also
+          render the SessionShareModal component from HubPanel.tsx — a second
+          instance reproduces the exact button-modal state-drift bug (#115) this
+          plan exists to fix. */}
+      {shareModalSession && (
+        <SessionShareModal
+          session={shareModalSession}
+          webServerMode={webServerMode}
+          webServerRunning={webServerRunning}
+          onClose={() => setShareModalSession(null)}
+          shellWebShareWarned={shellWebShareWarned}
+          shellWebShareWarningEnabled={shellWebShareWarningEnabled}
+          onShellWebShareConfirm={handleShellWebShareConfirm}
+          onShellWebShareCancel={handleShellWebShareCancel}
+          onOpenHelp={() => handleOpenHelp('help-sharing')}
+        />
+      )}
 
       {showNewSessionModal && (
         <NewSessionModal

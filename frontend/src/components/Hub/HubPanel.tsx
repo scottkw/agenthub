@@ -12,7 +12,6 @@ import { HubEmptyState } from './HubEmptyState'
 import { computeCounts, computeGlobalCounts } from '../../lib/hubGroupCounts'
 import type { GroupCounts } from '../../lib/hubGroupCounts'
 import { HubModal } from './HubModal'
-import { SessionShareModal } from './SessionShareModal'
 import { useChatUnreadListeners } from './useChatUnreadListeners'
 // WR-01: deriveHubStatus extracted to shared util (was triplicated across SessionCard/HubFilterBar/HubPanel)
 // ATTN-01/04: isAttentionStatus is the single canonical attention predicate; used for live set + debounced sort key
@@ -173,10 +172,6 @@ export interface HubPanelProps {
   fontSizes?: Record<string, number>
   /** Phase 134 — WR-04: font size change callback; receives (delta) for the active modal session */
   onFontSizeChange?: (sessionId: string, delta: number) => void
-  /** Phase 137 / SHARE-04: web server mode ('local' | 'tailscale' | null) for LAN-password display */
-  webServerMode?: 'tailscale' | 'local' | null
-  /** Phase 137 / SHARE-05: true when the web server is running; triggers restart-clear in SessionShareModal */
-  webServerRunning?: boolean
   /** Phase 138 — Kill handler threaded to card overflow menu */
   onKill?: (sessionId: string) => void
   /** Phase 138 — Open remote session in system browser (Phase 146: receives session object for cap exchange) */
@@ -196,19 +191,15 @@ export interface HubPanelProps {
     counts: Record<string, GroupCounts>,
     global: GroupCounts
   ) => void
-  // Phase 150 SET-01 — shell warning cross-surface parity (D-09/D-10).
-  // Threaded from App.tsx (single warned authority) into SessionShareModal.
-  /** True when the user has acknowledged the shell web-share warning on this machine */
-  shellWebShareWarned?: boolean
-  /** True (default) when the shell web-share warning is enabled */
-  shellWebShareWarningEnabled?: boolean
-  /** Confirm callback from App.tsx race-mitigation handler */
-  onShellWebShareConfirm?: () => Promise<void>
-  /** Cancel callback from App.tsx */
-  onShellWebShareCancel?: () => void
-  // Phase 166 FUI-06 — opens the in-app Help tab at the Sharing Guide section.
-  // Threaded from App.tsx into the SessionShareModal risk-panel cross-link.
-  onOpenHelp?: () => void
+  // Phase 168-05 (UX-02, RESEARCH Pattern 4) — SessionShareModal's open-state is a
+  // controlled prop lifted to App.tsx. HubPanel no longer renders the SessionShareModal
+  // component itself (App.tsx unmounts HubPanel on non-Hub tabs, which would strand the footer
+  // "Share Session" button on a session tab) — it only drives the setter from the
+  // card's Share button. webServerMode/webServerRunning/shellWebShareWarned/
+  // shellWebShareWarningEnabled/onShellWebShareConfirm/onShellWebShareCancel/onOpenHelp
+  // moved with the modal render to App.tsx (single render site — see App.tsx).
+  /** Opens the (App.tsx-owned) Share modal for the given session — the card's Share button. */
+  setShareModalSession?: (session: SessionInfo | null) => void
 }
 
 // POL-05: SIDEBAR_COLLAPSED_KEY removed — hub-group-sidebar-collapsed localStorage key no longer used.
@@ -250,8 +241,6 @@ export function HubPanel({
   onRegisterCapCancelled,
   fontSizes,
   onFontSizeChange,
-  webServerMode,
-  webServerRunning,
   onKill,
   onOpenInBrowser,
   onBrowseFiles,
@@ -260,11 +249,7 @@ export function HubPanel({
   groupDefs: groupDefsProp = [],
   onDropOnGroup: onDropOnGroupProp,
   onGroupCountsChange,
-  shellWebShareWarned,
-  shellWebShareWarningEnabled,
-  onShellWebShareConfirm,
-  onShellWebShareCancel,
-  onOpenHelp,
+  setShareModalSession,
 }: HubPanelProps): React.ReactElement {
   const [activeFilter, setActiveFilter] = useState<HubFilter>('all')
   const [searchText, setSearchText] = useState('')
@@ -277,27 +262,13 @@ export function HubPanel({
   }
   const [modalState, setModalState] = useState<HubModalState | null>(null)
 
-  // Phase 137 — share modal state: null = closed; non-null = share modal open for this session
-  const [shareModalSession, setShareModalSession] = useState<SessionInfo | null>(null)
-
+  // Phase 137 — card's Share button. Phase 168-05: shareModalSession's state, its
+  // 3s-poll sync effect (Phase 166 RESEARCH Pitfall 3), and the SessionShareModal
+  // render itself all moved to App.tsx (setShareModalSession is now a controlled prop —
+  // see the HubPanelProps comment above). HubPanel only triggers the open.
   const handleShare = useCallback((session: SessionInfo) => {
-    setShareModalSession(session)
-  }, [])
-
-  // Phase 166 (RESEARCH Pitfall 3): keep the Share modal's session prop in sync with the
-  // 3s Hub poll. shareModalSession is a snapshot taken at open-time; without this effect a
-  // funnelActive flip (Plan 05's warm-up completing on the daemon) never reaches the modal,
-  // so the warm-up UX would hang forever. Early-return keeps it inert while the modal is
-  // closed. Keyed on shareModalSession?.id (not the whole object) to avoid re-running from
-  // its own setState.
-  useEffect(() => {
-    if (!shareModalSession) return
-    const updated = sessions.find((s) => s.id === shareModalSession.id)
-    if (updated && updated !== shareModalSession) {
-      setShareModalSession(updated)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessions, shareModalSession?.id])
+    setShareModalSession?.(session)
+  }, [setShareModalSession])
 
   // NOTIF-01: per-session unread counts lifted from HubInteractiveModal's local state.
   // Two sources feed this map: (a) open-modal ChatPanel via onUnreadChange prop threading,
@@ -581,20 +552,11 @@ export function HubPanel({
           building ws://127.0.0.1:0/... on a transient 0 value.
           WR-03: terminalTheme is now required on HubPanelProps — the unsafe empty-object cast is removed.
           WR-04: real per-session fontSize + onFontSizeChange instead of hardcoded 14. */}
-      {/* Phase 137 — SessionShareModal: rendered outside .hub so overlay covers the full Hub surface */}
-      {shareModalSession && (
-        <SessionShareModal
-          session={shareModalSession}
-          webServerMode={webServerMode}
-          webServerRunning={webServerRunning}
-          onClose={() => setShareModalSession(null)}
-          shellWebShareWarned={shellWebShareWarned}
-          shellWebShareWarningEnabled={shellWebShareWarningEnabled}
-          onShellWebShareConfirm={onShellWebShareConfirm}
-          onShellWebShareCancel={onShellWebShareCancel}
-          onOpenHelp={onOpenHelp}
-        />
-      )}
+      {/* Phase 168-05 (UX-02): the SessionShareModal component is no longer rendered
+          here — it moved to App.tsx (single top-level instance, always mounted
+          regardless of active tab; see App.tsx and the HubPanelProps comment above).
+          The card's Share button still opens it via the setShareModalSession
+          controlled prop. */}
 
       {modalState && relayPort !== undefined && relayPort > 0 && (() => {
         // Compute isRemote at render time (same rule as handleCardClick).
