@@ -456,7 +456,7 @@ Plans:
 
   *(Note: toggle placement moved to the **Behavior** section per the LOCKED user correction in 167-CONTEXT.md — success-criterion-4 "Session Behavior" wording is superseded; intent unchanged.)*
 
-**Plans**: 4/4 plans complete
+**Plans**: 4/4 plans complete + 1 gap-closure plan (M-41 regression)
 
 Plans:
 **Wave 1**
@@ -471,6 +471,10 @@ Plans:
 **Wave 3** *(blocked on Wave 2)*
 
 - [x] 167-04-PLAN.md — Settings Behavior-section toggle (default off) + search entry + TESTING.md Category U / M-41 / traceability (NTF-04)
+
+**Gap closure** *(M-41 regression — unguarded native notification crash)*
+
+- [ ] 167-05-PLAN.md — Harden the darwin native notification path: bundle-id guard + @try/@catch + Go log-and-swallow so the always-on tray poller can no longer abort the GUI process under wails dev; headless bundle-id regression test + TESTING.md registration (NTF-01/02/03/04)
 
 **UI hint**: yes
 
