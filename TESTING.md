@@ -26,11 +26,13 @@ The entire CI suite IS the regression suite. No build tags, no relocated files �
 | Group | Count | Location | Run Command | Guards |
 |-------|-------|----------|-------------|--------|
 | Go unit/integration | **368** `*_test.go` files | `internal/`, repo root | `go test -race -short ./...` | Daemon API, relay wire framing, capability model, PTY, webserver, files, status, tailnet |
-| vitest (frontend) | **132** `*.test.ts/tsx` files | `frontend/src/` | `cd frontend && pnpm test` | React component render contracts, UI state, CSS token source gates, lib adapters (relay, remote, hub, status) |
+| vitest (frontend) | **134** `*.test.ts/tsx` files | `frontend/src/` | `cd frontend && pnpm test` | React component render contracts, UI state, CSS token source gates, lib adapters (relay, remote, hub, status) |
 | Playwright e2e | **9** `*.spec.ts` files | `frontend/e2e/` | `cd frontend && pnpm exec playwright test` | Web surface: file browser cap gate, file write/upload/delete, CSP, web-links toggle, plugin hot-swap, vendored xterm addons, cross-surface chat parity gate (PARITY-01/EXPORT-01), web-share guest scope (WEBCHAT-03) |
 | build-script | **2** `build-script.test.sh, install-sh.test.sh` | `tests/` | `bash tests/build-script.test.sh && bash tests/install-sh.test.sh` | Go build + Wails asset embedding |
-| **Total** | **511** | — | — | — |
+| **Total** | **513** | — | — | — |
 
+> Note: Phase 166 (FUI-01..06 + HLP-01/02, Funnel frontend + Help guide): vitest +2 new files — `frontend/src/components/__tests__/funnelBinding.contract.test.tsx` (166-01: `?raw` import-contract guard for the hand-authored `SetSessionFunnel` stub + `SessionInfo.funnelActive` field) and `frontend/src/components/__tests__/FunnelRiskPanel.test.tsx` (166-02: risk statement, five expiry presets + 3600 default, Help cross-link, onEnable/onCancel). Coverage also added to existing files: `SessionShareModal.test.tsx` (two-step enable gesture, local-fallback fail-closed D-15, warm-up → live URL, one-click disable, 30s timeout + timer cleanup), `SessionSharePanel.test.tsx` (Internet (public) read-only URL + Copy URL/Open/QR, warm-up/timeout copy, no-write-link D-12), `SessionCard.test.tsx` + `TabBar.test.tsx` (colorblind-safe internet-exposure indicators driven by funnelActive), `HelpTab.integration.test.tsx` (sharing-guide article in both nav arrays). Implementation: `FunnelRiskPanel.tsx`, `SessionShareModal.tsx`, `SessionSharePanel.tsx`, `HubPanel.tsx` (shareModalSession poll-sync), `SessionCard.tsx`, `TabBar.tsx`, `App.tsx`, `HelpTab.tsx`, `HelpSectionNav.tsx`, `content/help/sharing-guide.md`, `style.css` (tokens + component classes). Counts 132→134 vitest / 511→513 total. Added M-37..M-40 manual checklist items.
+>
 > Note: Phase 165-03 (FNL-01, Wails bridge — App.SetSessionFunnel + DaemonClient.SetSessionFunnel + SessionInfo.FunnelActive): No new test files — tests added to existing `app_test.go` (TestApp_SetSessionFunnel_NilClient nil-guard, TestListSessions_PropagatesFunnelActive true/false propagation via fake funnelClient seam; appTestFakeFunnelClient test double + testAppWithAPI helper added) and `internal/daemon/client_test.go` (TestDaemonClient_SetSessionFunnel httptest POST /sessions/{id}/funnel body assertion, TestDaemonClient_SetSessionFunnel_ErrorStatus non-2xx surfaces error). Implementation: `app.go` (SessionInfo.FunnelActive bool json:"funnelActive", App.SetSessionFunnel bound method, ListSessions copy-loop FunnelActive propagation), `internal/daemon/client.go` (DaemonClient.SetSessionFunnel). Counts unchanged (368 Go / 511 total). New traceability rows for `app_test.go` and `internal/daemon/client_test.go` added under FNL-01.
 
 > Note: Phase 165-02 (FNL-01/FNL-03/FNL-05/FNL-07, Tailscale Funnel lifecycle — daemon half): Go +1 (`internal/daemon/funnel_test.go` — daemonFakeFunnelClient stateful test double, TestFunnelSessionsMap FNL-01 off-by-default, TestHandleSetSessionFunnel_Enable/DisableTeardown enable/disable lifecycle, TestFunnelAutoExpiry FNL-07 timer-based teardown, TestFunnelTeardown_AllTriggers 5-trigger table test, TestFunnelTeardown_RefCountKeepsSiblingUp sibling-session ref-count guard, TestIssueCapabilities_FunnelURL FNL-03 URL builder, TestExchangeJoinCode_FunnelURL_GateIntact FNL-03 join-code gate intact, TestStartupClearsLingeringFunnel T-165-12). Implementation: `internal/daemon/api.go` (funnelSessions/funnelExpiry maps, POST /sessions/{id}/funnel route, handleSetSessionFunnel, disableFunnelForSession ref-counted helper, handleWebServe site-2 wiring, runSessionExitCleanup site-3 wiring, Funnel-aware issueCapabilitiesForSession + handleExchangeJoinCode, AutoStartWebServer ClearLingeringFunnel), `internal/daemon/types.go` (SetSessionFunnelRequest/Response, SessionInfo.FunnelActive), `internal/webserver/funnel_client.go` (FunnelClientForTest alias + SetFunnelClientForTest seam). Counts updated 367→368 Go / 510→511 total. Added M-34..M-36 manual checklist items.
@@ -281,6 +283,21 @@ The path column must contain a repo-relative file path ending in `.go`, `.ts`, `
 | FNL-05 | internal/daemon/funnel_test.go | Go | Phase 165-02: TestFunnelTeardown_AllTriggers — 5-trigger table test: (1) toggle-off, (2) web-share-off, (3) runSessionExitCleanup, (4) ws.Stop(), (5) expiry timer — each leaves fake IsFunnelOn=false, each driven through its real entry point. TestFunnelTeardown_RefCountKeepsSiblingUp — disabling session A (of 2) leaves config active; disabling B (len==0) calls DisableFunnel. Phase 165-04: TestFunnelTeardown_KillPath — DELETE /sessions/{id} (explicit kill) clears fake config and FunnelActive (single-session sub-case); killing A leaves B's Funnel up (ref-count guard), B's natural-exit cleanup then clears config — stale-ref-count regression guard (GAP 2 kill-path fix). |
 | FNL-06 | internal/webserver/funnel_test.go | Go | Phase 165-01: TestEnableFunnel_PrereqCheckPreventsSetServeConfig — CheckFunnelAccess returns error when CapabilityHTTPS / NodeAttrFunnel absent; SetServeConfig never called; error propagated verbatim (FNL-06 human-readable error passthrough). |
 | FNL-07 | internal/daemon/funnel_test.go | Go | Phase 165-02: TestFunnelAutoExpiry — POST {enabled:true, expiresIn:1} registers real time.AfterFunc; after timer fires (~1s) fake IsFunnelOn=false with no HTTP call. Re-enable before expiry cancels prior timer: long-expiry re-enable keeps config active 2s past the 1s window. TestFunnelTeardown_AllTriggers/5_expiry_timer — same assertion in trigger 5 sub-test. |
+| FUI-01 | frontend/src/components/__tests__/FunnelRiskPanel.test.tsx | vitest | Phase 166-02: verbatim risk statement; panel is presentational (no SetSessionFunnel call — D-02). |
+| FUI-01 | frontend/src/components/__tests__/SessionShareModal.test.tsx | vitest | Phase 166-02: toggle ON opens the risk panel on every enable and does NOT call SetSessionFunnel; local-fallback (webServerMode!=='tailscale') disables the toggle + blocks the call (D-15). |
+| FUI-02 | frontend/src/components/__tests__/FunnelRiskPanel.test.tsx | vitest | Phase 166-02: five auto-expiry presets 1800/3600/14400/28800/0 with 3600 (1 hour) default; onExpiryChange fires the numeric value. |
+| FUI-02 | frontend/src/components/__tests__/SessionShareModal.test.tsx | vitest | Phase 166-02: explicit "Enable internet share" CTA commits SetSessionFunnel(id,true,expirySeconds) with the selected preset. |
+| FUI-03 | frontend/src/components/Hub/SessionCard.test.tsx | vitest | Phase 166-03: Hub-card internet badge (GlobeAltIcon + "INTERNET") driven by funnelActive — colorblind-safe (shape + text carry state). |
+| FUI-03 | frontend/src/components/__tests__/TabBar.test.tsx | vitest | Phase 166-03: session-tab globe icon with aria-label/title "Internet exposed" when funnelActive; absent otherwise. |
+| FUI-04 | frontend/src/components/__tests__/SessionSharePanel.test.tsx | vitest | Phase 166-05: single-click "Disable internet share" invokes onDisableFunnel (no confirm dialog — D-13). |
+| FUI-04 | frontend/src/components/__tests__/SessionShareModal.test.tsx | vitest | Phase 166-05: disable calls SetSessionFunnel(id,false,0) and clears the 30s warm-up timer (no late fire). |
+| FUI-05 | frontend/src/components/__tests__/SessionSharePanel.test.tsx | vitest | Phase 166-05: Internet (public) read-only URL with Copy URL (ClipboardSetText)/Open (BrowserOpenURL)/QR; warm-up "Starting up…" + timeout copy; no public write link (D-12). |
+| FUI-05 | frontend/src/components/__tests__/SessionShareModal.test.tsx | vitest | Phase 166-05: warm-up state after enable → IssueCapabilities re-issue on funnelActive flip → funnelUrl reveal; 30s timeout error. |
+| FUI-05 | frontend/src/components/__tests__/funnelBinding.contract.test.tsx | vitest | Phase 166-01: SetSessionFunnel binding contract (App.d.ts 3-arg signature + App.js Call wrapper) + SessionInfo.funnelActive field. |
+| FUI-06 | frontend/src/components/__tests__/FunnelRiskPanel.test.tsx | vitest | Phase 166-02: "Want tighter containment? See the Sharing Guide →" cross-link fires onOpenHelp. |
+| FUI-06 | frontend/src/components/__tests__/SessionShareModal.test.tsx | vitest | Phase 166-02: risk-panel Help link invokes the modal's onOpenHelp callback (closes modal + delegates). |
+| HLP-01 | frontend/src/components/__tests__/HelpTab.integration.test.tsx | vitest | Phase 166-04: sharing-guide article registered in BOTH nav arrays (SECTION_META + SECTIONS); section present, ordering chat→sharing→faq. |
+| HLP-02 | frontend/src/components/__tests__/HelpTab.integration.test.tsx | vitest | Phase 166-04: sharing-guide content — copy-pasteable ACL grant block, wildcard-default gotcha, Tailscale doc links (no raw `<a>` tags). |
 
 ---
 
@@ -562,6 +579,36 @@ The alias-set wire contract, client-side validateAlias, alias-control component 
   - _Why not automatable:_ Requires stopping the real system tailscaled; test environments cannot simulate the CheckFunnelAccess failure + fallback-mode coexistence scenario without a real tailscaled binary.
   - _2026-06-30 live result:_ With Tailscale disconnected, AgentHub auto-started the web server in **local mode** (`https://10.200.3.106:7443`, LAN IP — not the tailnet). Local web-share served correctly behind Basic Auth (correct password → 302; wrong password → 401). Enabling Funnel **failed closed**: HTTP 400, no serve config written, local web-share unaffected afterward. PASS. NOTE: the 400 body is `funnel: loopback listener not started` (the 165-05 loopback nil-guard — `startLocal` creates no loopback listener) rather than a CheckFunnelAccess "Funnel not available" message, because `CheckFunnelAccess` validates cached node capabilities (HTTPS+Funnel attr+port policy), which persist while tailscaled is stopped. Behavior is correct + fail-closed; the user-facing wording + disabling the Funnel toggle in fallback mode is Phase 166 (Share-modal / FUI) work.
   - _Source:_ Phase 165 FNL-06 / T-165-03 (fallback-mode safety); automated coverage in `TestEnableFunnel_FallbackModeSafe` (webserver) + FNL-06 in `TestEnableFunnel_PrereqCheckPreventsSetServeConfig`.
+
+### Category T — Funnel Frontend (FUI)
+
+- **M-37** Live Funnel enable — TLS warm-up completes and the public URL opens off-tailnet (FUI-05):
+  1. In a **PRODUCTION build** (`wails build -tags wailsassets` — the daemon only serves `/app/` from the embedded SPA in production; see M-34), open the Share modal for a session on a Tailscale-connected machine with Funnel granted.
+  2. Toggle "Enable internet sharing" ON → the inline risk panel appears. Pick an expiry, click "Enable internet share".
+  3. Confirm the Internet (public) section shows "Starting up… (TLS warming up)" first, then reveals a single read-only "Public URL (read-only):" once the Funnel is live.
+  4. From a device NOT on the tailnet, open that URL and confirm the session loads (HTTP 200). Confirm no public write link is ever shown (D-12).
+  - _Why not automatable:_ requires live tailscaled + Funnel grant + an off-tailnet device; the vitest suite mocks IssueCapabilities/SetSessionFunnel. Automated coverage of the warm-up→URL state machine is in `SessionShareModal.test.tsx` / `SessionSharePanel.test.tsx`.
+  - _Source:_ Phase 166 FUI-05.
+
+- **M-38** Live auto-expiry teardown at the chosen duration (FUI-02):
+  1. Enable Funnel with a short expiry preset (e.g. 30 minutes; or use the daemon's `expiresIn` directly for a faster loop).
+  2. Wait past the chosen duration and confirm `tailscale serve status` shows the Funnel torn down and the internet-exposure indicators clear on the next poll — without any manual disable.
+  - _Why not automatable:_ requires a live tailnet + wall-clock expiry; the timer logic is fake-verified in `TestFunnelAutoExpiry` (daemon) and the UI expiry-preset commit in `SessionShareModal.test.tsx`.
+  - _Source:_ Phase 166 FUI-02 (+ Phase 165 FNL-07 backend).
+
+- **M-39** Internet-exposure indicators appear while active and clear after disable (FUI-03/FUI-04):
+  1. Enable Funnel for a session. Confirm the Hub card shows the globe + "INTERNET" badge and the session tab shows the globe icon (hover/inspect: aria-label/title "Internet exposed").
+  2. Click "Disable internet share" (single click, no confirm). Confirm both indicators clear on the next 3s poll and `tailscale serve status` is empty.
+  - _Colorblind note:_ verify state is carried by the globe **shape** + "INTERNET"/"Internet exposed" **text**, not color alone (user is colorblind). Source-level hex is asserted in `style.css`; on-screen check confirms shape+text.
+  - _Why not automatable:_ end-to-end poll→indicator→teardown needs a live daemon + tailnet; component render is unit-covered in `SessionCard.test.tsx` / `TabBar.test.tsx`.
+  - _Source:_ Phase 166 FUI-03 / FUI-04.
+
+- **M-40** Local-fallback: the Funnel toggle is disabled when Tailscale is not the web-server mode (D-15):
+  1. With tailscaled stopped (or web-server in local mode), open the Share modal.
+  2. Confirm the "Enable internet sharing" toggle is disabled (greyed, non-interactive) with the note "Internet sharing requires Tailscale", and no risk panel can be opened.
+  3. Reconnect Tailscale, reopen the modal, and confirm the toggle re-enables.
+  - _Why not automatable:_ requires toggling the real system tailscaled / web-server mode; the fail-closed disable + note is unit-asserted in `SessionShareModal.test.tsx` (webServerMode='local').
+  - _Source:_ Phase 166 FUI-01 / D-15 (mirrors Phase 165 FNL boundary M-36).
 
 ---
 
