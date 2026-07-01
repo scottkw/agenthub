@@ -206,6 +206,7 @@ export namespace main {
 	    webEnabled: boolean;
 	    homeDir: boolean;
 	    browseEnabled: boolean;
+	    funnelActive: boolean;
 	    viewerCount: number;
 	    exitCode?: number;
 	    duration?: number;
@@ -227,6 +228,7 @@ export namespace main {
 	        this.webEnabled = source["webEnabled"];
 	        this.homeDir = source["homeDir"];
 	        this.browseEnabled = source["browseEnabled"];
+	        this.funnelActive = source["funnelActive"];
 	        this.viewerCount = source["viewerCount"];
 	        this.exitCode = source["exitCode"];
 	        this.duration = source["duration"];
