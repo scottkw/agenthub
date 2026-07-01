@@ -10,12 +10,15 @@ package main
 
 int hasValidBundleIdentifier(void);
 void sendNotification(const char *identifier, const char *title, const char *body);
+void requestNotificationAuthorization(void);
 */
 import "C"
 
 import (
 	"log"
 	"unsafe"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // hasAppBundleID reports whether the running process has a valid app-bundle
@@ -41,6 +44,7 @@ func sendNotification(identifier, title, body string) {
 		log.Printf("notification: skipping — no valid app-bundle identifier (unbundled/unsigned process)")
 		return
 	}
+	log.Printf("notification: dispatching native notification for identifier %s", identifier)
 	cid := C.CString(identifier)
 	ctitle := C.CString(title)
 	cbody := C.CString(body)
@@ -48,4 +52,29 @@ func sendNotification(identifier, title, body string) {
 	C.free(unsafe.Pointer(cid))
 	C.free(unsafe.Pointer(ctitle))
 	C.free(unsafe.Pointer(cbody))
+}
+
+// requestNotificationAuth is the darwin implementation of the cross-platform
+// proactive-authorization seam (app.go's requestNotificationAuthFunc). Called
+// when the user enables the NotifyOnWaiting toggle (Phase 167-06, M-41 gap
+// closure) so the macOS permission prompt surfaces at toggle-time instead of
+// only lazily on the first waiting transition.
+func requestNotificationAuth() {
+	log.Printf("notification: requesting proactive native authorization")
+	C.requestNotificationAuthorization()
+}
+
+//export onNotificationAuthResult
+func onNotificationAuthResult(granted C.int) {
+	log.Printf("notification: proactive authorization result granted=%d", int(granted))
+	if granted != 0 {
+		return
+	}
+	// Hand off to a goroutine — the completion-handler thread is not safe for
+	// all Wails calls (mirrors onTraySession in tray.go).
+	go func() {
+		if appInstance != nil && appInstance.ctx != nil {
+			runtime.EventsEmit(appInstance.ctx, "notification:permission-denied", nil)
+		}
+	}()
 }

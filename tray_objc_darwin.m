@@ -13,6 +13,16 @@
 extern void onTrayShow(void);
 extern void onTrayQuit(void);
 extern void onTraySession(int idx);
+// onNotificationAuthResult reports the outcome of a proactive
+// UNUserNotificationCenter authorization request back to Go (Phase 167-06,
+// M-41 gap closure) so the frontend can be told when the user denies
+// permission (notification_darwin.go //export onNotificationAuthResult).
+extern void onNotificationAuthResult(int granted);
+
+// Forward-declare hasValidBundleIdentifier (defined below, near sendNotification)
+// so the delegate-registration/authorization helpers declared earlier in this
+// file (which run before its definition point) can call it.
+int hasValidBundleIdentifier(void);
 
 NSStatusItem *statusItem = nil;
 NSMutableArray *menuSessionNames = nil;
@@ -59,6 +69,73 @@ BOOL daemonConnected = YES;
 @end
 
 static AgentHubMenuDelegate *menuDelegate = nil;
+
+// AgentHubNotificationDelegate presents notifications while AgentHub is the
+// frontmost app (Phase 167-06, M-41 gap closure). Without a registered
+// UNUserNotificationCenterDelegate, UNUserNotificationCenter suppresses
+// banners/sounds for the foreground app by default, silently swallowing the
+// notification even when authorization was granted and delivery succeeded.
+@interface AgentHubNotificationDelegate : NSObject <UNUserNotificationCenterDelegate>
+@end
+
+@implementation AgentHubNotificationDelegate
+- (void)userNotificationCenter:(UNUserNotificationCenter *)center
+        willPresentNotification:(UNNotification *)notification
+          withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler {
+    completionHandler(UNNotificationPresentationOptionBanner |
+                       UNNotificationPresentationOptionList |
+                       UNNotificationPresentationOptionSound);
+}
+@end
+
+static AgentHubNotificationDelegate *notificationDelegate = nil;
+
+// registerNotificationDelegate installs the foreground-presentation delegate
+// on UNUserNotificationCenter. Idempotent (safe to call repeatedly) and
+// bundle-guarded — mirrors the 167-05 fail-safe pattern so an unbundled
+// process (wails dev / go test) log-and-swallows instead of raising an
+// uncaught NSInternalInconsistencyException.
+void registerNotificationDelegate(void) {
+    if (!hasValidBundleIdentifier()) {
+        NSLog(@"AgentHub: skipping notification delegate registration — no valid app-bundle identifier (unbundled/unsigned process)");
+        return;
+    }
+    @try {
+        if (notificationDelegate == nil) {
+            notificationDelegate = [[AgentHubNotificationDelegate alloc] init];
+        }
+        [UNUserNotificationCenter currentNotificationCenter].delegate = notificationDelegate;
+    } @catch (NSException *e) {
+        NSLog(@"AgentHub: swallowed exception registering notification delegate: %@", e);
+    }
+}
+
+// requestNotificationAuthorization proactively surfaces the macOS
+// notification-permission prompt (Phase 167-06, M-41 gap closure — the
+// leading suspected fix: during UAT the app showed as "Off" in System
+// Settings with NO prompt ever seen). Called from Go when the user enables
+// the NotifyOnWaiting toggle, instead of waiting for the first lazy
+// sendNotification call. Bundle-guarded + dispatched to the main queue,
+// mirroring sendNotification's fail-safe contract.
+void requestNotificationAuthorization(void) {
+    if (!hasValidBundleIdentifier()) {
+        NSLog(@"AgentHub: skipping notification authorization request — no valid app-bundle identifier (unbundled/unsigned process)");
+        return;
+    }
+    dispatch_async(dispatch_get_main_queue(), ^{
+        @try {
+            registerNotificationDelegate();
+            [[UNUserNotificationCenter currentNotificationCenter]
+                requestAuthorizationWithOptions:(UNAuthorizationOptionAlert | UNAuthorizationOptionSound)
+                completionHandler:^(BOOL granted, NSError *error) {
+                NSLog(@"AgentHub: proactive notification authorization result granted=%d error=%@", granted, error);
+                onNotificationAuthResult(granted ? 1 : 0);
+            }];
+        } @catch (NSException *e) {
+            NSLog(@"AgentHub: swallowed exception requesting proactive notification authorization: %@", e);
+        }
+    });
+}
 
 // initStatusItem creates a macOS status bar item with a dynamic menu delegate.
 void initStatusItem(const void *iconData, int iconLen) {
@@ -183,11 +260,16 @@ void sendNotification(const char *identifier, const char *title, const char *bod
     NSString *nsTitle = [NSString stringWithUTF8String:title];
     NSString *nsBody  = [NSString stringWithUTF8String:body];
     dispatch_async(dispatch_get_main_queue(), ^{
+        NSLog(@"AgentHub: dispatching native notification for identifier %@", nsIdentifier);
+        registerNotificationDelegate();
         @try {
             UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
             [center requestAuthorizationWithOptions:(UNAuthorizationOptionAlert | UNAuthorizationOptionSound)
                 completionHandler:^(BOOL granted, NSError *error) {
-                if (!granted) return;
+                if (!granted) {
+                    NSLog(@"AgentHub: notification authorization NOT granted for identifier %@ (error=%@)", nsIdentifier, error);
+                    return;
+                }
                 dispatch_async(dispatch_get_main_queue(), ^{
                     @try {
                         UNMutableNotificationContent *content = [[UNMutableNotificationContent alloc] init];
@@ -197,7 +279,13 @@ void sendNotification(const char *identifier, const char *title, const char *bod
                             requestWithIdentifier:nsIdentifier
                             content:content
                             trigger:nil];
-                        [center addNotificationRequest:req withCompletionHandler:nil];
+                        [center addNotificationRequest:req withCompletionHandler:^(NSError * _Nullable error) {
+                            if (error != nil) {
+                                NSLog(@"AgentHub: notification delivery FAILED for identifier %@: %@", nsIdentifier, error);
+                            } else {
+                                NSLog(@"AgentHub: notification delivery accepted for identifier %@", nsIdentifier);
+                            }
+                        }];
                     } @catch (NSException *e) {
                         NSLog(@"AgentHub: swallowed exception adding notification request: %@", e);
                     }
