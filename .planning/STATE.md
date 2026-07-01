@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Funnel Sharing & Polish
-current_phase: 167
-current_phase_name: native-notifications
-status: executing
-stopped_at: Completed 167-07-PLAN.md (M-41 gap closure, frontend half — permission-denied hint) -- Phase 167 both gap-closure plans (06 backend, 07 frontend) done; awaiting M-41 signed-build re-run
-last_updated: "2026-07-01T13:54:06.009Z"
+current_phase: 168
+current_phase_name: bug-fix-settings-polish
+status: not-started
+stopped_at: Phase 167 (native-notifications) CLOSED complete 2026-07-01 — code-verified 11/11; sole open truth (M-41 live on-screen notification delivery on signed macOS/Windows/Linux builds) DEFERRED to release-time UAT (inherently unautomatable). Phase 168 not yet planned.
+last_updated: "2026-07-01T14:30:00.000Z"
 last_activity: 2026-07-01
-last_activity_desc: Completed 167-06-PLAN.md (M-41 live-delivery gap closure, instrumentation-first)
+last_activity_desc: Closed Phase 167 complete with M-41 live-delivery deferred; advanced to Phase 168 (bug-fix-settings-polish)
 progress:
   total_phases: 4
   completed_phases: 3
@@ -28,13 +28,13 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 ## Current Position
 
-Phase: 167 (native-notifications) — EXECUTING
-Plan: 7 of 7
-Status: Ready to execute
-Last activity: 2026-07-01 — Completed 167-06-PLAN.md (M-41 live-delivery gap closure, instrumentation-first)
+Phase: 168 (bug-fix-settings-polish) — NOT STARTED (next: /gsd-plan-phase 168)
+Plan: — of —
+Status: Ready to plan
+Last activity: 2026-07-01 — Closed Phase 167 complete (M-41 live delivery deferred); advanced to Phase 168
 
 ```
-v4.2 Progress: [██████████░░░░░░░░░░] 50% (2/4 phases — 165 ✅ DONE (live), 166 ✅ DONE (verified 8/8))
+v4.2 Progress: [███████████████░░░░░] 75% (3/4 phases — 165 ✅ DONE (live), 166 ✅ DONE (verified 8/8), 167 ✅ DONE (code-verified 11/11; M-41 live deferred))
 ```
 
 ## Live UAT Findings (2026-06-30, real Funnel-granted tailnet)
@@ -71,9 +71,9 @@ v4.2 Progress: [██████████░░░░░░░░░░] 50
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
 | 165 | Funnel Backend | FNL-01, FNL-02, FNL-03, FNL-04, FNL-05, FNL-06, FNL-07 | ✅ DONE — code-verified + all live UAT pass (M-34 off-tailnet 200, M-35 a/b/c/d, M-36 fallback) |
-| 166 | Funnel Frontend + Help Guide | FUI-01, FUI-02, FUI-03, FUI-04, FUI-05, FUI-06, HLP-01, HLP-02 | Not started |
-| 167 | Native Notifications | NTF-01, NTF-02, NTF-03, NTF-04 | 📋 PLANNED — 4 plans/3 waves, plan-checker PASSED (macOS=native path, Win/Linux=beeep, toggle in Behavior section) |
-| 168 | Bug Fix & Settings Polish | FIX-01, FIX-02, FIX-03, UX-01, UX-02 | Not started |
+| 166 | Funnel Frontend + Help Guide | FUI-01, FUI-02, FUI-03, FUI-04, FUI-05, FUI-06, HLP-01, HLP-02 | ✅ DONE — verified 8/8 (2026-06-30); human UAT fixed 4 CSS defects (f3c8d848); M-37–M-40 pending prod-build UAT |
+| 167 | Native Notifications | NTF-01, NTF-02, NTF-03, NTF-04 | ✅ DONE — 7/7 plans, code-verified 11/11; **M-41 live delivery DEFERRED** to release-time UAT (signed builds, unautomatable) |
+| 168 | Bug Fix & Settings Polish | FIX-01, FIX-02, FIX-03, UX-01, UX-02 | ⬜ Not started — next: /gsd-plan-phase 168 |
 
 **Total:** 24 requirements mapped across 4 phases (100% coverage).
 
@@ -125,6 +125,8 @@ v4.2 Progress: [██████████░░░░░░░░░░] 50
 | operator_runtime | `RELEASE_PUBLISH_TOKEN` PAT | pending (one-time, before next release) |
 | operator_runtime | `WINGET_FIRST_SUBMISSION=true` variable + post-merge cleanup | pending (PR microsoft/winget-pkgs#395007 open) |
 | manual_uat | INSTALL-01 / M-25 clean-box Linux install | deferred from v4.1; runs at release-time after `main` pushed |
+| manual_uat | **Phase 167 M-41** — native notification live on-screen delivery (macOS/Windows/Linux) on a SIGNED PRODUCTION BUILD; toggle-on shows exactly one AgentHub-attributed toast on non-waiting→waiting while tray-hidden, toggle-off shows none | deferred (release-time; inherently unautomatable — `wails dev` returns documented no-bundle state; code-verified 11/11 + M-41 crash-hardened 167-05) |
+| manual_uat | **Phase 166 M-37–M-40** — Funnel Share modal / help-guide prod-build UAT (carry-forward from partial 4/8 human UAT) | deferred (release-time, prod build) |
 | manual_uat | Phase 125 editor on-screen render + CodeMirror Tab/Cmd-V in WebView | pending (live app required) |
 | manual_uat | Phase 126 `$EDITOR` suspend-resume terminal restore | pending (live app required) |
 | manual_uat | Phase 124 home-dir warning banner on-screen | pending (live app required) |
@@ -133,10 +135,10 @@ v4.2 Progress: [██████████░░░░░░░░░░] 50
 
 ## Session Continuity
 
-Last session: 2026-07-01T13:54:06.000Z
-Stopped at: Completed 167-07-PLAN.md (M-41 gap closure, frontend half — permission-denied hint) -- Phase 167 both gap-closure plans (06 backend, 07 frontend) done; awaiting M-41 signed-build re-run
+Last session: 2026-07-01T14:30:00.000Z
+Stopped at: Phase 167 (native-notifications) CLOSED complete — M-41 live delivery deferred to release-time UAT. Advanced to Phase 168 (bug-fix-settings-polish), not yet planned.
 Resume file: None
-Next action: Phase 167's M-41 crash regression is now hardened (bundle-id guard + @try/@catch in the darwin native notification path). Run `/gsd-verify-work 167` to re-run M-41 on a SIGNED PRODUCTION BUILD (not `wails dev`) on macOS/Windows/Linux — confirms real toast delivery + tray-hidden behavior with the hardening in place. This is the sole remaining open item before Phase 167 can be marked complete and Phase 168 (Bug Fix & Settings Polish) begins.
+Next action: Phase 168 (Bug Fix & Settings Polish) is the last open v4.2 phase — FIX-01/02/03 + UX-01/02 (#112 web-guest plugin-config SSE, #117 multi-viewer kick + disconnect UI, #118 remote-open in-app tab, #115 Footer Share modal, #116 Hub auto-switch setting). Run `/gsd-plan-phase 168` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
 
 ## Decisions (carry-forward from v4.1 — architecture reference)
 

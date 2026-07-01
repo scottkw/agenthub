@@ -386,7 +386,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 - [x] **Phase 165: Funnel Backend** - Atomic Funnel lifecycle: LocalClient promotion, EnableFunnel/DisableFunnel, Funnel-aware Origin allowlist + BaseURL + share-URL builders, four-path teardown, CheckFunnelAccess preflight, auto-expiry enforcement (completed 2026-06-30)
 - [x] **Phase 166: Funnel Frontend + Help Guide** (5/5 plans) — completed 2026-06-30, verified 8/8 - Risk-acknowledgment dialog, auto-expiry selector, colorblind-safe internet-exposure indicator, Funnel URL display, one-click disable, in-app Sharing Guide Help article
-- [x] **Phase 167: Native Notifications** - beeep cross-platform notification on waiting-state transition, de-dup guard, Settings toggle (default off) (5/5 plans executed 2026-07-01, incl. 167-05 M-41 crash-regression gap closure — awaiting M-41 re-run on signed build) (completed 2026-07-01)
+- [x] **Phase 167: Native Notifications** - beeep cross-platform notification on waiting-state transition, de-dup guard, Settings toggle (default off) (7/7 plans executed 2026-07-01, incl. 167-05/06/07 M-41 crash-hardening + instrumentation + permission-denied hint) — CLOSED complete 2026-07-01; code-verified 11/11, M-41 live on-screen delivery DEFERRED to release-time UAT on signed macOS/Windows/Linux builds (inherently unautomatable)
 - [ ] **Phase 168: Bug Fix & Settings Polish** - Fix #112 (web-guest plugin-config SSE), #117 (multi-viewer kick + disconnect UI), #118 (remote-open in-app tab), #115 (Footer Share modal), #116 (Hub auto-switch setting)
 
 ## Phase Details
