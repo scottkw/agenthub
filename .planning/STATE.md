@@ -4,17 +4,17 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 168
 current_phase_name: bug-fix-settings-polish
-status: executing
-stopped_at: Completed 168-06-PLAN.md
-last_updated: "2026-07-01T21:49:25.520Z"
+status: verifying
+stopped_at: Completed 168-07-PLAN.md — Phase 168 all 7 plans executed, ready for verification
+last_updated: "2026-07-01T22:04:04.141Z"
 last_activity: 2026-07-01
 last_activity_desc: Phase 168 execution started
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 24
-  completed_plans: 23
-  percent: 60
+  completed_plans: 24
+  percent: 80
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 Phase: 168 (bug-fix-settings-polish) — EXECUTING
 Plan: 7 of 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-01 — Phase 168 execution started
 
 ```
@@ -137,8 +137,8 @@ v4.2 Progress: [████████████░░░░░░░░] 60
 
 ## Session Continuity
 
-Last session: 2026-07-01T21:49:25.512Z
-Stopped at: Completed 168-06-PLAN.md
+Last session: 2026-07-01T22:04:04.132Z
+Stopped at: Completed 168-07-PLAN.md — Phase 168 all 7 plans executed, ready for verification
 Resume file: None
 Next action: Phase 168 (Bug Fix & Settings Polish) is the last open v4.2 phase — FIX-01/02/03 + UX-01/02 (#112 web-guest plugin-config SSE, #117 multi-viewer kick + disconnect UI, #118 remote-open in-app tab, #115 Footer Share modal, #116 Hub auto-switch setting). Run `/gsd-plan-phase 168` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
 
@@ -221,6 +221,7 @@ Next action: Phase 168 (Bug Fix & Settings Polish) is the last open v4.2 phase �
 | Phase 168 P04 | 12min | 3 tasks | 8 files |
 | Phase 168 P05 | 29min | 2 tasks | 7 files |
 | Phase 168 P06 | 9min | 3 tasks | 10 files |
+| Phase 168 P07 | 15min | 2 tasks | 1 files |
 
 ## Decisions
 
@@ -263,3 +264,5 @@ Next action: Phase 168 (Bug Fix & Settings Polish) is the last open v4.2 phase �
 - [Phase 168-06]: Disconnect RPC registered on the daemon-local api.go mux (same trust boundary as ToggleWebServing/SetSessionFunnel), never a guest-reachable /api/... route (T-168-07)
 - [Phase 168-06]: No eviction-on-subscribe logic added; TestHub_TwoWebOriginSubscribers_NoEviction proves #117 Part A does not reproduce in current code
 - [Phase 168-06]: Disconnect drops connections only (D-06) -- never calls ToggleWebServing(false) or revokes the capability
+- [Phase ?]: Phase 168-07: fixed pre-existing Suite Manifest Total off-by-one (524->525)
+- [Phase ?]: Phase 168-07: plans 168-01..06 self-registered TESTING.md changes inline per-plan rather than deferring to this isolated final plan; 168-07 closed remaining gaps (FIX-04 traceability, M-13 reword, M-42/M-43 manual items)

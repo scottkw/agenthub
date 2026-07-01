@@ -387,7 +387,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 165: Funnel Backend** - Atomic Funnel lifecycle: LocalClient promotion, EnableFunnel/DisableFunnel, Funnel-aware Origin allowlist + BaseURL + share-URL builders, four-path teardown, CheckFunnelAccess preflight, auto-expiry enforcement (completed 2026-06-30)
 - [x] **Phase 166: Funnel Frontend + Help Guide** (5/5 plans) — completed 2026-06-30, verified 8/8 - Risk-acknowledgment dialog, auto-expiry selector, colorblind-safe internet-exposure indicator, Funnel URL display, one-click disable, in-app Sharing Guide Help article
 - [x] **Phase 167: Native Notifications** - beeep cross-platform notification on waiting-state transition, de-dup guard, Settings toggle (default off) (7/7 plans executed 2026-07-01, incl. 167-05/06/07 M-41 crash-hardening + instrumentation + permission-denied hint) — CLOSED complete 2026-07-01; code-verified 11/11, M-41 live on-screen delivery DEFERRED to release-time UAT on signed macOS/Windows/Linux builds (inherently unautomatable)
-- [ ] **Phase 168: Bug Fix & Settings Polish** - Fix #112 (web-guest plugin-config SSE), #117 (multi-viewer kick + disconnect UI), #118 (remote-open in-app tab), #115 (Footer Share modal), #116 (Hub auto-switch setting), #121 (phantom viewer count — pairs with #117)
+- [x] **Phase 168: Bug Fix & Settings Polish** - Fix #112 (web-guest plugin-config SSE), #117 (multi-viewer kick + disconnect UI), #118 (remote-open in-app tab), #115 (Footer Share modal), #116 (Hub auto-switch setting), #121 (phantom viewer count — pairs with #117) (completed 2026-07-01)
 - [ ] **Phase 169: Tailscale Detection Fix** - Fix #120 (Tailscale reports "installed but not Connected" on non-admin macOS accounts where `macsys` `sameuserproof` is unreadable — add a CLI `status` fallback)
 
 ## Phase Details
@@ -498,7 +498,7 @@ Plans:
   5. A "Stay on Hub after creating session" toggle in Settings → Session Behavior prevents auto-switching to a newly Hub-created session when enabled
   6. A never-shared local session's Hub card reads 0 viewers — the count excludes the app's own internal WebSocket subscribers (Terminal/Chat/status watcher) and reflects only real remote/shared viewers (#121; touches the same `ViewerCount`/relay-hub plumbing as #117, so fix alongside FIX-02)
 
-**Plans**: 6/7 plans executed
+**Plans**: 7/7 plans complete
 Plans:
 **Wave 1**
 
@@ -520,7 +520,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 168-07-PLAN.md — Regression-suite wiring: TESTING.md manifest/traceability + M-13 reword + manual M-NN [wave 5]
+- [x] 168-07-PLAN.md — Regression-suite wiring: TESTING.md manifest/traceability + M-13 reword + manual M-NN [wave 5]
 
 **UI hint**: yes
 
@@ -544,7 +544,7 @@ Plans:
 | 165. Funnel Backend | 5/5 | Complete   | 2026-06-30 |
 | 166. Funnel Frontend + Help Guide | 5/5 | Complete (verified 8/8) | 2026-06-30 |
 | 167. Native Notifications | 7/7 | Complete   | 2026-07-01 |
-| 168. Bug Fix & Settings Polish | 6/7 | In Progress|  |
+| 168. Bug Fix & Settings Polish | 7/7 | Complete   | 2026-07-01 |
 | 169. Tailscale Detection Fix | 0/? | Not started | - |
 
 ---
