@@ -134,34 +134,39 @@ describe('WebShareSessionView — renders without error', () => {
 })
 
 describe('WebShareSessionView — wsURL construction (Pitfall 6 guard)', () => {
-  it('constructs wss://{host}/sessions/{id}/ws?cap={encoded} and forwards to TerminalPanel', () => {
+  it('constructs {wsScheme}://{host}/sessions/{id}/ws?cap={encoded} and forwards to TerminalPanel', () => {
     const { unmount } = mountView({ sessionId: 'sess-123', capToken: 'tok-abc' })
     // Derive expected URL from window.location so the test is hermetic regardless
-    // of jsdom's configured port (vitest configures http://localhost:3000 by default).
-    const expectedURL = `wss://${window.location.host}/sessions/${encodeURIComponent('sess-123')}/ws?cap=${encodeURIComponent('tok-abc')}`
+    // of jsdom's configured origin (vitest configures http://localhost:3000 by
+    // default). Phase 168 FIX-01: wsURL's scheme now derives from the resolved
+    // origin's http/https scheme (ws/wss) instead of a hardcoded 'wss'.
+    const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
+    const expectedURL = `${wsScheme}://${window.location.host}/sessions/${encodeURIComponent('sess-123')}/ws?cap=${encodeURIComponent('tok-abc')}`
     expect(capturedTerminalProps?.wsURL).toBe(expectedURL)
     unmount()
   })
 
   it('constructs the same wsURL and forwards it to ChatPanel (Pitfall 6: both children need it)', () => {
     const { unmount } = mountView({ sessionId: 'sess-123', capToken: 'tok-abc' })
-    const expectedURL = `wss://${window.location.host}/sessions/${encodeURIComponent('sess-123')}/ws?cap=${encodeURIComponent('tok-abc')}`
+    const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
+    const expectedURL = `${wsScheme}://${window.location.host}/sessions/${encodeURIComponent('sess-123')}/ws?cap=${encodeURIComponent('tok-abc')}`
     expect(capturedChatPanelProps?.wsURL).toBe(expectedURL)
     unmount()
   })
 
   it('percent-encodes special characters in sessionId and capToken', () => {
     const { unmount } = mountView({ sessionId: 'sess/123', capToken: 'tok=abc&x=1' })
-    const expectedURL = `wss://${window.location.host}/sessions/${encodeURIComponent('sess/123')}/ws?cap=${encodeURIComponent('tok=abc&x=1')}`
+    const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
+    const expectedURL = `${wsScheme}://${window.location.host}/sessions/${encodeURIComponent('sess/123')}/ws?cap=${encodeURIComponent('tok=abc&x=1')}`
     expect(capturedTerminalProps?.wsURL).toBe(expectedURL)
     expect(capturedChatPanelProps?.wsURL).toBe(expectedURL)
     unmount()
   })
 
-  it('wsURL shape matches wss://{host}/sessions/{id}/ws?cap= pattern', () => {
+  it('wsURL shape matches {ws|wss}://{host}/sessions/{id}/ws?cap= pattern', () => {
     const { unmount } = mountView({ sessionId: 'sess-abc', capToken: 'cap-xyz' })
     const wsURL = capturedTerminalProps?.wsURL as string
-    expect(wsURL).toMatch(/^wss:\/\//)
+    expect(wsURL).toMatch(/^wss?:\/\//)
     expect(wsURL).toContain('/sessions/')
     expect(wsURL).toContain('/ws?cap=')
     expect(wsURL).toBe(capturedChatPanelProps?.wsURL)

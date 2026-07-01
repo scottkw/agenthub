@@ -19,6 +19,14 @@ export interface WebShareSessionViewProps {
   theme?: ITheme
   /** Plugin configuration (pass pluginConfig from App.tsx). */
   pluginConfig?: PluginSettings | null
+  /**
+   * Origin to derive apiBaseURL/wsURL from (e.g. `https://peer.example.ts.net`).
+   * Defaults to `window.location.origin` — the native web-share guest path.
+   * FIX-03 (plan 03) supplies a different peer's origin for in-app remote-peer
+   * tabs; this seam MUST stay parameterized (never hardcode window.location
+   * inside URL-building logic below).
+   */
+  baseURL?: string
 }
 
 /**
@@ -39,6 +47,7 @@ export function WebShareSessionView({
   relayPort,
   theme,
   pluginConfig,
+  baseURL,
 }: WebShareSessionViewProps): React.ReactElement {
   // D-02 overlay drawer state — same hooks as HubInteractiveModal
   const [chatOpen, setChatOpen] = useState(false)
@@ -51,11 +60,21 @@ export function WebShareSessionView({
     setHasMention(mention)
   }
 
+  // Phase 168 FIX-01/FIX-03 — baseURL seam. Defaults to window.location.origin
+  // (today's native web-share guest behavior, unchanged). FIX-03 (plan 03)
+  // passes a different peer's origin for in-app remote-peer tabs; apiBaseURL
+  // and wsURL MUST derive from this resolved origin, never a hardcoded
+  // window.location reference, so both plans share the same seam.
+  const resolvedOrigin = baseURL ?? window.location.origin
+  const apiBaseURL = resolvedOrigin
+  // Convert the resolved origin's http/https scheme to ws/wss for the socket
+  // (replaces the old hardcoded `wss://${window.location.host}`).
+  const wsOrigin = resolvedOrigin.replace(/^http/, 'ws')
+
   // Phase 155 — webserver WS URL. Both TerminalPanel and ChatPanel connect
   // via this URL (Pitfall 6: forgetting wsURL on TerminalPanel leaves the
   // terminal on ws://127.0.0.1:0 while chat works).
-  const wsURL = `wss://${window.location.host}/sessions/${encodeURIComponent(sessionId)}/ws?cap=${encodeURIComponent(capToken)}`
-  const apiBaseURL = window.location.origin
+  const wsURL = `${wsOrigin}/sessions/${encodeURIComponent(sessionId)}/ws?cap=${encodeURIComponent(capToken)}`
 
   return (
     <div className="hub-modal__body hub-modal__body--interactive">
