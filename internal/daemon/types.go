@@ -18,21 +18,21 @@ type FileListResponse = files.FileListResponse
 
 // SessionInfo is the JSON-serialisable representation of a session.
 type SessionInfo struct {
-	ID          string `json:"id"`
-	CLI         string `json:"cli"`
-	Name        string `json:"name"`
-	State       string `json:"state"`
-	Status      string `json:"status"` // heuristic status: running/idle/waiting/errored
-	CreatedAt   string `json:"createdAt"`
-	Hostname    string `json:"hostname"`
-	WebEnabled  bool   `json:"webEnabled"`
-	ViewerCount int    `json:"viewerCount"`        // Phase 168 / FIX-04, D-03: number of remote (web-origin) viewers only — excludes the app's own internal Origin=="local" WebSocket subscribers
-	ExitCode    *int   `json:"exitCode,omitempty"` // nil while running; set when State is "stopped"
-	Duration    *int   `json:"duration,omitempty"` // seconds since CreatedAt; set when State is "stopped"
-	HomeDir       bool   `json:"homeDir"`         // Phase 124 / CAP-06: true when the session cwd equals EvalSymlinks($HOME); drives the home-write warning on both GUI and TUI
-	BrowseEnabled bool   `json:"browseEnabled"`   // Phase 137 / SHARE-05: true when per-session browse toggle is ON; NOT omitempty (false must serialize so modal can seed on open)
-	FunnelActive  bool   `json:"funnelActive"`    // Phase 165 / FNL-01: true when Tailscale Funnel is active for this session; NOT omitempty (false must serialize so frontend poll detects expiry)
-	WorkDir       string `json:"workDir"`         // Phase 131 / GRID-02: EvalSymlinks-resolved session working directory; populated from engine.sessionWorkDirs map; enables Hub card grouping by directory
+	ID            string `json:"id"`
+	CLI           string `json:"cli"`
+	Name          string `json:"name"`
+	State         string `json:"state"`
+	Status        string `json:"status"` // heuristic status: running/idle/waiting/errored
+	CreatedAt     string `json:"createdAt"`
+	Hostname      string `json:"hostname"`
+	WebEnabled    bool   `json:"webEnabled"`
+	ViewerCount   int    `json:"viewerCount"`        // Phase 168 / FIX-04, D-03: number of remote (web-origin) viewers only — excludes the app's own internal Origin=="local" WebSocket subscribers
+	ExitCode      *int   `json:"exitCode,omitempty"` // nil while running; set when State is "stopped"
+	Duration      *int   `json:"duration,omitempty"` // seconds since CreatedAt; set when State is "stopped"
+	HomeDir       bool   `json:"homeDir"`            // Phase 124 / CAP-06: true when the session cwd equals EvalSymlinks($HOME); drives the home-write warning on both GUI and TUI
+	BrowseEnabled bool   `json:"browseEnabled"`      // Phase 137 / SHARE-05: true when per-session browse toggle is ON; NOT omitempty (false must serialize so modal can seed on open)
+	FunnelActive  bool   `json:"funnelActive"`       // Phase 165 / FNL-01: true when Tailscale Funnel is active for this session; NOT omitempty (false must serialize so frontend poll detects expiry)
+	WorkDir       string `json:"workDir"`            // Phase 131 / GRID-02: EvalSymlinks-resolved session working directory; populated from engine.sessionWorkDirs map; enables Hub card grouping by directory
 }
 
 // CreateRequest is the request body for POST /sessions.
