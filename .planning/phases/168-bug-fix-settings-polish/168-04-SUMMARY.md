@@ -200,3 +200,25 @@ None - no external service configuration required.
 ---
 *Phase: 168-bug-fix-settings-polish*
 *Completed: 2026-07-01*
+
+## Self-Check: PASSED
+
+- FOUND: internal/daemon/engine.go
+- FOUND: internal/daemon/api.go
+- FOUND: internal/daemon/client.go
+- FOUND: app.go
+- FOUND: internal/daemon/engine_stayonhub_test.go
+- FOUND: internal/daemon/api_stayonhub_test.go
+- FOUND: frontend/src/components/SettingsTab.tsx
+- FOUND: frontend/src/components/__tests__/SettingsTab.stay-on-hub-toggle.test.tsx
+- FOUND: frontend/src/App.tsx
+- FOUND: frontend/src/components/__tests__/App.createTab.stayOnHub.test.tsx
+- FOUND: frontend/src/wailsjs/go/main/App.js
+- FOUND: frontend/src/wailsjs/go/main/App.d.ts
+- FOUND: TESTING.md
+- FOUND commit: 0787d5d1
+- FOUND commit: 9d340376
+- FOUND commit: 21583ad9
+- FOUND commit: 07688025
+- FOUND commit: 5a3676db
+- FOUND commit: ce1eb8a9
