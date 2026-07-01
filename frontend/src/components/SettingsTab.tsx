@@ -28,7 +28,7 @@ import {
   SetShellWebShareWarningEnabled,
 } from '../wailsjs/go/main/App'
 import type { DetectedCLI } from '../wailsjs/go/main/App'
-import { BrowserOpenURL, ClipboardSetText } from '../wailsjs/wailsjs/runtime/runtime'
+import { BrowserOpenURL, ClipboardSetText, EventsOn } from '../wailsjs/wailsjs/runtime/runtime'
 import {
   ArrowTopRightOnSquareIcon,
   ClipboardDocumentIcon,
@@ -122,6 +122,10 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
   const [notifyOnWaitingLoaded, setNotifyOnWaitingLoaded] = useState(false)
   const [notifyOnWaitingSaving, setNotifyOnWaitingSaving] = useState(false)
   const [notifyOnWaitingError, setNotifyOnWaitingError] = useState<string | null>(null)
+  // Phase 167-07 (M-41 gap closure) — set true when the backend reports macOS
+  // denied notification authorization (notification:permission-denied event,
+  // emitted by 167-06's onNotificationAuthResult callback).
+  const [notifyPermissionDenied, setNotifyPermissionDenied] = useState(false)
 
   // Phase 150 SET-01 — shell web-share warning enabled master switch (D-08 default ON).
   const [shellWarnEnabled, setShellWarnEnabled] = useState(true) // default ON (D-08)
@@ -220,6 +224,14 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
       setShellWarnEnabled(val)
       setShellWarnLoaded(true)
     }).catch(() => setShellWarnLoaded(true))
+  }, [])
+
+  // Phase 167-07 (M-41 gap closure) — subscribe to the backend's
+  // notification:permission-denied event so a denied macOS authorization
+  // request surfaces a remediation hint instead of a silent dead end.
+  useEffect(() => {
+    const off = EventsOn('notification:permission-denied', () => setNotifyPermissionDenied(true))
+    return off
   }, [])
 
   async function handleCopyPassword() {
@@ -525,6 +537,11 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
             Shows a native OS notification the moment a session starts waiting for your input, even when AgentHub is hidden in the tray. Off by default.
           </p>
           {notifyOnWaitingError && <p className="settings-panel__error">{notifyOnWaitingError}</p>}
+          {notifyPermissionDenied && (
+            <p className="settings-panel__error">
+              AgentHub is not allowed to send notifications. Enable it in System Settings {'>'} Notifications {'>'} AgentHub, then toggle this setting off and on again.
+            </p>
+          )}
         </div>
 
         {/* Session Behavior section (Phase 84 D-11) */}
