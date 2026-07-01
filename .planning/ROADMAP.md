@@ -454,7 +454,24 @@ Plans:
   3. The notification text includes the session name and agent type so the user knows which session needs attention
   4. A Settings → Session Behavior toggle enables/disables notifications; the toggle defaults to off and suppresses all notifications when off
 
-**Plans**: TBD
+  *(Note: toggle placement moved to the **Behavior** section per the LOCKED user correction in 167-CONTEXT.md — success-criterion-4 "Session Behavior" wording is superseded; intent unchanged.)*
+
+**Plans**: 4 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 167-01-PLAN.md — Daemon settings persistence: `NotifyOnWaiting` through engine → api → client (mirrors StartMinimized) (NTF-04)
+- [ ] 167-02-PLAN.md — Cross-platform notification primitives: beeep v0.11.2 Windows/Linux wrappers + per-call identifier threaded through the native macOS path; delete notification_other.go (NTF-01)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 167-03-PLAN.md — App-layer trigger: `maybeNotifyWaiting` edge-detect + cold-start baseline in the tray poller, `displayNameForCLI`, Get/SetNotifyOnWaiting bound + wailsjs bindings (NTF-01/02/03/04)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 167-04-PLAN.md — Settings Behavior-section toggle (default off) + search entry + TESTING.md Category U / M-41 / traceability (NTF-04)
+
 **UI hint**: yes
 
 ### Phase 168: Bug Fix & Settings Polish
@@ -479,7 +496,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 165. Funnel Backend | 5/5 | Complete   | 2026-06-30 |
 | 166. Funnel Frontend + Help Guide | 5/5 | Complete (verified 8/8) | 2026-06-30 |
-| 167. Native Notifications | 0/? | Not started | - |
+| 167. Native Notifications | 0/4 | Not started | - |
 | 168. Bug Fix & Settings Polish | 0/? | Not started | - |
 
 ---
