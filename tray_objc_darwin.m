@@ -275,6 +275,15 @@ void sendNotification(const char *identifier, const char *title, const char *bod
                         UNMutableNotificationContent *content = [[UNMutableNotificationContent alloc] init];
                         content.title = nsTitle;
                         content.body  = nsBody;
+                        // Phase 167 (M-41 UAT follow-up): attach the default sound so the
+                        // alert is audible even when the banner auto-dismisses within a few
+                        // seconds. macOS cannot extend banner duration app-side; a sound is
+                        // the entitlement-free way to make "your session needs input"
+                        // noticeable. The foreground delegate already returns
+                        // UNNotificationPresentationOptionSound so this also plays when
+                        // AgentHub is frontmost. Persistence-until-dismissed remains the
+                        // user's Alert-style choice (System Settings → Notifications).
+                        content.sound = [UNNotificationSound defaultSound];
                         UNNotificationRequest *req = [UNNotificationRequest
                             requestWithIdentifier:nsIdentifier
                             content:content
