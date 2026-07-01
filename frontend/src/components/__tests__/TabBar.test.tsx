@@ -530,3 +530,59 @@ describe('Phase 148 TAB-04: TabBar session-tab chevron', () => {
     expect(menu.style.top).toBe('40px')
   })
 })
+
+// ---- Phase 166 / FUI-03: funnelActiveSessions tab icon tests ----
+
+describe('TabBar funnelActiveSessions (FUI-03)', () => {
+  let container: HTMLElement
+  let root: ReturnType<typeof createRoot>
+
+  afterEach(() => {
+    root.unmount()
+    container.remove()
+  })
+
+  it('FUI-03: funnelActiveSessions[sessionId]=true renders an element with aria-label "Internet exposed"', () => {
+    ;({ container, root } = renderTabBarWithTabs({
+      funnelActiveSessions: { sess1: true, sess2: false },
+    }))
+    const el = container.querySelector('[aria-label="Internet exposed"]')
+    expect(el).not.toBeNull()
+  })
+
+  it('FUI-03: funnelActiveSessions[sessionId]=true renders .tab__internet-icon element', () => {
+    ;({ container, root } = renderTabBarWithTabs({
+      funnelActiveSessions: { sess1: true },
+    }))
+    const icon = container.querySelector('.tab__internet-icon')
+    expect(icon).not.toBeNull()
+  })
+
+  it('FUI-03: .tab__internet-icon has title="Internet exposed"', () => {
+    ;({ container, root } = renderTabBarWithTabs({
+      funnelActiveSessions: { sess1: true },
+    }))
+    const icon = container.querySelector('.tab__internet-icon')
+    expect(icon).not.toBeNull()
+    expect(icon!.getAttribute('title')).toBe('Internet exposed')
+  })
+
+  it('FUI-03: funnelActiveSessions empty/false renders no .tab__internet-icon', () => {
+    ;({ container, root } = renderTabBarWithTabs({
+      funnelActiveSessions: { sess1: false, sess2: false },
+    }))
+    const icon = container.querySelector('.tab__internet-icon')
+    expect(icon).toBeNull()
+  })
+
+  it('FUI-03: funnelActiveSessions prop absent renders no .tab__internet-icon', () => {
+    ;({ container, root } = renderTabBarWithTabs())
+    const icon = container.querySelector('.tab__internet-icon')
+    expect(icon).toBeNull()
+  })
+
+  it('FUI-03 COLORBLIND-SAFE: TabBar.tsx source contains COLORBLIND-SAFE comment for the tab icon', () => {
+    expect(raw).toContain('COLORBLIND-SAFE')
+    expect(raw).toContain('tab__internet-icon')
+  })
+})
