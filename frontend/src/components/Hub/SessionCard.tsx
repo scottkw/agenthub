@@ -532,6 +532,16 @@ export function SessionCard({
         </div>
       )}
 
+      {/* Phase 166 / FUI-03 — internet exposure badge.
+          COLORBLIND-SAFE: GlobeAltIcon shape + "INTERNET" text carry state; color is reinforcement only.
+          Dark hex #43ddb2 / light hex #0d7a5c — verify at source, NOT by eye (user is colorblind). */}
+      {session.funnelActive && (
+        <span className="hub-internet-badge">
+          <GlobeAltIcon className="hub-internet-badge__icon" aria-hidden="true" />
+          <span className="hub-internet-badge__label">INTERNET</span>
+        </span>
+      )}
+
       {/* ROW 5: actions — Open (re-attach terminal tab; LOCAL live sessions only, WR-01,
           Phase 131 UAT follow-up) and Share, side by side as real bordered buttons.
           D-12: Share opens the per-card Share modal; D-13 disables it on remote peer cards.
