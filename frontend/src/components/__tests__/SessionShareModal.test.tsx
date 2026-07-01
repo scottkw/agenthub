@@ -41,11 +41,12 @@ vi.mock('../../wailsjs/go/main/App', () => ({
   }),
   ToggleWebServing: vi.fn().mockResolvedValue(undefined),
   SetSessionBrowse: vi.fn().mockResolvedValue(undefined),
+  SetSessionFunnel: vi.fn().mockResolvedValue(undefined),
   GetLocalNetworkPassword: vi.fn().mockResolvedValue('lan-pass-secret'),
 }))
 
 // Import mocked bindings for assertion
-import { IssueCapabilities, SetSessionBrowse, GetLocalNetworkPassword, ToggleWebServing } from '../../wailsjs/go/main/App'
+import { IssueCapabilities, SetSessionBrowse, SetSessionFunnel, GetLocalNetworkPassword, ToggleWebServing } from '../../wailsjs/go/main/App'
 // Import the component under test
 import { SessionShareModal } from '../Hub/SessionShareModal'
 
@@ -57,6 +58,7 @@ interface ModalOpts {
   webEnabled?: boolean
   homeDir?: boolean
   browseEnabled?: boolean
+  funnelActive?: boolean
   webServerMode?: 'local' | 'tailscale'
   webServerRunning?: boolean
   // Phase 150 SET-01 shell-warn props
@@ -65,6 +67,8 @@ interface ModalOpts {
   shellWebShareWarningEnabled?: boolean
   onShellWebShareConfirm?: () => Promise<void>
   onShellWebShareCancel?: () => void
+  // Phase 166 FUI-06
+  onOpenHelp?: () => void
 }
 
 function makeSession(opts: ModalOpts = {}) {
@@ -75,6 +79,7 @@ function makeSession(opts: ModalOpts = {}) {
     webEnabled: opts.webEnabled ?? false,
     homeDir: opts.homeDir ?? false,
     browseEnabled: opts.browseEnabled ?? false,
+    funnelActive: opts.funnelActive ?? false,
   }
 }
 
@@ -97,10 +102,21 @@ function renderModal(opts: ModalOpts = {}) {
         shellWebShareWarningEnabled: opts.shellWebShareWarningEnabled,
         onShellWebShareConfirm: opts.onShellWebShareConfirm,
         onShellWebShareCancel: opts.onShellWebShareCancel,
+        onOpenHelp: opts.onOpenHelp,
       })
     )
   })
   return { container: container!, root: root! }
+}
+
+// Phase 166 helpers: locate the Funnel toggle and risk-panel buttons.
+function findFunnelToggle(c: HTMLElement): HTMLInputElement | null {
+  return c.querySelector('input[aria-label="Enable internet sharing"]') as HTMLInputElement | null
+}
+function findByText(c: HTMLElement, text: string): HTMLElement | null {
+  return (Array.from(c.querySelectorAll('button')).find(
+    (b) => b.textContent?.trim() === text,
+  ) as HTMLElement | null)
 }
 
 afterEach(() => {
@@ -423,5 +439,99 @@ describe('SessionShareModal — SET-01: shell warning interception on Hub Share 
       // onShellWebShareConfirm should have been called
       expect(onConfirm).toHaveBeenCalled()
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Phase 166 — FUI-01/FUI-02/FUI-06/D-15 — Funnel enable flow
+// ---------------------------------------------------------------------------
+const mockedSetSessionFunnel = SetSessionFunnel as ReturnType<typeof vi.fn>
+
+describe('SessionShareModal — FUI-01: risk panel on every enable (Tailscale mode)', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('renders an "Enable internet sharing" Funnel toggle', () => {
+    const { container: c } = renderModal({ webServerMode: 'tailscale' })
+    expect(findFunnelToggle(c)).not.toBeNull()
+  })
+
+  it('flipping the Funnel toggle ON opens the risk panel and does NOT call SetSessionFunnel', async () => {
+    const { container: c } = renderModal({ webServerMode: 'tailscale' })
+    const toggle = findFunnelToggle(c)!
+    await flushSync(() => { toggle.click() })
+    const panel = c.querySelector('.hub-funnel-risk-panel--open')
+    expect(panel).not.toBeNull()
+    // The risk statement is visible
+    expect(c.textContent).toMatch(/reachable from the public internet/i)
+    // Toggle ON must NOT commit — only the explicit CTA commits (D-02)
+    expect(mockedSetSessionFunnel).not.toHaveBeenCalled()
+  })
+})
+
+describe('SessionShareModal — FUI-02: explicit CTA commits with the selected preset', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('"Enable internet share" calls SetSessionFunnel(id, true, 3600) for the default', async () => {
+    const { container: c } = renderModal({ webServerMode: 'tailscale' })
+    await flushSync(() => { findFunnelToggle(c)!.click() })
+    const cta = findByText(c, 'Enable internet share')!
+    await flushSync(() => { cta.click() })
+    await new Promise<void>((r) => setTimeout(r, 0))
+    expect(mockedSetSessionFunnel).toHaveBeenCalledWith('sess-1', true, 3600)
+  })
+
+  it('changing the expiry preset commits the selected value', async () => {
+    const { container: c } = renderModal({ webServerMode: 'tailscale' })
+    await flushSync(() => { findFunnelToggle(c)!.click() })
+    const select = c.querySelector('.hub-funnel-risk-panel select') as HTMLSelectElement
+    select.value = '14400'
+    flushSync(() => { select.dispatchEvent(new Event('change', { bubbles: true })) })
+    const cta = findByText(c, 'Enable internet share')!
+    await flushSync(() => { cta.click() })
+    await new Promise<void>((r) => setTimeout(r, 0))
+    expect(mockedSetSessionFunnel).toHaveBeenCalledWith('sess-1', true, 14400)
+  })
+
+  it('"Keep local only" collapses the panel with no API call', async () => {
+    const { container: c } = renderModal({ webServerMode: 'tailscale' })
+    await flushSync(() => { findFunnelToggle(c)!.click() })
+    expect(c.querySelector('.hub-funnel-risk-panel--open')).not.toBeNull()
+    const cancel = findByText(c, 'Keep local only')!
+    await flushSync(() => { cancel.click() })
+    expect(c.querySelector('.hub-funnel-risk-panel--open')).toBeNull()
+    expect(mockedSetSessionFunnel).not.toHaveBeenCalled()
+  })
+})
+
+describe('SessionShareModal — D-15: local-fallback fails closed', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('with webServerMode="local" the Funnel toggle is disabled and SetSessionFunnel is never called', async () => {
+    const { container: c } = renderModal({ webServerMode: 'local' })
+    const toggle = findFunnelToggle(c)
+    expect(toggle).not.toBeNull()
+    expect(toggle!.disabled).toBe(true)
+    // Explanatory note present
+    expect(c.textContent).toMatch(/Internet sharing requires Tailscale/i)
+    // Clicking must not open a panel nor call the binding
+    await flushSync(() => { toggle!.click() })
+    expect(c.querySelector('.hub-funnel-risk-panel--open')).toBeNull()
+    expect(mockedSetSessionFunnel).not.toHaveBeenCalled()
+  })
+})
+
+describe('SessionShareModal — FUI-06: Help cross-link', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('the risk-panel Help link invokes the onOpenHelp callback', async () => {
+    const onOpenHelp = vi.fn()
+    const { container: c } = renderModal({ webServerMode: 'tailscale', onOpenHelp })
+    await flushSync(() => { findFunnelToggle(c)!.click() })
+    const helpLink = Array.from(c.querySelectorAll('button')).find((b) =>
+      /See the Sharing Guide/i.test(b.textContent ?? ''),
+    ) as HTMLElement | null
+    expect(helpLink).not.toBeNull()
+    await flushSync(() => { helpLink!.click() })
+    expect(onOpenHelp).toHaveBeenCalled()
   })
 })
