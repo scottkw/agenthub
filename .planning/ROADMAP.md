@@ -500,13 +500,28 @@ Plans:
 
 **Plans**: 7 plans (5 waves)
 Plans:
+**Wave 1**
+
 - [ ] 168-01-PLAN.md — FIX-04: Hub.RemoteViewerCount() (web-origin only) + engine viewerCount swap [wave 1]
 - [ ] 168-02-PLAN.md — FIX-01: web-guest plugin-config self-fetch + SSE + baseURL prop seam [wave 1]
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 168-03-PLAN.md — FIX-03: reroute remote-session open to in-app web-session tab (per-tab cap/host) [wave 2]
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 168-04-PLAN.md — UX-01: "Stay on Hub after creating a session" setting + toggle + createTab gate [wave 3]
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 168-05-PLAN.md — UX-02: footer "Share Session" button opens lifted Share modal, gated on tab type [wave 4]
 - [ ] 168-06-PLAN.md — FIX-02: Hub.DisconnectWebViewers() + owner-only RPC + Share-modal Disconnect button [wave 4]
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 168-07-PLAN.md — Regression-suite wiring: TESTING.md manifest/traceability + M-13 reword + manual M-NN [wave 5]
+
 **UI hint**: yes
 
 ### Phase 169: Tailscale Detection Fix
