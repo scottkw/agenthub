@@ -668,7 +668,9 @@ func sendNotification(identifier, title, body string) {
 | A3 | The notification body format `"{SessionName} ({AgentDisplayName}) is waiting for your input."` satisfies NTF-03's "session name + agent type" requirement. | Code Examples | CONTEXT.md leaves exact wording to Claude's discretion; low risk — any format including both pieces of information satisfies the requirement text. |
 | A4 | `beeep.Notify`'s Windows path (`go-toast`, struct-field based) does not shell out to PowerShell with unescaped string interpolation of the session name (which is user-controlled via `RenameSession`). | Security Domain, Common Pitfalls | Based on a WebFetch read of beeep's `notify_windows.go` source (current master, not necessarily byte-identical to the v0.11.2 tag). If a future beeep version (or the pinned v0.11.2 specifically) does use unescaped string interpolation somewhere in its Windows fallback chain, a maliciously-named session could inject PowerShell — low likelihood given the struct-based `toast.Notification` API observed, but not verified against the exact pinned tag's source. |
 
-## Open Questions
+## Open Questions (RESOLVED 2026-07-01 — see 167-CONTEXT.md dated decision blocks)
+
+> **RESOLVED:** Q1 → **reuse the native macOS `UNUserNotificationCenter` path** (beeep for Win/Linux only); Q2 → **silent cold-start baseline capture** (do not notify already-`waiting` sessions at launch). Both answers are locked in `167-CONTEXT.md` and implemented by plans 167-02/167-03. A third decision resolved alongside these: accept beeep's default Windows/Linux attribution for v4.2 (branded AUMID/app_name polish deferred).
 
 1. **Should macOS use beeep at all, or keep its existing native `UNUserNotificationCenter` path?**
    - What we know: The codebase already has a proven, live, correctly-macOS-attributed

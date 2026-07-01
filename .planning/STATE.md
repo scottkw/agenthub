@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Funnel Sharing & Polish
-current_phase: 166
-current_phase_name: funnel-frontend-help-guide
-status: phase-complete
-stopped_at: Phase 166 executed + verified (8/8, FUI-06 gap closed)
-last_updated: "2026-06-30T22:05:00.000Z"
-last_activity: 2026-06-30
-last_activity_desc: Phase 166 executed (5/5 plans) + verified PASSED (8/8)
+current_phase: 167
+current_phase_name: native-notifications
+status: planned
+stopped_at: Phase 167 planned (4 plans/3 waves) + plan-checker PASSED
+last_updated: "2026-07-01T00:00:00.000Z"
+last_activity: 2026-07-01
+last_activity_desc: Phase 167 planned — research + 4 PLANs + plan-checker PASS (0 blockers)
 progress:
   total_phases: 4
   completed_phases: 2
@@ -24,7 +24,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 166 complete — next phase 167
+**Current focus:** Phase 167 (Native Notifications) planned + verified — ready to execute
 
 ## Current Position
 
@@ -72,7 +72,7 @@ v4.2 Progress: [██████████░░░░░░░░░░] 50
 |-------|------|--------------|--------|
 | 165 | Funnel Backend | FNL-01, FNL-02, FNL-03, FNL-04, FNL-05, FNL-06, FNL-07 | ✅ DONE — code-verified + all live UAT pass (M-34 off-tailnet 200, M-35 a/b/c/d, M-36 fallback) |
 | 166 | Funnel Frontend + Help Guide | FUI-01, FUI-02, FUI-03, FUI-04, FUI-05, FUI-06, HLP-01, HLP-02 | Not started |
-| 167 | Native Notifications | NTF-01, NTF-02, NTF-03, NTF-04 | Not started |
+| 167 | Native Notifications | NTF-01, NTF-02, NTF-03, NTF-04 | 📋 PLANNED — 4 plans/3 waves, plan-checker PASSED (macOS=native path, Win/Linux=beeep, toggle in Behavior section) |
 | 168 | Bug Fix & Settings Polish | FIX-01, FIX-02, FIX-03, UX-01, UX-02 | Not started |
 
 **Total:** 24 requirements mapped across 4 phases (100% coverage).
