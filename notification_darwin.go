@@ -8,18 +8,23 @@ package main
 
 #include <stdlib.h>
 
-void sendNotification(const char *title, const char *body);
+void sendNotification(const char *identifier, const char *title, const char *body);
 */
 import "C"
 
 import "unsafe"
 
 // sendNotification sends a macOS notification using UNUserNotificationCenter.
-// Called by QuitGUIOnly to inform the user the app is still running (D-11).
-func sendNotification(title, body string) {
+// Called by QuitGUIOnly (fixed identifier) and, from Plan 03, per-session
+// waiting notifications. The identifier is threaded through to
+// UNNotificationRequest so concurrent notifications don't collapse into one
+// another (RESEARCH Pitfall 2).
+func sendNotification(identifier, title, body string) {
+	cid := C.CString(identifier)
 	ctitle := C.CString(title)
 	cbody := C.CString(body)
-	C.sendNotification(ctitle, cbody)
+	C.sendNotification(cid, ctitle, cbody)
+	C.free(unsafe.Pointer(cid))
 	C.free(unsafe.Pointer(ctitle))
 	C.free(unsafe.Pointer(cbody))
 }

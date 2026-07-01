@@ -244,7 +244,7 @@ func (a *App) QuitGUIOnly() {
 	} else {
 		body = fmt.Sprintf("AgentHub is still running in the background. %d sessions active.", count)
 	}
-	sendNotification("AgentHub", body)
+	sendNotification("agenthub.quit-gui-only", "AgentHub", body)
 }
 
 // QuitAll shuts down the daemon (terminating all sessions) and quits the

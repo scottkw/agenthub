@@ -154,7 +154,11 @@ void setTraySessionData(const char **names, const char **ids, int count) {
 
 // sendNotification sends a macOS notification using UNUserNotificationCenter.
 // Requests permission lazily on first call; no-ops if the user denies.
-void sendNotification(const char *title, const char *body) {
+// The identifier is caller-supplied so concurrent notifications (e.g. two
+// sessions transitioning to waiting close together) do not collide and
+// silently replace one another (RESEARCH Pitfall 2).
+void sendNotification(const char *identifier, const char *title, const char *body) {
+    NSString *nsIdentifier = [NSString stringWithUTF8String:identifier];
     NSString *nsTitle = [NSString stringWithUTF8String:title];
     NSString *nsBody  = [NSString stringWithUTF8String:body];
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -167,7 +171,7 @@ void sendNotification(const char *title, const char *body) {
                 content.title = nsTitle;
                 content.body  = nsBody;
                 UNNotificationRequest *req = [UNNotificationRequest
-                    requestWithIdentifier:@"agenthub.quit-gui-only"
+                    requestWithIdentifier:nsIdentifier
                     content:content
                     trigger:nil];
                 [center addNotificationRequest:req withCompletionHandler:nil];
