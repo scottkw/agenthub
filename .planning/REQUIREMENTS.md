@@ -36,8 +36,8 @@ Requirements for this milestone. Each maps to a roadmap phase.
 ### Notifications (NTF) — Issue #110
 
 - [x] **NTF-01**: When a session transitions into the awaiting-input (`waiting`) state, the user receives a native OS notification on macOS, Windows, and Linux — including when the GUI window is hidden (tray-resident).
-- [ ] **NTF-02**: A notification fires once per transition into `waiting`, not repeatedly while the session remains `waiting`.
-- [ ] **NTF-03**: The notification identifies which session needs attention (session name + agent type).
+- [x] **NTF-02**: A notification fires once per transition into `waiting`, not repeatedly while the session remains `waiting`.
+- [x] **NTF-03**: The notification identifies which session needs attention (session name + agent type).
 - [x] **NTF-04**: Awaiting-input notifications can be toggled on/off in Settings → Session Behavior; default **off** (user opts in — avoids surprise notifications and first-run OS permission prompts).
 
 ### Hub / Settings Polish (UX)
@@ -92,8 +92,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | HLP-01 | Phase 166 | Pending |
 | HLP-02 | Phase 166 | Pending |
 | NTF-01 | Phase 167 | Complete |
-| NTF-02 | Phase 167 | Pending |
-| NTF-03 | Phase 167 | Pending |
+| NTF-02 | Phase 167 | Complete |
+| NTF-03 | Phase 167 | Complete |
 | NTF-04 | Phase 167 | Complete |
 | UX-01 | Phase 168 | Pending |
 | UX-02 | Phase 168 | Pending |

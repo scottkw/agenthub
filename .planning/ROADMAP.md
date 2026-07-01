@@ -456,7 +456,7 @@ Plans:
 
   *(Note: toggle placement moved to the **Behavior** section per the LOCKED user correction in 167-CONTEXT.md — success-criterion-4 "Session Behavior" wording is superseded; intent unchanged.)*
 
-**Plans**: 2/4 plans executed
+**Plans**: 3/4 plans executed
 
 Plans:
 **Wave 1**
@@ -466,7 +466,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 167-03-PLAN.md — App-layer trigger: `maybeNotifyWaiting` edge-detect + cold-start baseline in the tray poller, `displayNameForCLI`, Get/SetNotifyOnWaiting bound + wailsjs bindings (NTF-01/02/03/04)
+- [x] 167-03-PLAN.md — App-layer trigger: `maybeNotifyWaiting` edge-detect + cold-start baseline in the tray poller, `displayNameForCLI`, Get/SetNotifyOnWaiting bound + wailsjs bindings (NTF-01/02/03/04)
 
 **Wave 3** *(blocked on Wave 2)*
 
@@ -496,7 +496,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 165. Funnel Backend | 5/5 | Complete   | 2026-06-30 |
 | 166. Funnel Frontend + Help Guide | 5/5 | Complete (verified 8/8) | 2026-06-30 |
-| 167. Native Notifications | 2/4 | In Progress|  |
+| 167. Native Notifications | 3/4 | In Progress|  |
 | 168. Bug Fix & Settings Polish | 0/? | Not started | - |
 
 ---

@@ -5,15 +5,15 @@ milestone_name: Funnel Sharing & Polish
 current_phase: 167
 current_phase_name: native-notifications
 status: executing
-stopped_at: Phase 167 planned (4 plans/3 waves) + plan-checker PASSED
-last_updated: "2026-07-01T06:37:07.316Z"
+stopped_at: Completed 167-03-PLAN.md
+last_updated: "2026-07-01T06:47:29.267Z"
 last_activity: 2026-07-01
 last_activity_desc: Phase 167 execution started
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 14
-  completed_plans: 12
+  completed_plans: 13
   percent: 50
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 ## Current Position
 
 Phase: 167 (native-notifications) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-07-01 — Phase 167 execution started
 
@@ -133,9 +133,9 @@ v4.2 Progress: [██████████░░░░░░░░░░] 50
 
 ## Session Continuity
 
-Last session: 2026-07-01T06:35:49.253Z
-Stopped at: Phase 166 UI-SPEC approved
-Resume file: .planning/phases/166-funnel-frontend-help-guide/166-UI-SPEC.md
+Last session: 2026-07-01T06:47:29.262Z
+Stopped at: Completed 167-03-PLAN.md
+Resume file: None
 Next action: Phase 165 is DONE — code-verified + all live UAT (M-34/M-35/M-36) PASS. Next milestone step = Phase 166 (Funnel Frontend + Help Guide): the Share-modal Funnel toggle UI, which was blocked on 165's backend (now proven working end-to-end). Run `/gsd-plan-phase 166` when ready. NOTE for future live Funnel UATs: the /app/ path needs a PRODUCTION build (`wails build -tags wailsassets`) — `wails dev` daemon returns 503 "app bundle not configured" (no embedded SPA), expected not a bug.
 
 ## Decisions (carry-forward from v4.1 — architecture reference)
@@ -206,6 +206,7 @@ Next action: Phase 165 is DONE — code-verified + all live UAT (M-34/M-35/M-36)
 | Phase 165-funnel-backend P05 | 7min | 3 tasks | 3 files |
 | Phase 167 P01 | 12min | 2 tasks | 5 files |
 | Phase 167 P02 | 8min | 2 tasks | 6 files |
+| Phase 167 P03 | 12min | 2 tasks | 6 files |
 
 ## Decisions
 
@@ -223,3 +224,6 @@ Next action: Phase 165 is DONE — code-verified + all live UAT (M-34/M-35/M-36)
 - [Phase ?]: Phase 167-01: NotifyOnWaiting persisted boolean setting mirrors StartMinimized exactly — no schema bump, no defaults-merge, default OFF (NTF-04)
 - [Phase ?]: [Phase 167]: Kept native macOS UNUserNotificationCenter path instead of beeep for macOS -- real AgentHub attribution beats beeep Script Editor fallback
 - [Phase ?]: [Phase 167]: Windows/Linux beeep wrappers accept identifier param for signature parity but do not use it; AUMID/app_name branding deferred
+- [Phase ?]: Phase 167-03: maybeNotifyWaiting requires a KNOWN previous status (not just first-run) before firing, matching RESEARCH's reference implementation exactly
+- [Phase ?]: Phase 167-03: SetNotifyOnWaiting stores the atomic cache before the daemon persist call so the tray poller never reads a stale toggle mid-tick
+- [Phase ?]: Phase 167-03: GetNotifyOnWaiting reads only the cached atomic.Bool (no daemon round trip) to keep the poller and Settings toggle in agreement
