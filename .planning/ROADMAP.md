@@ -498,7 +498,7 @@ Plans:
   5. A "Stay on Hub after creating session" toggle in Settings → Session Behavior prevents auto-switching to a newly Hub-created session when enabled
   6. A never-shared local session's Hub card reads 0 viewers — the count excludes the app's own internal WebSocket subscribers (Terminal/Chat/status watcher) and reflects only real remote/shared viewers (#121; touches the same `ViewerCount`/relay-hub plumbing as #117, so fix alongside FIX-02)
 
-**Plans**: 5/7 plans executed
+**Plans**: 6/7 plans executed
 Plans:
 **Wave 1**
 
@@ -516,7 +516,7 @@ Plans:
 **Wave 4** *(blocked on Wave 3 completion)*
 
 - [x] 168-05-PLAN.md — UX-02: footer "Share Session" button opens lifted Share modal, gated on tab type [wave 4]
-- [ ] 168-06-PLAN.md — FIX-02: Hub.DisconnectWebViewers() + owner-only RPC + Share-modal Disconnect button [wave 4]
+- [x] 168-06-PLAN.md — FIX-02: Hub.DisconnectWebViewers() + owner-only RPC + Share-modal Disconnect button [wave 4]
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
@@ -544,7 +544,7 @@ Plans:
 | 165. Funnel Backend | 5/5 | Complete   | 2026-06-30 |
 | 166. Funnel Frontend + Help Guide | 5/5 | Complete (verified 8/8) | 2026-06-30 |
 | 167. Native Notifications | 7/7 | Complete   | 2026-07-01 |
-| 168. Bug Fix & Settings Polish | 5/7 | In Progress|  |
+| 168. Bug Fix & Settings Polish | 6/7 | In Progress|  |
 | 169. Tailscale Detection Fix | 0/? | Not started | - |
 
 ---

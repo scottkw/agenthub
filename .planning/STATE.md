@@ -5,15 +5,15 @@ milestone_name: Funnel Sharing & Polish
 current_phase: 168
 current_phase_name: bug-fix-settings-polish
 status: executing
-stopped_at: Completed 168-05-PLAN.md
-last_updated: "2026-07-01T21:33:52.852Z"
+stopped_at: Completed 168-06-PLAN.md
+last_updated: "2026-07-01T21:49:25.520Z"
 last_activity: 2026-07-01
 last_activity_desc: Phase 168 execution started
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 24
-  completed_plans: 22
+  completed_plans: 23
   percent: 60
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 ## Current Position
 
 Phase: 168 (bug-fix-settings-polish) — EXECUTING
-Plan: 6 of 7
+Plan: 7 of 7
 Status: Ready to execute
 Last activity: 2026-07-01 — Phase 168 execution started
 
@@ -137,8 +137,8 @@ v4.2 Progress: [████████████░░░░░░░░] 60
 
 ## Session Continuity
 
-Last session: 2026-07-01T21:33:52.839Z
-Stopped at: Completed 168-05-PLAN.md
+Last session: 2026-07-01T21:49:25.512Z
+Stopped at: Completed 168-06-PLAN.md
 Resume file: None
 Next action: Phase 168 (Bug Fix & Settings Polish) is the last open v4.2 phase — FIX-01/02/03 + UX-01/02 (#112 web-guest plugin-config SSE, #117 multi-viewer kick + disconnect UI, #118 remote-open in-app tab, #115 Footer Share modal, #116 Hub auto-switch setting). Run `/gsd-plan-phase 168` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
 
@@ -220,6 +220,7 @@ Next action: Phase 168 (Bug Fix & Settings Polish) is the last open v4.2 phase �
 | Phase 168 P03 | 8min | 2 tasks | 4 files |
 | Phase 168 P04 | 12min | 3 tasks | 8 files |
 | Phase 168 P05 | 29min | 2 tasks | 7 files |
+| Phase 168 P06 | 9min | 3 tasks | 10 files |
 
 ## Decisions
 
@@ -258,3 +259,7 @@ Next action: Phase 168 (Bug Fix & Settings Polish) is the last open v4.2 phase �
 - [Phase 168]: Phase 168-04: no fromHub flag introduced - createTab's single setActiveId(sessionId) call is the only auto-switch in the app (D-11), so gating that one call site is sufficient
 - [Phase 168]: shareModalSession lifted to App.tsx; single <SessionShareModal> render (not inside HubPanel, which unmounts off the Hub tab); footer 'Share Session' calls onShareSession, never ToggleWebServing directly (D-14)
 - [Phase 168]: handleShellWebShareConfirm now sources sessionId from shareModalSession instead of the retired pendingShellWebToggle, fixing a latent no-op bug in the modal's own shell-warn confirm flow
+- [Phase 168-06]: DisconnectWebViewers reuses Subscriber.CloseSlow (the same close-on-full mechanism broadcastResize uses) instead of a new termination path
+- [Phase 168-06]: Disconnect RPC registered on the daemon-local api.go mux (same trust boundary as ToggleWebServing/SetSessionFunnel), never a guest-reachable /api/... route (T-168-07)
+- [Phase 168-06]: No eviction-on-subscribe logic added; TestHub_TwoWebOriginSubscribers_NoEviction proves #117 Part A does not reproduce in current code
+- [Phase 168-06]: Disconnect drops connections only (D-06) -- never calls ToggleWebServing(false) or revokes the capability
