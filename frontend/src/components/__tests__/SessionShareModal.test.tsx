@@ -67,7 +67,7 @@ interface ModalOpts {
   cli?: string
   shellWebShareWarned?: boolean
   shellWebShareWarningEnabled?: boolean
-  onShellWebShareConfirm?: () => Promise<void>
+  onShellWebShareConfirm?: () => Promise<boolean>
   onShellWebShareCancel?: () => void
   // Phase 166 FUI-06
   onOpenHelp?: () => void
@@ -307,7 +307,7 @@ describe('SessionShareModal — SET-01: shell warning interception on Hub Share 
       cli: 'bash',
       shellWebShareWarningEnabled: true,
       shellWebShareWarned: false,
-      onShellWebShareConfirm: vi.fn().mockResolvedValue(undefined),
+      onShellWebShareConfirm: vi.fn().mockResolvedValue(true),
       onShellWebShareCancel: vi.fn(),
     })
     // Find the share toggle and click it (toggle share ON)
@@ -329,7 +329,7 @@ describe('SessionShareModal — SET-01: shell warning interception on Hub Share 
       cli: '/bin/zsh',
       shellWebShareWarningEnabled: true,
       shellWebShareWarned: false,
-      onShellWebShareConfirm: vi.fn().mockResolvedValue(undefined),
+      onShellWebShareConfirm: vi.fn().mockResolvedValue(true),
       onShellWebShareCancel: vi.fn(),
     })
     const shareToggle = c.querySelector('[role="switch"][aria-label*="Share"], input[type="checkbox"]') as HTMLElement | null
@@ -345,7 +345,7 @@ describe('SessionShareModal — SET-01: shell warning interception on Hub Share 
       cli: 'zsh',
       shellWebShareWarningEnabled: false,
       shellWebShareWarned: false,
-      onShellWebShareConfirm: vi.fn().mockResolvedValue(undefined),
+      onShellWebShareConfirm: vi.fn().mockResolvedValue(true),
       onShellWebShareCancel: vi.fn(),
     })
     const shareToggle = c.querySelector('[role="switch"][aria-label*="Share"], input[type="checkbox"]') as HTMLElement | null
@@ -364,7 +364,7 @@ describe('SessionShareModal — SET-01: shell warning interception on Hub Share 
       cli: 'claude',
       shellWebShareWarningEnabled: true,
       shellWebShareWarned: false,
-      onShellWebShareConfirm: vi.fn().mockResolvedValue(undefined),
+      onShellWebShareConfirm: vi.fn().mockResolvedValue(true),
       onShellWebShareCancel: vi.fn(),
     })
     const shareToggle = c.querySelector('[role="switch"][aria-label*="Share"], input[type="checkbox"]') as HTMLElement | null
@@ -383,7 +383,7 @@ describe('SessionShareModal — SET-01: shell warning interception on Hub Share 
       cli: 'shell',
       shellWebShareWarningEnabled: true,
       shellWebShareWarned: true,  // already acknowledged
-      onShellWebShareConfirm: vi.fn().mockResolvedValue(undefined),
+      onShellWebShareConfirm: vi.fn().mockResolvedValue(true),
       onShellWebShareCancel: vi.fn(),
     })
     const shareToggle = c.querySelector('[role="switch"][aria-label*="Share"], input[type="checkbox"]') as HTMLElement | null
@@ -402,7 +402,7 @@ describe('SessionShareModal — SET-01: shell warning interception on Hub Share 
       cli: 'bash',
       shellWebShareWarningEnabled: true,
       shellWebShareWarned: false,
-      onShellWebShareConfirm: vi.fn().mockResolvedValue(undefined),
+      onShellWebShareConfirm: vi.fn().mockResolvedValue(true),
       onShellWebShareCancel: onCancel,
     })
     // Trigger banner
@@ -420,8 +420,8 @@ describe('SessionShareModal — SET-01: shell warning interception on Hub Share 
     expect(mockedToggleWebServing).not.toHaveBeenCalled()
   })
 
-  it('confirming the banner calls onShellWebShareConfirm then enables share', async () => {
-    const onConfirm = vi.fn().mockResolvedValue(undefined)
+  it('confirming the banner calls onShellWebShareConfirm then enables share on success', async () => {
+    const onConfirm = vi.fn().mockResolvedValue(true)
     const { container: c } = renderModal({
       cli: 'zsh',
       shellWebShareWarningEnabled: true,
@@ -441,6 +441,36 @@ describe('SessionShareModal — SET-01: shell warning interception on Hub Share 
       await new Promise<void>((r) => setTimeout(r, 0))
       // onShellWebShareConfirm should have been called
       expect(onConfirm).toHaveBeenCalled()
+      // WR-01: on success, the toggle should now read "on"
+      const toggle = c.querySelector('[role="switch"][aria-label*="Share"], input[type="checkbox"]') as HTMLInputElement | null
+      expect(toggle?.checked).toBe(true)
+    }
+  })
+
+  // WR-01 regression coverage: if the underlying ToggleWebServing call fails,
+  // the modal must NOT report "sharing ON" even though onShellWebShareConfirm
+  // resolved (without throwing) with a falsy success signal.
+  it('WR-01: confirming the banner does NOT enable share when onShellWebShareConfirm resolves false (failure)', async () => {
+    const onConfirm = vi.fn().mockResolvedValue(false)
+    const { container: c } = renderModal({
+      cli: 'zsh',
+      shellWebShareWarningEnabled: true,
+      shellWebShareWarned: false,
+      onShellWebShareConfirm: onConfirm,
+      onShellWebShareCancel: vi.fn(),
+    })
+    const shareToggle = c.querySelector('[role="switch"][aria-label*="Share"], input[type="checkbox"]') as HTMLElement | null
+    await flushSync(() => { shareToggle!.click() })
+    const enableBtn = Array.from(c.querySelectorAll('button')).find(
+      (btn) => btn.textContent?.match(/Enable web sharing/i)
+    ) as HTMLElement | null
+    if (enableBtn) {
+      await flushSync(() => { enableBtn.click() })
+      await new Promise<void>((r) => setTimeout(r, 0))
+      expect(onConfirm).toHaveBeenCalled()
+      // The toggle must remain OFF — the backend call failed.
+      const toggle = c.querySelector('[role="switch"][aria-label*="Share"], input[type="checkbox"]') as HTMLInputElement | null
+      expect(toggle?.checked).toBe(false)
     }
   })
 })

@@ -48,7 +48,12 @@ export interface SessionShareModalProps {
   // Shared authority from App.tsx — do NOT fork into local state.
   shellWebShareWarned?: boolean
   shellWebShareWarningEnabled?: boolean
-  onShellWebShareConfirm?: () => Promise<void>
+  // WR-01: returns whether the underlying ToggleWebServing call actually
+  // succeeded. The banner's onConfirm handler only flips shareEnabled to
+  // true when this resolves true — previously it always did, even on
+  // failure, so the modal could claim "sharing ON" for a session the
+  // daemon never actually enabled web-serving for.
+  onShellWebShareConfirm?: () => Promise<boolean>
   onShellWebShareCancel?: () => void
   // Phase 166 FUI-06 — invoked by the risk panel's "See the Sharing Guide" cross-link.
   // The modal closes itself first, then hands off to the host to navigate to the
@@ -452,8 +457,11 @@ export function SessionShareModal({
               sessionName={session.name}
               onConfirm={async () => {
                 setPendingShellShare(false)
-                await onShellWebShareConfirm?.()
-                setShareEnabled(true)
+                // WR-01: only report "sharing ON" when the underlying
+                // ToggleWebServing call actually succeeded — do not flip UI
+                // state on failure.
+                const ok = await onShellWebShareConfirm?.()
+                if (ok) setShareEnabled(true)
                 // seeding effect will issue caps on next render
               }}
               onCancel={() => {

@@ -946,8 +946,14 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
   // Phase 168-05: sessionId now derives from shareModalSession (the single
   // lifted modal-open state, D-14) instead of the retired pendingShellWebToggle
   // — the modal is the only surface that can trigger this confirm.
-  const handleShellWebShareConfirm = useCallback(async () => {
-    if (!shareModalSession) return
+  // WR-01 fix: returns a success/failure boolean so the modal only flips its
+  // local "sharing ON" UI state when ToggleWebServing actually succeeded —
+  // previously the modal unconditionally set shareEnabled=true after this
+  // resolved, even when the Promise.all rejected (e.g. ToggleWebServing
+  // failing while SetShellWebShareWarned still succeeded), showing "ON" for
+  // a session the daemon never actually enabled web-serving for.
+  const handleShellWebShareConfirm = useCallback(async (): Promise<boolean> => {
+    if (!shareModalSession) return false
     const sessionId = shareModalSession.id
     // Race mitigation (RESEARCH §8): set local "warned" flag synchronously
     // before any await so a fast double-toggle doesn't re-show the banner.
@@ -960,12 +966,14 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
         ToggleWebServing(sessionId, true),
       ])
       setWebEnabled((prev) => ({ ...prev, [sessionId]: true }))
+      return true
     } catch (err) {
       console.warn('[App] shell web-share confirm failed:', err)
       // Best-effort rollback: clear the banner and let the user retry. Avoid
       // leaving local "warned" true if the persist call failed — the next
       // toggle will re-prompt rather than silently downgrade.
       setShellWebShareWarned(false)
+      return false
     }
   }, [shareModalSession])
 
