@@ -163,6 +163,23 @@ func (c *DaemonClient) SetStartMinimized(val bool) error {
 		map[string]bool{"startMinimized": val}, nil)
 }
 
+// GetNotifyOnWaiting returns the persisted native-notification-on-waiting
+// preference. Phase 167 NTF-04.
+func (c *DaemonClient) GetNotifyOnWaiting() (bool, error) {
+	var resp map[string]bool
+	if err := c.doJSON(http.MethodGet, "/settings/notify-on-waiting", nil, &resp); err != nil {
+		return false, err
+	}
+	return resp["notifyOnWaiting"], nil
+}
+
+// SetNotifyOnWaiting persists the native-notification-on-waiting preference.
+// Phase 167 NTF-04.
+func (c *DaemonClient) SetNotifyOnWaiting(val bool) error {
+	return c.doJSON(http.MethodPatch, "/settings/notify-on-waiting",
+		map[string]bool{"notifyOnWaiting": val}, nil)
+}
+
 // GetShellWebShareWarned returns the persisted shell-web-share-warned flag.
 // Phase 101 SHELL-08.
 func (c *DaemonClient) GetShellWebShareWarned() (bool, error) {
