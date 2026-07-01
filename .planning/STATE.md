@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Funnel Sharing & Polish
-current_phase: 165
-current_phase_name: funnel-backend
-status: verified
-stopped_at: Phase 166 UI-SPEC approved
-last_updated: "2026-06-30T23:45:18.795Z"
+current_phase: 166
+current_phase_name: funnel-frontend-help-guide
+status: phase-complete
+stopped_at: Phase 166 executed + verified (8/8, FUI-06 gap closed)
+last_updated: "2026-06-30T22:05:00.000Z"
 last_activity: 2026-06-30
-last_activity_desc: completed live UAT (M-34/M-35/M-36 all PASS)
+last_activity_desc: Phase 166 executed (5/5 plans) + verified PASSED (8/8)
 progress:
   total_phases: 4
-  completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
-  percent: 25
+  completed_phases: 2
+  total_plans: 10
+  completed_plans: 10
+  percent: 50
 ---
 
 # Project State
@@ -24,17 +24,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 165 — funnel-backend
+**Current focus:** Phase 166 complete — next phase 167
 
 ## Current Position
 
-Phase: 165 (funnel-backend) — ✅ FULLY VERIFIED LIVE (all manual UAT M-34/M-35/M-36 PASS)
-Plan: 5 of 5 complete; 165-05 loopback-HTTP fix proven end-to-end on a real Funnel tailnet
-Status: ALL manual UAT GREEN — M-34 off-tailnet 200 (loopback-HTTP, prod build); M-35 a/b/c/d every teardown trigger; M-36 fallback (local web-share works, Funnel fail-closed). FNL-01..07 code-verified + the live-only items now all pass. Phase 165 done.
-Last activity: 2026-06-30 — completed live UAT (M-34/M-35/M-36 all PASS)
+Phase: 166 (funnel-frontend-help-guide) — COMPLETE (verified 8/8)
+Plan: 5 of 5 (all complete)
+Status: Phase 166 executed + verified PASSED
+Last activity: 2026-06-30 — Phase 166 executed (5/5) + verified
 
 ```
-v4.2 Progress: [█████░░░░░░░░░░░░░░░░] 25% (1/4 phases — 165 ✅ DONE, verified live)
+v4.2 Progress: [██████████░░░░░░░░░░] 50% (2/4 phases — 165 ✅ DONE (live), 166 ✅ DONE (verified 8/8))
 ```
 
 ## Live UAT Findings (2026-06-30, real Funnel-granted tailnet)

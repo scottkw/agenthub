@@ -385,7 +385,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 **v4.2 Funnel Sharing & Polish (Phases 165-168)**
 
 - [x] **Phase 165: Funnel Backend** - Atomic Funnel lifecycle: LocalClient promotion, EnableFunnel/DisableFunnel, Funnel-aware Origin allowlist + BaseURL + share-URL builders, four-path teardown, CheckFunnelAccess preflight, auto-expiry enforcement (completed 2026-06-30)
-- [ ] **Phase 166: Funnel Frontend + Help Guide** - Risk-acknowledgment dialog, auto-expiry selector, colorblind-safe internet-exposure indicator, Funnel URL display, one-click disable, in-app Sharing Guide Help article
+- [x] **Phase 166: Funnel Frontend + Help Guide** (5/5 plans) — completed 2026-06-30, verified 8/8 - Risk-acknowledgment dialog, auto-expiry selector, colorblind-safe internet-exposure indicator, Funnel URL display, one-click disable, in-app Sharing Guide Help article
 - [ ] **Phase 167: Native Notifications** - beeep cross-platform notification on waiting-state transition, de-dup guard, Settings toggle (default off)
 - [ ] **Phase 168: Bug Fix & Settings Polish** - Fix #112 (web-guest plugin-config SSE), #117 (multi-viewer kick + disconnect UI), #118 (remote-open in-app tab), #115 (Footer Share modal), #116 (Hub auto-switch setting)
 
@@ -431,14 +431,14 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 Plans:
 **Wave 1**
 
-- [ ] 166-01-PLAN.md — Wave 0 blocker: hand-authored Wails stubs (SetSessionFunnel + SessionInfo.funnelActive) + import-contract test + all Phase-166 CSS tokens/classes
-- [ ] 166-02-PLAN.md — Funnel enable flow: inline risk panel (every enable) + auto-expiry selector + Help cross-link + local-fallback disable + HubPanel session sync
-- [ ] 166-03-PLAN.md — Colorblind-safe internet-exposure indicator: Hub card globe+"INTERNET" badge + session-tab globe icon + App.tsx funnelActiveSessions
-- [ ] 166-04-PLAN.md — Sharing Guide help article (both paths + ACL grant + wildcard gotcha) registered in both Help nav arrays
+- [x] 166-01-PLAN.md — Wave 0 blocker: hand-authored Wails stubs (SetSessionFunnel + SessionInfo.funnelActive) + import-contract test + all Phase-166 CSS tokens/classes
+- [x] 166-02-PLAN.md — Funnel enable flow: inline risk panel (every enable) + auto-expiry selector + Help cross-link + local-fallback disable + HubPanel session sync
+- [x] 166-03-PLAN.md — Colorblind-safe internet-exposure indicator: Hub card globe+"INTERNET" badge + session-tab globe icon + App.tsx funnelActiveSessions
+- [x] 166-04-PLAN.md — Sharing Guide help article (both paths + ACL grant + wildcard gotcha) registered in both Help nav arrays
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 166-05-PLAN.md — Funnel URL display + warm-up UX + one-click disable + TESTING.md manifest/traceability/M-37..M-40 + tsc && vite build gate
+- [x] 166-05-PLAN.md — Funnel URL display + warm-up UX + one-click disable + TESTING.md manifest/traceability/M-37..M-40 + tsc && vite build gate
 
 **UI hint**: yes
 
@@ -478,7 +478,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 165. Funnel Backend | 5/5 | Complete   | 2026-06-30 |
-| 166. Funnel Frontend + Help Guide | 0/? | Not started | - |
+| 166. Funnel Frontend + Help Guide | 5/5 | Complete (verified 8/8) | 2026-06-30 |
 | 167. Native Notifications | 0/? | Not started | - |
 | 168. Bug Fix & Settings Polish | 0/? | Not started | - |
 
