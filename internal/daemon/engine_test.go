@@ -1577,6 +1577,69 @@ func TestListSessions_WorkDir_Populated(t *testing.T) {
 	}
 }
 
+// TestListSessions_ViewerCount (Phase 168 / FIX-04, #121): ListSessions must
+// populate SessionInfo.ViewerCount from hub.RemoteViewerCount() — a
+// never-shared session's own internal (Origin=="local") subscribers must NOT
+// count as viewers; only Origin=="web" (remote/shared) subscribers do.
+func TestListSessions_ViewerCount(t *testing.T) {
+	spy := &spyBackend{}
+	e := NewSessionEngine()
+	e.backend = spy
+	e.configDir = t.TempDir()
+
+	id, err := e.CreateSession(context.Background(), "cat", "viewer-count-test", t.TempDir(), nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	t.Cleanup(func() { _ = e.KillSession(id) })
+
+	hub, ok := e.manager.Get(id)
+	if !ok {
+		t.Fatalf("hub not found for session %s", id)
+	}
+
+	// Local-only subscribers (the app's own internal WebSocket connections):
+	// TerminalPanel, ChatPanel, status watcher, Hub-card preview.
+	local1 := &relay.Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "local"}
+	local2 := &relay.Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "local"}
+	hub.Subscribe(local1)
+	hub.Subscribe(local2)
+
+	sessions := e.ListSessions()
+	found := findSessionByID(sessions, id)
+	if found.ID == "" {
+		t.Fatal("session not found in ListSessions output")
+	}
+	if found.ViewerCount != 0 {
+		t.Errorf("local-only subscribers: ViewerCount = %d, want 0", found.ViewerCount)
+	}
+
+	// Add two web-origin (remote/shared) subscribers.
+	web1 := &relay.Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "web"}
+	web2 := &relay.Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "web"}
+	hub.Subscribe(web1)
+	hub.Subscribe(web2)
+
+	sessions = e.ListSessions()
+	found = findSessionByID(sessions, id)
+	if found.ID == "" {
+		t.Fatal("session not found in ListSessions output (2nd call)")
+	}
+	if found.ViewerCount != 2 {
+		t.Errorf("2 web + 2 local subscribers: ViewerCount = %d, want 2", found.ViewerCount)
+	}
+}
+
+// findSessionByID is a small test helper shared by ListSessions field-assertion tests.
+func findSessionByID(sessions []SessionInfo, id string) SessionInfo {
+	for _, s := range sessions {
+		if s.ID == id {
+			return s
+		}
+	}
+	return SessionInfo{}
+}
+
 // TestListSessions_WorkDir_EmptyForUnknown (Phase 131 / GRID-02):
 // A session with no sessionWorkDirs entry returns WorkDir=="" without panic.
 // Uses newBareEngine (direct registry injection — no real PTY spawn).
