@@ -1505,6 +1505,12 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
           onBrowseFiles={handleOpenFileBrowser}
           webMode={mode === 'web'}
           webFilesEnabled={webFilesEnabled}
+          funnelActiveSessions={/* Phase 166 / FUI-03: derived from hubSessions 3s poll; no new interval */
+            hubSessions.reduce<Record<string, boolean>>(
+              (acc, s) => ({ ...acc, [s.id]: s.funnelActive }),
+              {}
+            )
+          }
         />
 
         <div className="terminal-container">
