@@ -50,7 +50,7 @@ Requirements for this milestone. Each maps to a roadmap phase.
 - [ ] **FIX-01**: Web-share guests on the `/app/` surface receive live plugin-config and SSE hot-swap updates (self-fetched via the capability-gated `/api/plugin-config` + SSE endpoints), restoring the parity lost after the Phase 159 `/sessions/{id}` → `/app/` redirect. — Issue #112
 - [ ] **FIX-02**: A shared session supports multiple simultaneous remote viewers without a newly joining viewer kicking an existing one, and the Hub provides a way to disconnect a stuck viewer. — Issue #117
 - [ ] **FIX-03**: Opening a remote session from the Hub opens it in an in-app tab (connecting via the remote peer's host), not an external browser window. — Issue #118
-- [ ] **FIX-04**: The Hub session-card viewer count reflects only real remote/shared viewers, excluding the app's own internal WebSocket subscribers (TerminalPanel, ChatPanel, status watcher) — a never-shared local session reads 0 viewers. — Issue #121
+- [x] **FIX-04**: The Hub session-card viewer count reflects only real remote/shared viewers, excluding the app's own internal WebSocket subscribers (TerminalPanel, ChatPanel, status watcher) — a never-shared local session reads 0 viewers. — Issue #121
 - [ ] **FIX-05**: Tailscale connection detection reports "Connected" on non-admin macOS accounts where the `macsys` `sameuserproof` file is unreadable, via a CLI `status` fallback when the SDK read fails. — Issue #120
 
 ## v2 Requirements
@@ -102,7 +102,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FIX-01 | Phase 168 | Pending |
 | FIX-02 | Phase 168 | Pending |
 | FIX-03 | Phase 168 | Pending |
-| FIX-04 | Phase 168 | Pending |
+| FIX-04 | Phase 168 | Complete |
 | FIX-05 | Phase 169 | Pending |
 
 **Coverage:**

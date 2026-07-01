@@ -498,11 +498,11 @@ Plans:
   5. A "Stay on Hub after creating session" toggle in Settings → Session Behavior prevents auto-switching to a newly Hub-created session when enabled
   6. A never-shared local session's Hub card reads 0 viewers — the count excludes the app's own internal WebSocket subscribers (Terminal/Chat/status watcher) and reflects only real remote/shared viewers (#121; touches the same `ViewerCount`/relay-hub plumbing as #117, so fix alongside FIX-02)
 
-**Plans**: 7 plans (5 waves)
+**Plans**: 1/7 plans executed
 Plans:
 **Wave 1**
 
-- [ ] 168-01-PLAN.md — FIX-04: Hub.RemoteViewerCount() (web-origin only) + engine viewerCount swap [wave 1]
+- [x] 168-01-PLAN.md — FIX-04: Hub.RemoteViewerCount() (web-origin only) + engine viewerCount swap [wave 1]
 - [ ] 168-02-PLAN.md — FIX-01: web-guest plugin-config self-fetch + SSE + baseURL prop seam [wave 1]
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -544,7 +544,7 @@ Plans:
 | 165. Funnel Backend | 5/5 | Complete   | 2026-06-30 |
 | 166. Funnel Frontend + Help Guide | 5/5 | Complete (verified 8/8) | 2026-06-30 |
 | 167. Native Notifications | 7/7 | Complete   | 2026-07-01 |
-| 168. Bug Fix & Settings Polish | 0/? | Not started | - |
+| 168. Bug Fix & Settings Polish | 1/7 | In Progress|  |
 | 169. Tailscale Detection Fix | 0/? | Not started | - |
 
 ---

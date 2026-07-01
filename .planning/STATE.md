@@ -5,15 +5,15 @@ milestone_name: Funnel Sharing & Polish
 current_phase: 168
 current_phase_name: bug-fix-settings-polish
 status: executing
-stopped_at: Phase 168 UI-SPEC approved
-last_updated: "2026-07-01T20:04:18.170Z"
+stopped_at: Completed 168-01-PLAN.md
+last_updated: "2026-07-01T20:14:07.076Z"
 last_activity: 2026-07-01
-last_activity_desc: Closed Phase 167 complete (M-41 live delivery deferred); advanced to Phase 168
+last_activity_desc: Phase 168 execution started
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 17
-  completed_plans: 17
+  total_plans: 24
+  completed_plans: 18
   percent: 60
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 167 — native-notifications
+**Current focus:** Phase 168 — bug-fix-settings-polish
 
 ## Current Position
 
-Phase: 168 (bug-fix-settings-polish) — NOT STARTED (next: /gsd-plan-phase 168)
-Plan: — of —
+Phase: 168 (bug-fix-settings-polish) — EXECUTING
+Plan: 2 of 7
 Status: Ready to execute
-Last activity: 2026-07-01 — Closed Phase 167 complete (M-41 live delivery deferred); advanced to Phase 168
+Last activity: 2026-07-01 — Phase 168 execution started
 
 ```
 v4.2 Progress: [████████████░░░░░░░░] 60% (3/5 phases — 165 ✅ DONE (live), 166 ✅ DONE (verified 8/8), 167 ✅ DONE (code-verified 11/11; M-41 live deferred); 168 + 169 remain)
@@ -137,9 +137,9 @@ v4.2 Progress: [████████████░░░░░░░░] 60
 
 ## Session Continuity
 
-Last session: 2026-07-01T19:44:38.036Z
-Stopped at: Phase 168 UI-SPEC approved
-Resume file: .planning/phases/168-bug-fix-settings-polish/168-UI-SPEC.md
+Last session: 2026-07-01T20:13:58.963Z
+Stopped at: Completed 168-01-PLAN.md
+Resume file: None
 Next action: Phase 168 (Bug Fix & Settings Polish) is the last open v4.2 phase — FIX-01/02/03 + UX-01/02 (#112 web-guest plugin-config SSE, #117 multi-viewer kick + disconnect UI, #118 remote-open in-app tab, #115 Footer Share modal, #116 Hub auto-switch setting). Run `/gsd-plan-phase 168` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
 
 ## Decisions (carry-forward from v4.1 — architecture reference)
@@ -215,6 +215,7 @@ Next action: Phase 168 (Bug Fix & Settings Polish) is the last open v4.2 phase �
 | Phase 167 P05 (gap closure) | 8min | 2 tasks | 4 files |
 | Phase 167 P06 | 6min | 3 tasks | 8 files |
 | Phase 167 P07 | 8min | 2 tasks | 6 files |
+| Phase 168 P01 | 5min | 2 tasks | 5 files |
 
 ## Decisions
 
@@ -242,3 +243,5 @@ Next action: Phase 168 (Bug Fix & Settings Polish) is the last open v4.2 phase �
 - [Phase ?]: Phase 167-06: SetNotifyOnWaiting(true) proactively invokes requestNotificationAuthFunc before the daemon nil-check -- surfaces the macOS permission prompt at toggle-time (leading suspected M-41 fix)
 - [Phase ?]: Phase 167-06: instrumented every native-notification branch (attempt/not-granted/authorization-error/delivery) with logging; no live-delivery test invented since go test never pumps the main dispatch queue
 - [Phase 167]: Phase 167-07: reused settings-panel__error CSS class for the notification-permission-denied hint (no new CSS); copy uses plain '>' separators matching the plan's action-block wording verbatim.
+- [Phase ?]: RemoteViewerCount is a new, separate Hub method — SubscriberCount left completely unchanged (still consumed by relay/server.go's NotifyViewerCount MsgMeta frame).
+- [Phase ?]: Raw per-connection count (no PersonKey collapse) for RemoteViewerCount, matching D-01/D-02.
