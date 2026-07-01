@@ -1,10 +1,11 @@
 ---
 phase: 168
 slug: bug-fix-settings-polish
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-07-01
+reviewed_at: 2026-07-01
 ---
 
 # Phase 168 — UI Design Contract
