@@ -321,6 +321,48 @@ func TestHub_SubscriberCountTracksConcurrentSubscribers(t *testing.T) {
 	}
 }
 
+// TestRemoteViewerCount (Phase 168 / FIX-04, #121): RemoteViewerCount counts
+// only Origin=="web" subscribers, excluding the app's own internal Origin=="local"
+// WebSocket connections (TerminalPanel, ChatPanel, status watcher, Hub-card
+// preview), so a never-shared local session reads 0 viewers.
+func TestRemoteViewerCount(t *testing.T) {
+	hub, _ := makeTestHub(t)
+
+	if got := hub.RemoteViewerCount(); got != 0 {
+		t.Fatalf("empty hub: RemoteViewerCount = %d, want 0", got)
+	}
+
+	web1 := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "web"}
+	web2 := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "web"}
+	local1 := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "local"}
+	local2 := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "local"}
+
+	hub.Subscribe(local1)
+	hub.Subscribe(local2)
+	if got := hub.RemoteViewerCount(); got != 0 {
+		t.Fatalf("2 local-origin subscribers: RemoteViewerCount = %d, want 0", got)
+	}
+	if got := hub.SubscriberCount(); got != 2 {
+		t.Fatalf("SubscriberCount = %d, want 2 (sanity check)", got)
+	}
+
+	hub.Subscribe(web1)
+	if got := hub.RemoteViewerCount(); got != 1 {
+		t.Fatalf("1 web + 2 local: RemoteViewerCount = %d, want 1", got)
+	}
+
+	hub.Subscribe(web2)
+	if got := hub.RemoteViewerCount(); got != 2 {
+		t.Fatalf("2 web + 2 local: RemoteViewerCount = %d, want 2", got)
+	}
+
+	hub.Unsubscribe(web1)
+	hub.Unsubscribe(web2)
+	if got := hub.RemoteViewerCount(); got != 0 {
+		t.Fatalf("after unsubscribing web subscribers: RemoteViewerCount = %d, want 0", got)
+	}
+}
+
 func TestHub_ReadOnlyFlagStored(t *testing.T) {
 	hub, _ := makeTestHub(t)
 
