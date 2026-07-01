@@ -429,10 +429,15 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 **Plans**: 5 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 166-01-PLAN.md — Wave 0 blocker: hand-authored Wails stubs (SetSessionFunnel + SessionInfo.funnelActive) + import-contract test + all Phase-166 CSS tokens/classes
 - [ ] 166-02-PLAN.md — Funnel enable flow: inline risk panel (every enable) + auto-expiry selector + Help cross-link + local-fallback disable + HubPanel session sync
 - [ ] 166-03-PLAN.md — Colorblind-safe internet-exposure indicator: Hub card globe+"INTERNET" badge + session-tab globe icon + App.tsx funnelActiveSessions
 - [ ] 166-04-PLAN.md — Sharing Guide help article (both paths + ACL grant + wildcard gotcha) registered in both Help nav arrays
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 166-05-PLAN.md — Funnel URL display + warm-up UX + one-click disable + TESTING.md manifest/traceability/M-37..M-40 + tsc && vite build gate
 
 **UI hint**: yes
