@@ -27,6 +27,7 @@ export function adaptRemoteSession(
     workDir: '',               // remote sessions have no local workDir → fall into "Other"
     homeDir: false,
     browseEnabled: false,
+    funnelActive: false,       // remote sessions are never Funnel-active from the local perspective
     url: session.url,          // CR-01: carry the peer URL so "Open in browser" can resolve it
   }
 }

@@ -130,3 +130,6 @@ export const GetCapabilityQRCode     = (joinURL)            => Call('main.App.Ge
 
 // Phase 137 / SHARE-03: per-session browse toggle (owner binding). Replaces SetSessionFilesWrite (D-02/D-07).
 export const SetSessionBrowse        = (sessionID, enabled) => Call('main.App.SetSessionBrowse', [sessionID, enabled])
+
+// Phase 165 / FNL-01 — Funnel enable/disable with auto-expiry (expiresIn=0 = no expiry).
+export const SetSessionFunnel = (sessionID, enabled, expiresIn) => Call('main.App.SetSessionFunnel', [sessionID, enabled, expiresIn])

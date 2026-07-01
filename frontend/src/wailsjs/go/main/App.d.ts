@@ -19,6 +19,8 @@ export interface SessionInfo {
   homeDir: boolean
   /** Phase 137 / SHARE-03: true when the per-session browse toggle is ON. Server-side source of truth (replaces filesWrite — D-07). */
   browseEnabled: boolean
+  /** Phase 165 / FNL-01: true when Tailscale Funnel is active. NOT omitempty — false must serialize. */
+  funnelActive: boolean
   /** Phase 131 / GRID-02: EvalSymlinks-resolved session working directory. Used by the Hub to group session cards by working directory. */
   workDir: string
 }
@@ -205,3 +207,6 @@ export function GetCapabilityQRCode(joinURL: string): Promise<string>
 
 // Phase 137 / SHARE-03: per-session browse toggle (owner binding). Replaces SetSessionFilesWrite (D-02/D-07).
 export function SetSessionBrowse(sessionID: string, enabled: boolean): Promise<void>
+
+// Phase 165 / FNL-01 — Funnel on/off; expiresIn=0 means no auto-expiry (FNL-07).
+export function SetSessionFunnel(sessionID: string, enabled: boolean, expiresIn: number): Promise<void>

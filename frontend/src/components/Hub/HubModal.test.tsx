@@ -185,6 +185,7 @@ function makeSession(overrides: Partial<SessionInfo> = {}): SessionInfo {
     viewerCount: 0,
     homeDir: false,
     browseEnabled: false,
+    funnelActive: false,
     workDir: '/home/user',
     ...overrides,
   }

@@ -23,6 +23,7 @@ function makeSession(
     duration: 0,
     homeDir: false,
     browseEnabled: false,
+    funnelActive: false,
     workDir: overrides.workDir,
   }
 }
