@@ -140,3 +140,7 @@ None - no external service configuration required.
 ---
 *Phase: 168-bug-fix-settings-polish*
 *Completed: 2026-07-01*
+
+## Self-Check: PASSED
+
+All created/modified files and commit hashes verified present.
