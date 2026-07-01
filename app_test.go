@@ -1139,3 +1139,37 @@ func TestDisplayNameForCLI(t *testing.T) {
 		})
 	}
 }
+
+// TestSetNotifyOnWaiting_RequestsAuthorizationWhenEnabled locks in the
+// leading suspected M-41 fix (Phase 167-06 gap closure): enabling the
+// NotifyOnWaiting toggle proactively drives native authorization via the
+// requestNotificationAuthFunc seam, and disabling it does not. This is the
+// load-bearing assertion for the toggle-time behavior; real
+// UNUserNotificationCenter authorization + delivery can only be proven on a
+// signed build (M-41), not under `go test`.
+func TestSetNotifyOnWaiting_RequestsAuthorizationWhenEnabled(t *testing.T) {
+	var calls int
+	a := &App{
+		requestNotificationAuthFunc: func() { calls++ },
+	}
+
+	// Enable: spy called exactly once, cache flips true. Ignore the returned
+	// daemon-not-connected error — the assertion is on the spy + cache.
+	_ = a.SetNotifyOnWaiting(true)
+	if calls != 1 {
+		t.Fatalf("SetNotifyOnWaiting(true): expected requestNotificationAuthFunc called once, got %d", calls)
+	}
+	if !a.notifyOnWaiting.Load() {
+		t.Error("SetNotifyOnWaiting(true): expected notifyOnWaiting cache to be true")
+	}
+
+	// Disable: spy must NOT be called again, cache flips false.
+	calls = 0
+	_ = a.SetNotifyOnWaiting(false)
+	if calls != 0 {
+		t.Fatalf("SetNotifyOnWaiting(false): expected requestNotificationAuthFunc NOT called, got %d calls", calls)
+	}
+	if a.notifyOnWaiting.Load() {
+		t.Error("SetNotifyOnWaiting(false): expected notifyOnWaiting cache to be false")
+	}
+}

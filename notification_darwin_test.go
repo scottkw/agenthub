@@ -28,3 +28,17 @@ func TestHasAppBundleID_FalseWhenUnbundled(t *testing.T) {
 func TestSendNotification_NoBundleReturnsCleanly(t *testing.T) {
 	sendNotification("agenthub.test", "AgentHub", "waiting")
 }
+
+// TestRequestNotificationAuth_NoBundleReturnsCleanly is a callable/smoke
+// guard proving the darwin proactive-authorization wrapper (Phase 167-06,
+// M-41 gap closure) is safe in an unbundled test process — the native side
+// bundle-guards and returns instead of reaching the crash-prone
+// UNUserNotificationCenter authorization API.
+//
+// This is NOT a substitute for the live M-41 delivery test: real permission
+// prompts, granted/denied outcomes, and delegate-driven foreground
+// presentation can only be proven on a signed production build with a
+// pumped main dispatch queue, which `go test` never provides.
+func TestRequestNotificationAuth_NoBundleReturnsCleanly(t *testing.T) {
+	requestNotificationAuth()
+}
