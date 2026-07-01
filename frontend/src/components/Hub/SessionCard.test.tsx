@@ -631,6 +631,40 @@ describe('SessionCard', () => {
 
   // ---- STATUS_CONFIG usage (source-level check via grep — verified in acceptance_criteria)
   // ---- COLORBLIND-SAFE comments (source-level check via grep — verified in acceptance_criteria)
+
+  // ---- Phase 166 / FUI-03: internet exposure badge ----
+
+  it('FUI-03: funnelActive=true renders .hub-internet-badge with "INTERNET" text', () => {
+    const { container } = renderCard(makeSession({ funnelActive: true }))
+    const badge = container.querySelector('.hub-internet-badge')
+    expect(badge).not.toBeNull()
+    expect(badge!.textContent).toContain('INTERNET')
+  })
+
+  it('FUI-03: funnelActive=true badge contains .hub-internet-badge__label with "INTERNET"', () => {
+    const { container } = renderCard(makeSession({ funnelActive: true }))
+    const label = container.querySelector('.hub-internet-badge__label')
+    expect(label).not.toBeNull()
+    expect(label!.textContent).toBe('INTERNET')
+  })
+
+  it('FUI-03: funnelActive=true badge contains .hub-internet-badge__icon (GlobeAltIcon, aria-hidden)', () => {
+    const { container } = renderCard(makeSession({ funnelActive: true }))
+    const icon = container.querySelector('.hub-internet-badge__icon')
+    expect(icon).not.toBeNull()
+    expect(icon!.getAttribute('aria-hidden')).toBe('true')
+  })
+
+  it('FUI-03: funnelActive=false renders no .hub-internet-badge', () => {
+    const { container } = renderCard(makeSession({ funnelActive: false }))
+    const badge = container.querySelector('.hub-internet-badge')
+    expect(badge).toBeNull()
+  })
+
+  it('FUI-03 COLORBLIND-SAFE: SessionCard.tsx source contains COLORBLIND-SAFE comment for the internet badge', () => {
+    expect(rawSessionCard).toContain('COLORBLIND-SAFE')
+    expect(rawSessionCard).toContain('hub-internet-badge')
+  })
 })
 
 // ---- Phase 134 Plan 02: source-inspection assertions (TDD RED) ----
