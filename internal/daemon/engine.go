@@ -45,6 +45,7 @@ type SessionEngine struct {
 	aliasStore      *AliasStore           // Phase 152 / IDENT-01,IDENT-02: global alias store (per-person, not per-session); constructed over daemonConfigDir in NewSessionEngine
 
 	startMinimized              bool            // persisted start-minimized preference
+	notifyOnWaiting             bool            // Phase 167 NTF-04: persisted native-notification-on-waiting preference (default OFF)
 	shellWebShareWarned         bool            // Phase 101 SHELL-08: user has acknowledged the shell web-share security banner
 	shellWebShareWarningEnabled *bool           // Phase 150 SET-01: master warning switch; nil = default (true per D-08)
 	shellPath                   string          // Phase 107 SHELL-11: user-configured shell binary path; empty = use platform default
@@ -111,6 +112,7 @@ func ensureOpenCodeTUIConfig(dir string) string {
 type daemonSettings struct {
 	CLIPaths                    map[string]string `json:"cliPaths,omitempty"`
 	StartMinimized              bool              `json:"startMinimized,omitempty"`
+	NotifyOnWaiting             bool              `json:"notifyOnWaiting,omitempty"` // Phase 167 NTF-04: default OFF; zero-value is the correct default (no defaults-merge needed)
 	ShellWebShareWarned         bool              `json:"shellWebShareWarned,omitempty"`
 	ShellPath                   string            `json:"shellPath,omitempty"`
 	AutoCloseSession            *bool             `json:"autoCloseSession,omitempty"`
@@ -209,6 +211,7 @@ func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 		}
 	}
 	e.startMinimized = s.StartMinimized
+	e.notifyOnWaiting = s.NotifyOnWaiting
 	e.shellWebShareWarned = s.ShellWebShareWarned
 	e.shellPath = s.ShellPath
 	e.autoCloseSession = s.AutoCloseSession
@@ -244,6 +247,7 @@ func (e *SessionEngine) saveSettingsToDisk() {
 	s := daemonSettings{
 		CLIPaths:                    e.cliPaths,
 		StartMinimized:              e.startMinimized,
+		NotifyOnWaiting:             e.notifyOnWaiting,
 		ShellWebShareWarned:         e.shellWebShareWarned,
 		ShellPath:                   e.shellPath,
 		AutoCloseSession:            e.autoCloseSession,
@@ -1096,6 +1100,23 @@ func (e *SessionEngine) GetStartMinimized() bool {
 func (e *SessionEngine) SetStartMinimized(val bool) {
 	e.mu.Lock()
 	e.startMinimized = val
+	e.saveSettingsToDisk()
+	e.mu.Unlock()
+}
+
+// GetNotifyOnWaiting returns the persisted native-notification-on-waiting
+// preference. Phase 167 NTF-04; default OFF (zero-value false).
+func (e *SessionEngine) GetNotifyOnWaiting() bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.notifyOnWaiting
+}
+
+// SetNotifyOnWaiting updates and persists the native-notification-on-waiting
+// preference. Phase 167 NTF-04.
+func (e *SessionEngine) SetNotifyOnWaiting(val bool) {
+	e.mu.Lock()
+	e.notifyOnWaiting = val
 	e.saveSettingsToDisk()
 	e.mu.Unlock()
 }
