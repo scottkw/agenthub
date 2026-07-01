@@ -5,16 +5,16 @@ milestone_name: Funnel Sharing & Polish
 current_phase: 167
 current_phase_name: native-notifications
 status: executing
-stopped_at: Completed 167-06-PLAN.md (M-41 live-delivery gap closure, instrumentation-first) -- awaiting M-41 signed-build re-run capturing new log output
-last_updated: "2026-07-01T13:43:23.635Z"
+stopped_at: Completed 167-07-PLAN.md (M-41 gap closure, frontend half — permission-denied hint) -- Phase 167 both gap-closure plans (06 backend, 07 frontend) done; awaiting M-41 signed-build re-run
+last_updated: "2026-07-01T13:54:06.009Z"
 last_activity: 2026-07-01
-last_activity_desc: Phase 167 execution started
+last_activity_desc: Completed 167-06-PLAN.md (M-41 live-delivery gap closure, instrumentation-first)
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 17
-  completed_plans: 16
-  percent: 50
+  completed_plans: 17
+  percent: 75
 ---
 
 # Project State
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 ## Current Position
 
 Phase: 167 (native-notifications) — EXECUTING
-Plan: 6 of 7
-Status: Executing Phase 167
+Plan: 7 of 7
+Status: Ready to execute
 Last activity: 2026-07-01 — Completed 167-06-PLAN.md (M-41 live-delivery gap closure, instrumentation-first)
 
 ```
@@ -133,8 +133,8 @@ v4.2 Progress: [██████████░░░░░░░░░░] 50
 
 ## Session Continuity
 
-Last session: 2026-07-01T13:43:23.627Z
-Stopped at: Completed 167-06-PLAN.md (M-41 live-delivery gap closure, instrumentation-first) -- awaiting M-41 signed-build re-run capturing new log output
+Last session: 2026-07-01T13:54:06.000Z
+Stopped at: Completed 167-07-PLAN.md (M-41 gap closure, frontend half — permission-denied hint) -- Phase 167 both gap-closure plans (06 backend, 07 frontend) done; awaiting M-41 signed-build re-run
 Resume file: None
 Next action: Phase 167's M-41 crash regression is now hardened (bundle-id guard + @try/@catch in the darwin native notification path). Run `/gsd-verify-work 167` to re-run M-41 on a SIGNED PRODUCTION BUILD (not `wails dev`) on macOS/Windows/Linux — confirms real toast delivery + tray-hidden behavior with the hardening in place. This is the sole remaining open item before Phase 167 can be marked complete and Phase 168 (Bug Fix & Settings Polish) begins.
 
@@ -210,6 +210,7 @@ Next action: Phase 167's M-41 crash regression is now hardened (bundle-id guard 
 | Phase 167 P04 | 20min | 2 tasks | 7 files |
 | Phase 167 P05 (gap closure) | 8min | 2 tasks | 4 files |
 | Phase 167 P06 | 6min | 3 tasks | 8 files |
+| Phase 167 P07 | 8min | 2 tasks | 6 files |
 
 ## Decisions
 
@@ -236,3 +237,4 @@ Next action: Phase 167's M-41 crash regression is now hardened (bundle-id guard 
 - [Phase ?]: Phase 167-05: no test invented for the async dispatch-queue crash path itself (go test never pumps the main queue, would false-pass); the honest, load-bearing assertion is hasAppBundleID() == false under an unbundled go-test binary
 - [Phase ?]: Phase 167-06: SetNotifyOnWaiting(true) proactively invokes requestNotificationAuthFunc before the daemon nil-check -- surfaces the macOS permission prompt at toggle-time (leading suspected M-41 fix)
 - [Phase ?]: Phase 167-06: instrumented every native-notification branch (attempt/not-granted/authorization-error/delivery) with logging; no live-delivery test invented since go test never pumps the main dispatch queue
+- [Phase 167]: Phase 167-07: reused settings-panel__error CSS class for the notification-permission-denied hint (no new CSS); copy uses plain '>' separators matching the plan's action-block wording verbatim.

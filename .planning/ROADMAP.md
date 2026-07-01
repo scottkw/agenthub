@@ -386,7 +386,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 - [x] **Phase 165: Funnel Backend** - Atomic Funnel lifecycle: LocalClient promotion, EnableFunnel/DisableFunnel, Funnel-aware Origin allowlist + BaseURL + share-URL builders, four-path teardown, CheckFunnelAccess preflight, auto-expiry enforcement (completed 2026-06-30)
 - [x] **Phase 166: Funnel Frontend + Help Guide** (5/5 plans) — completed 2026-06-30, verified 8/8 - Risk-acknowledgment dialog, auto-expiry selector, colorblind-safe internet-exposure indicator, Funnel URL display, one-click disable, in-app Sharing Guide Help article
-- [ ] **Phase 167: Native Notifications** - beeep cross-platform notification on waiting-state transition, de-dup guard, Settings toggle (default off) (5/5 plans executed 2026-07-01, incl. 167-05 M-41 crash-regression gap closure — awaiting M-41 re-run on signed build)
+- [x] **Phase 167: Native Notifications** - beeep cross-platform notification on waiting-state transition, de-dup guard, Settings toggle (default off) (5/5 plans executed 2026-07-01, incl. 167-05 M-41 crash-regression gap closure — awaiting M-41 re-run on signed build) (completed 2026-07-01)
 - [ ] **Phase 168: Bug Fix & Settings Polish** - Fix #112 (web-guest plugin-config SSE), #117 (multi-viewer kick + disconnect UI), #118 (remote-open in-app tab), #115 (Footer Share modal), #116 (Hub auto-switch setting)
 
 ## Phase Details
@@ -456,7 +456,7 @@ Plans:
 
   *(Note: toggle placement moved to the **Behavior** section per the LOCKED user correction in 167-CONTEXT.md — success-criterion-4 "Session Behavior" wording is superseded; intent unchanged.)*
 
-**Plans**: 6/7 plans executed
+**Plans**: 7/7 plans complete
 
 Plans:
 **Wave 1**
@@ -479,7 +479,7 @@ Plans:
 **Gap closure** *(M-41 live-delivery blocker — native toast never displays on a signed build)*
 
 - [x] 167-06-PLAN.md — Instrument every native notification path (attempt/not-granted/auth-error/delivery logging), request UNUserNotificationCenter authorization proactively on toggle-enable, register a willPresentNotification foreground-presentation delegate, emit a `notification:permission-denied` event on denial, add maybeNotifyWaiting edge-fire + cache-load logging; headless Go tests for the authorization seam + TESTING.md registration (NTF-01/04)
-- [ ] 167-07-PLAN.md — Frontend permission-denied hint in the Settings Behavior section wired to the `notification:permission-denied` event (System Settings → Notifications remediation) + vitest coverage + TESTING.md registration (NTF-04) *(depends on 167-06)*
+- [x] 167-07-PLAN.md — Frontend permission-denied hint in the Settings Behavior section wired to the `notification:permission-denied` event (System Settings → Notifications remediation) + vitest coverage + TESTING.md registration (NTF-04) *(depends on 167-06)*
 
 **UI hint**: yes
 
@@ -505,7 +505,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 165. Funnel Backend | 5/5 | Complete   | 2026-06-30 |
 | 166. Funnel Frontend + Help Guide | 5/5 | Complete (verified 8/8) | 2026-06-30 |
-| 167. Native Notifications | 6/7 | In Progress|  |
+| 167. Native Notifications | 7/7 | Complete   | 2026-07-01 |
 | 168. Bug Fix & Settings Polish | 0/? | Not started | - |
 
 ---
