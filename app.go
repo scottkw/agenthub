@@ -1028,6 +1028,16 @@ func (a *App) ToggleWebServing(sessionID string, enabled bool) error {
 	return a.client.ToggleWebServing(sessionID, enabled)
 }
 
+// DisconnectViewers force-closes every remote (web-origin) viewer currently
+// connected to the session, without revoking the share capability. Phase 168
+// / FIX-02, #117.
+func (a *App) DisconnectViewers(sessionID string) error {
+	if a.client == nil {
+		return fmt.Errorf("daemon not connected")
+	}
+	return a.client.DisconnectViewers(sessionID)
+}
+
 // SetSessionBrowse enables or disables the per-session file-browse capability
 // for a specific session. Phase 137 / SHARE-03. Mirrors ToggleWebServing but
 // targets the engine's per-session browse map (sole driver of file-perm

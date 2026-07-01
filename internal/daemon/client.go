@@ -383,6 +383,13 @@ func (c *DaemonClient) ToggleWebServing(sessionID string, enabled bool) error {
 	return c.doJSON(http.MethodPost, "/sessions/"+sessionID+"/web-serve", WebServeRequest{Enabled: enabled}, nil)
 }
 
+// DisconnectViewers force-closes every remote (Origin=="web") viewer
+// currently connected to the session, without revoking the capability or
+// affecting web-serve state (D-06). Phase 168 / FIX-02, #117.
+func (c *DaemonClient) DisconnectViewers(sessionID string) error {
+	return c.doJSON(http.MethodPost, "/sessions/"+sessionID+"/disconnect-viewers", nil, nil)
+}
+
 // SetSessionBrowse sets the per-session browse toggle for a session.
 // Phase 137 / SHARE-03. Mirrors ToggleWebServing but routes to the engine's
 // per-session browse map (not a global flag). Toggle-off clears grants on the

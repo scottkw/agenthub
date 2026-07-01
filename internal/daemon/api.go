@@ -145,6 +145,13 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("POST /webserver/stop", a.handleWebServerStop)
 	a.mux.HandleFunc("GET /webserver/status", a.handleWebServerStatus)
 	a.mux.HandleFunc("POST /sessions/{id}/web-serve", a.handleWebServe)
+	// Phase 168 / FIX-02 (#117): owner-only force-disconnect of all Origin=="web"
+	// viewers for a session. Daemon-local mux only (same trust boundary as
+	// handleWebServe/handleSetSessionFunnel above) — NEVER a capability-gated
+	// /api/... route a guest browser can reach (SECURITY STRIDE-EoP, T-168-07).
+	// Drops connections only; does not revoke the capability (D-06) — viewers
+	// may reconnect with the same join code.
+	a.mux.HandleFunc("POST /sessions/{id}/disconnect-viewers", a.handleDisconnectViewers)
 	a.mux.HandleFunc("POST /shutdown", a.handleShutdown)
 	// Theme change notification — signals active OpenCode sessions.
 	a.mux.HandleFunc("POST /theme/notify", a.handleNotifyThemeChange)
@@ -1295,6 +1302,25 @@ func (a *API) handleWebServe(w http.ResponseWriter, r *http.Request) {
 	// (site 2). Routes through the ref-counted disableFunnelForSession helper so
 	// a sibling Funnel session is never cut off prematurely (Anti-Pattern 3).
 	a.disableFunnelForSession(r.Context(), id)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleDisconnectViewers force-closes every Origin=="web" subscriber on the
+// session's relay hub, giving the owner a "Disconnect all viewers" escape
+// hatch (Phase 168 / FIX-02, #117). Registered on the daemon-local mux only —
+// see the SECURITY comment at the route registration above (T-168-07).
+//
+// Does NOT revoke the session's capability grants or touch web-serve state
+// (D-06): viewers may reconnect with the same join code. Full access
+// revocation remains handleWebServe's disable path.
+func (a *API) handleDisconnectViewers(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	hub, ok := a.engine.Manager().Get(id)
+	if !ok {
+		http.Error(w, "session not found", http.StatusNotFound)
+		return
+	}
+	hub.DisconnectWebViewers()
 	w.WriteHeader(http.StatusNoContent)
 }
 

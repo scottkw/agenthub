@@ -27,6 +27,8 @@ export const UpdateCLIPath  = (name, path)   => Call('main.App.UpdateCLIPath', [
 export const StartWebServer       = (port)                  => Call('main.App.StartWebServer', [port])
 export const StopWebServer        = ()                      => Call('main.App.StopWebServer', [])
 export const ToggleWebServing     = (sessionID, enabled)    => Call('main.App.ToggleWebServing', [sessionID, enabled])
+// Phase 168 / FIX-02 (#117) — owner-only force-disconnect of all remote viewers.
+export const DisconnectViewers    = (sessionID)             => Call('main.App.DisconnectViewers', [sessionID])
 export const GetWebServerURL      = ()                      => Call('main.App.GetWebServerURL', [])
 export const IsWebServerRunning   = ()                      => Call('main.App.IsWebServerRunning', [])
 

@@ -53,6 +53,8 @@ export function UpdateCLIPath(name: string, path: string): Promise<void>
 export function StartWebServer(port: number): Promise<void>
 export function StopWebServer(): Promise<void>
 export function ToggleWebServing(sessionID: string, enabled: boolean): Promise<void>
+// Phase 168 / FIX-02 (#117) — owner-only force-disconnect of all remote viewers.
+export function DisconnectViewers(sessionID: string): Promise<void>
 export function GetWebServerURL(): Promise<string>
 export function IsWebServerRunning(): Promise<boolean>
 
