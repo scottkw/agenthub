@@ -280,6 +280,21 @@ export function HubPanel({
     setShareModalSession(session)
   }, [])
 
+  // Phase 166 (RESEARCH Pitfall 3): keep the Share modal's session prop in sync with the
+  // 3s Hub poll. shareModalSession is a snapshot taken at open-time; without this effect a
+  // funnelActive flip (Plan 05's warm-up completing on the daemon) never reaches the modal,
+  // so the warm-up UX would hang forever. Early-return keeps it inert while the modal is
+  // closed. Keyed on shareModalSession?.id (not the whole object) to avoid re-running from
+  // its own setState.
+  useEffect(() => {
+    if (!shareModalSession) return
+    const updated = sessions.find((s) => s.id === shareModalSession.id)
+    if (updated && updated !== shareModalSession) {
+      setShareModalSession(updated)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions, shareModalSession?.id])
+
   // NOTIF-01: per-session unread counts lifted from HubInteractiveModal's local state.
   // Two sources feed this map: (a) open-modal ChatPanel via onUnreadChange prop threading,
   // and (b) backgrounded sessions via useChatUnreadListeners hook (Plan 160-01).
