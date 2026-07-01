@@ -27,6 +27,7 @@ import {
   NotifyThemeChange,
   GetLastUpdateInfo,
   GetAutoCloseSession,
+  GetStayOnHubAfterCreate,
   GetPluginSettings,
   GetShellWebShareWarned,
   SetShellWebShareWarned,
@@ -277,6 +278,11 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
   // which runs in a [] deps useEffect — a ref avoids stale closures without the
   // setAutoCloseEnabled(current => ...) trick that triggers TS6133.
   const autoCloseRef = useRef(true)
+  // Stay-on-hub-after-create setting (Phase 168 UX-01): loaded on mount,
+  // default false (auto-switch, today's behavior). Stored as a ref (not
+  // state) — same rationale as autoCloseRef, avoids stale closures inside
+  // createTab without needing to add it to the useCallback deps array.
+  const stayOnHubAfterCreateRef = useRef(false)
   // Ref to handleCloseTab so the session:exit event handler (with [] deps) can call
   // the latest version without a stale closure
   const handleCloseTabRef = useRef<((id: string) => Promise<void>) | undefined>(undefined)
@@ -540,6 +546,9 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
         // Load auto-close preference (Phase 84 D-11)
         GetAutoCloseSession().then(val => { autoCloseRef.current = val }).catch(() => {})
 
+        // Load stay-on-hub-after-create preference (Phase 168 UX-01)
+        GetStayOnHubAfterCreate().then(val => { stayOnHubAfterCreateRef.current = val }).catch(() => {})
+
         // Phase 101-03 SHELL-08 — hydrate the one-time shell-web-share-warning
         // flag from daemon-persisted settings. On failure default to false so
         // the banner re-shows on the next toggle attempt (safe degradation —
@@ -788,7 +797,13 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
         cli: cliName,
       }
       setTabs((prev) => [...prev, tab])
-      setActiveId(sessionId)
+      // Phase 168 UX-01: when stayOnHubAfterCreate is ON, skip the
+      // auto-switch so the user stays on the Hub after creating a session.
+      // The tab is still created unconditionally (D-10) — only this single
+      // setActiveId call (the only auto-switch in the app, D-11) is gated.
+      if (!stayOnHubAfterCreateRef.current) {
+        setActiveId(sessionId)
+      }
 
       // SEC-01 / D-06: new sessions start with web-sharing OFF. The user must
       // explicitly toggle web on to share. The daemon enforces this at the

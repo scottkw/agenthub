@@ -58,6 +58,8 @@ vi.mock('../../wailsjs/go/main/App', () => ({
   SetShellWebShareWarningEnabled: vi.fn().mockResolvedValue(undefined),
   GetNotifyOnWaiting: vi.fn().mockResolvedValue(false),
   SetNotifyOnWaiting: vi.fn().mockResolvedValue(undefined),
+  GetStayOnHubAfterCreate: vi.fn().mockResolvedValue(false),
+  SetStayOnHubAfterCreate: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('../RegenerateKeyModal', () => ({

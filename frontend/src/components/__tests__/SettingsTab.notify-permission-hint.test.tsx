@@ -57,6 +57,8 @@ vi.mock('../../wailsjs/go/main/App', () => ({
   SetShellWebShareWarningEnabled: vi.fn().mockResolvedValue(undefined),
   GetNotifyOnWaiting: vi.fn().mockResolvedValue(false),
   SetNotifyOnWaiting: vi.fn().mockResolvedValue(undefined),
+  GetStayOnHubAfterCreate: vi.fn().mockResolvedValue(false),
+  SetStayOnHubAfterCreate: vi.fn().mockResolvedValue(undefined),
 }))
 
 // Captures the handler registered for 'notification:permission-denied' so the
