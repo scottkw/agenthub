@@ -11,10 +11,10 @@ last_activity: 2026-07-01
 last_activity_desc: Phase 168 execution started
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 3
   total_plans: 24
   completed_plans: 24
-  percent: 80
+  percent: 60
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 ## Current Position
 
-Phase: 168 (bug-fix-settings-polish) — EXECUTING
-Plan: 7 of 7
-Status: Phase complete — ready for verification
-Last activity: 2026-07-01 — Phase 168 execution started
+Phase: 168 (bug-fix-settings-polish) — VERIFYING (awaiting human UAT)
+Plan: 7 of 7 executed
+Status: Executed + code-reviewed (3 Critical + 3 Warning fixed); verifier returned human_needed — awaiting UAT (168-UAT.md, 4 live items)
+Last activity: 2026-07-01 — Phase 168 executed, code-reviewed, and verified (human_needed)
 
 ```
 v4.2 Progress: [████████████░░░░░░░░] 60% (3/5 phases — 165 ✅ DONE (live), 166 ✅ DONE (verified 8/8), 167 ✅ DONE (code-verified 11/11; M-41 live deferred); 168 + 169 remain)
