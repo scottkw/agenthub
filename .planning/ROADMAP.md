@@ -30,7 +30,7 @@
 - ✅ **v3.6 Hub (Session Grid / Control Room)** — Phases 131-135 (shipped 2026-06-19, closes Issue #78)
 - ✅ **v4.0 Hub-First Consolidation & UI/UX Overhaul** — Phases 136-150 (shipped 2026-06-23, closes #51, #65, #68, #69, #96, #97, #98, #100, #101; #99 not-planned; 151 cancelled)
 - ✅ **v4.1 Session Chat** — Phases 151-164 (shipped 2026-06-29, closes #79, #108, #109)
-- **v4.2 Funnel Sharing & Polish** — Phases 165-168 (closes #107, #110, #112, #115, #116, #117, #118)
+- **v4.2 Funnel Sharing & Polish** — Phases 165-168 (closes #107, #110, #112, #115, #116, #117, #118, #120, #121)
 
 ## Phases
 
@@ -387,7 +387,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 165: Funnel Backend** - Atomic Funnel lifecycle: LocalClient promotion, EnableFunnel/DisableFunnel, Funnel-aware Origin allowlist + BaseURL + share-URL builders, four-path teardown, CheckFunnelAccess preflight, auto-expiry enforcement (completed 2026-06-30)
 - [x] **Phase 166: Funnel Frontend + Help Guide** (5/5 plans) — completed 2026-06-30, verified 8/8 - Risk-acknowledgment dialog, auto-expiry selector, colorblind-safe internet-exposure indicator, Funnel URL display, one-click disable, in-app Sharing Guide Help article
 - [x] **Phase 167: Native Notifications** - beeep cross-platform notification on waiting-state transition, de-dup guard, Settings toggle (default off) (7/7 plans executed 2026-07-01, incl. 167-05/06/07 M-41 crash-hardening + instrumentation + permission-denied hint) — CLOSED complete 2026-07-01; code-verified 11/11, M-41 live on-screen delivery DEFERRED to release-time UAT on signed macOS/Windows/Linux builds (inherently unautomatable)
-- [ ] **Phase 168: Bug Fix & Settings Polish** - Fix #112 (web-guest plugin-config SSE), #117 (multi-viewer kick + disconnect UI), #118 (remote-open in-app tab), #115 (Footer Share modal), #116 (Hub auto-switch setting)
+- [ ] **Phase 168: Bug Fix & Settings Polish** - Fix #112 (web-guest plugin-config SSE), #117 (multi-viewer kick + disconnect UI), #118 (remote-open in-app tab), #115 (Footer Share modal), #116 (Hub auto-switch setting), #121 (phantom viewer count — pairs with #117), #120 (Tailscale detection on non-admin macOS)
 
 ## Phase Details
 
@@ -485,9 +485,9 @@ Plans:
 
 ### Phase 168: Bug Fix & Settings Polish
 
-**Goal**: Four v4.1 web-share/Hub bugs are repaired and two UX friction points eliminated, clearing Issues #112, #115, #116, #117, and #118.
+**Goal**: Six v4.1/Hub bugs are repaired and two UX friction points eliminated, clearing Issues #112, #115, #116, #117, #118, #120, and #121.
 **Depends on**: Phase 165 (Phase 165's dual-origin fix may resolve the Funnel multi-viewer kick component of #117 — verify in Phase 165 UAT before scoping #117 relay buffer + disconnect work here)
-**Requirements**: FIX-01, FIX-02, FIX-03, UX-01, UX-02
+**Requirements**: FIX-01, FIX-02, FIX-03, FIX-04, FIX-05, UX-01, UX-02
 **Success Criteria** (what must be TRUE):
 
   1. A web-share guest opening a session URL in a real browser (not the Wails WebView) sees live plugin-config changes without page reload, with no CSP errors visible in DevTools Console
@@ -495,6 +495,8 @@ Plans:
   3. Opening a remote tailnet session from the Hub opens an in-app terminal tab (not an external browser window) that streams the terminal relay correctly
   4. The footer "Share Session" button opens the Share modal for the currently-active session with no independent state drift
   5. A "Stay on Hub after creating session" toggle in Settings → Session Behavior prevents auto-switching to a newly Hub-created session when enabled
+  6. A never-shared local session's Hub card reads 0 viewers — the count excludes the app's own internal WebSocket subscribers (Terminal/Chat/status watcher) and reflects only real remote/shared viewers (#121; touches the same `ViewerCount`/relay-hub plumbing as #117, so fix alongside FIX-02)
+  7. On a non-admin macOS account where `macsys` `sameuserproof` is unreadable, Tailscale status reports "Connected" (not "installed but not connected") via a CLI `status` fallback when the SDK read fails (#120)
 
 **Plans**: TBD
 **UI hint**: yes

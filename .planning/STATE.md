@@ -73,9 +73,9 @@ v4.2 Progress: [███████████████░░░░░] 75
 | 165 | Funnel Backend | FNL-01, FNL-02, FNL-03, FNL-04, FNL-05, FNL-06, FNL-07 | ✅ DONE — code-verified + all live UAT pass (M-34 off-tailnet 200, M-35 a/b/c/d, M-36 fallback) |
 | 166 | Funnel Frontend + Help Guide | FUI-01, FUI-02, FUI-03, FUI-04, FUI-05, FUI-06, HLP-01, HLP-02 | ✅ DONE — verified 8/8 (2026-06-30); human UAT fixed 4 CSS defects (f3c8d848); M-37–M-40 pending prod-build UAT |
 | 167 | Native Notifications | NTF-01, NTF-02, NTF-03, NTF-04 | ✅ DONE — 7/7 plans, code-verified 11/11; **M-41 live delivery DEFERRED** to release-time UAT (signed builds, unautomatable) |
-| 168 | Bug Fix & Settings Polish | FIX-01, FIX-02, FIX-03, UX-01, UX-02 | ⬜ Not started — next: /gsd-plan-phase 168 |
+| 168 | Bug Fix & Settings Polish | FIX-01, FIX-02, FIX-03, FIX-04, FIX-05, UX-01, UX-02 | ⬜ Not started — next: /gsd-plan-phase 168 (now covers #112/#115/#116/#117/#118 + #120/#121) |
 
-**Total:** 24 requirements mapped across 4 phases (100% coverage).
+**Total:** 26 requirements mapped across 4 phases (100% coverage). *(Phase 168 expanded 2026-07-01: +FIX-04 #121 phantom viewer count, +FIX-05 #120 Tailscale detection.)*
 
 ### Key Sequencing Constraints
 
