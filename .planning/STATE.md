@@ -5,10 +5,10 @@ milestone_name: Funnel Sharing & Polish
 current_phase: 168
 current_phase_name: bug-fix-settings-polish
 status: not-started
-stopped_at: Phase 167 (native-notifications) CLOSED complete 2026-07-01 — code-verified 11/11; sole open truth (M-41 live on-screen notification delivery on signed macOS/Windows/Linux builds) DEFERRED to release-time UAT (inherently unautomatable). Phase 168 not yet planned.
-last_updated: "2026-07-01T14:30:00.000Z"
+stopped_at: Phase 168 context gathered
+last_updated: "2026-07-01T19:07:25.827Z"
 last_activity: 2026-07-01
-last_activity_desc: Closed Phase 167 complete with M-41 live-delivery deferred; advanced to Phase 168 (bug-fix-settings-polish)
+last_activity_desc: Closed Phase 167 complete (M-41 live delivery deferred); advanced to Phase 168
 progress:
   total_phases: 5
   completed_phases: 3
@@ -137,9 +137,9 @@ v4.2 Progress: [████████████░░░░░░░░] 60
 
 ## Session Continuity
 
-Last session: 2026-07-01T14:30:00.000Z
-Stopped at: Phase 167 (native-notifications) CLOSED complete — M-41 live delivery deferred to release-time UAT. Advanced to Phase 168 (bug-fix-settings-polish), not yet planned.
-Resume file: None
+Last session: 2026-07-01T19:07:25.818Z
+Stopped at: Phase 168 context gathered
+Resume file: .planning/phases/168-bug-fix-settings-polish/168-CONTEXT.md
 Next action: Phase 168 (Bug Fix & Settings Polish) is the last open v4.2 phase — FIX-01/02/03 + UX-01/02 (#112 web-guest plugin-config SSE, #117 multi-viewer kick + disconnect UI, #118 remote-open in-app tab, #115 Footer Share modal, #116 Hub auto-switch setting). Run `/gsd-plan-phase 168` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
 
 ## Decisions (carry-forward from v4.1 — architecture reference)
