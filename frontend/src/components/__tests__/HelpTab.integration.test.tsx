@@ -6,7 +6,8 @@
 // shipped green. This test ACTUALLY renders <HelpTab/> and exercises the three
 // getElementById-dependent code paths against the real DOM:
 //
-//   1. Sections render with the expected ids (#help-getting-started, #help-faq).
+//   1. Sections render with the expected ids (#help-getting-started, #help-faq,
+//      #help-chat, #help-sharing).
 //   2. Clicking a HelpSectionNav item scrolls the matching section into view
 //      (scrollIntoView is jsdom-unimplemented — we stub it and assert it was
 //      called on the correct <section> element) and marks it active.
@@ -17,6 +18,9 @@
 // This test FAILS against the pre-fix code (HelpTab rendered one concatenated
 // <HelpContent> with no #help-* section wrappers, so getElementById → null and
 // scrollIntoView is never called) and PASSES after the CR-01 fix.
+//
+// Phase 166-04: added #help-sharing assertions (HLP-01/HLP-02 article between
+// Chat and FAQ). Section count bumped 3→4.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act } from 'react'
@@ -76,7 +80,8 @@ describe('HelpTab integration: section anchors render with expected ids (Phase 1
 
   it('section wrappers carry the help-content__section class (live CSS selector)', () => {
     const sections = container.querySelectorAll('section.help-content__section')
-    expect(sections.length).toBe(3)
+    // Phase 166-04: bumped 3→4 (added help-sharing between help-chat and help-faq)
+    expect(sections.length).toBe(4)
   })
 
   it('renders a #help-chat section element', () => {
@@ -91,6 +96,41 @@ describe('HelpTab integration: section anchors render with expected ids (Phase 1
     expect(el!.textContent).toContain('Getting Started')
     const faq = document.getElementById('help-faq')
     expect(faq!.textContent).toContain('Frequently Asked Questions')
+  })
+
+  // Phase 166-04: help-sharing section (HLP-01/HLP-02)
+  it('renders a #help-sharing section element positioned between chat and faq', () => {
+    const el = document.getElementById('help-sharing')
+    expect(el).not.toBeNull()
+    expect(el!.tagName.toLowerCase()).toBe('section')
+  })
+
+  it('#help-sharing section contains the article heading text', () => {
+    const el = document.getElementById('help-sharing')
+    expect(el!.textContent).toContain('Sharing Outside Your Tailnet')
+  })
+
+  it('#help-sharing is ordered after #help-chat and before #help-faq in the DOM', () => {
+    const sections = Array.from(
+      container.querySelectorAll('section.help-content__section'),
+    ) as HTMLElement[]
+    const ids = sections.map((s) => s.id)
+    const chatIdx = ids.indexOf('help-chat')
+    const sharingIdx = ids.indexOf('help-sharing')
+    const faqIdx = ids.indexOf('help-faq')
+    expect(chatIdx).toBeGreaterThanOrEqual(0)
+    expect(sharingIdx).toBeGreaterThan(chatIdx)
+    expect(faqIdx).toBeGreaterThan(sharingIdx)
+  })
+
+  it('HelpSectionNav renders a nav button for Sharing Outside Your Tailnet', () => {
+    const navButtons = Array.from(
+      container.querySelectorAll('.help-tab__nav button'),
+    ) as HTMLButtonElement[]
+    const sharingNav = navButtons.find((b) =>
+      b.textContent?.includes('Sharing Outside Your Tailnet'),
+    )
+    expect(sharingNav).not.toBeUndefined()
   })
 })
 
@@ -135,6 +175,27 @@ describe('HelpTab integration: nav click scrolls section into view (Phase 147)',
     const active = container.querySelector('.help-tab__nav button[aria-current="true"]')
     expect(active).not.toBeNull()
     expect(active!.textContent).toContain('Frequently Asked Questions')
+  })
+
+  // Phase 166-04: Sharing nav click
+  it('clicking the Sharing nav button calls scrollIntoView on the #help-sharing section', () => {
+    const sharingSection = document.getElementById('help-sharing')!
+    const sharingScroll = vi.fn()
+    sharingSection.scrollIntoView = sharingScroll as unknown as typeof sharingSection.scrollIntoView
+
+    const navButtons = Array.from(
+      container.querySelectorAll('.help-tab__nav button'),
+    ) as HTMLButtonElement[]
+    const sharingNav = navButtons.find((b) =>
+      b.textContent?.includes('Sharing Outside Your Tailnet'),
+    )
+    expect(sharingNav).not.toBeUndefined()
+
+    act(() => {
+      sharingNav!.click()
+    })
+
+    expect(sharingScroll).toHaveBeenCalledTimes(1)
   })
 })
 
