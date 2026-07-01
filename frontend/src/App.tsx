@@ -811,6 +811,33 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
         setActiveId(sessionId)
       }
 
+      // CR-01 fix: seed hubSessions synchronously so the footer "Share Session"
+      // button (openShareModalForActiveSession) works immediately for a
+      // just-created session, even before the Hub tab's 3s poll ever runs
+      // (the default stayOnHubAfterCreate=OFF auto-switches away from Hub —
+      // see the setActiveId call above). This mirrors the SessionInfo shape
+      // seeded at mount (:511) as closely as possible from data we have
+      // locally; the next Hub-tab poll or modal-open poll will reconcile any
+      // fields the daemon fills in that we don't know yet (e.g. hostname).
+      setHubSessions((prev) => [
+        ...prev,
+        {
+          id: sessionId,
+          cli: cliName,
+          name: defaultName,
+          state: 'running',
+          status: 'running',
+          createdAt: new Date().toISOString(),
+          hostname: '',
+          webEnabled: false,
+          viewerCount: 0,
+          homeDir: false,
+          browseEnabled: false,
+          funnelActive: false,
+          workDir,
+        } as SessionInfo,
+      ])
+
       // SEC-01 / D-06: new sessions start with web-sharing OFF. The user must
       // explicitly toggle web on to share. The daemon enforces this at the
       // handleCreateSession layer (TestHandleCreateSession_NoAutoEnable); the
