@@ -222,6 +222,25 @@ func (h *Hub) SubscriberCount() int {
 	return len(h.subscribers)
 }
 
+// RemoteViewerCount returns the number of currently subscribed clients whose
+// Origin is "web" — i.e. real remote/shared viewers, excluding the app's own
+// internal Origin=="local" WebSocket subscribers (TerminalPanel, ChatPanel,
+// status watcher, Hub-card preview). Unlike SubscriberCount, this is a raw
+// per-connection count with no PersonKey collapse (D-01, D-02, D-03 — Phase
+// 168 / FIX-04, #121). SubscriberCount itself is left unchanged; it is still
+// consumed by relay/server.go's NotifyViewerCount.
+func (h *Hub) RemoteViewerCount() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	count := 0
+	for s := range h.subscribers {
+		if s.Origin == "web" {
+			count++
+		}
+	}
+	return count
+}
+
 // ResizeClient stores the subscriber's reported dimensions and applies the
 // host-authority PTY-size policy (VIEW-01, VIEW-02):
 //
