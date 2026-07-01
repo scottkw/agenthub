@@ -387,7 +387,8 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 165: Funnel Backend** - Atomic Funnel lifecycle: LocalClient promotion, EnableFunnel/DisableFunnel, Funnel-aware Origin allowlist + BaseURL + share-URL builders, four-path teardown, CheckFunnelAccess preflight, auto-expiry enforcement (completed 2026-06-30)
 - [x] **Phase 166: Funnel Frontend + Help Guide** (5/5 plans) — completed 2026-06-30, verified 8/8 - Risk-acknowledgment dialog, auto-expiry selector, colorblind-safe internet-exposure indicator, Funnel URL display, one-click disable, in-app Sharing Guide Help article
 - [x] **Phase 167: Native Notifications** - beeep cross-platform notification on waiting-state transition, de-dup guard, Settings toggle (default off) (7/7 plans executed 2026-07-01, incl. 167-05/06/07 M-41 crash-hardening + instrumentation + permission-denied hint) — CLOSED complete 2026-07-01; code-verified 11/11, M-41 live on-screen delivery DEFERRED to release-time UAT on signed macOS/Windows/Linux builds (inherently unautomatable)
-- [ ] **Phase 168: Bug Fix & Settings Polish** - Fix #112 (web-guest plugin-config SSE), #117 (multi-viewer kick + disconnect UI), #118 (remote-open in-app tab), #115 (Footer Share modal), #116 (Hub auto-switch setting), #121 (phantom viewer count — pairs with #117), #120 (Tailscale detection on non-admin macOS)
+- [ ] **Phase 168: Bug Fix & Settings Polish** - Fix #112 (web-guest plugin-config SSE), #117 (multi-viewer kick + disconnect UI), #118 (remote-open in-app tab), #115 (Footer Share modal), #116 (Hub auto-switch setting), #121 (phantom viewer count — pairs with #117)
+- [ ] **Phase 169: Tailscale Detection Fix** - Fix #120 (Tailscale reports "installed but not Connected" on non-admin macOS accounts where `macsys` `sameuserproof` is unreadable — add a CLI `status` fallback)
 
 ## Phase Details
 
@@ -485,9 +486,9 @@ Plans:
 
 ### Phase 168: Bug Fix & Settings Polish
 
-**Goal**: Six v4.1/Hub bugs are repaired and two UX friction points eliminated, clearing Issues #112, #115, #116, #117, #118, #120, and #121.
+**Goal**: Five web-share/Hub bugs are repaired and two Settings/Footer UX friction points eliminated, clearing Issues #112, #115, #116, #117, #118, and #121.
 **Depends on**: Phase 165 (Phase 165's dual-origin fix may resolve the Funnel multi-viewer kick component of #117 — verify in Phase 165 UAT before scoping #117 relay buffer + disconnect work here)
-**Requirements**: FIX-01, FIX-02, FIX-03, FIX-04, FIX-05, UX-01, UX-02
+**Requirements**: FIX-01, FIX-02, FIX-03, FIX-04, UX-01, UX-02
 **Success Criteria** (what must be TRUE):
 
   1. A web-share guest opening a session URL in a real browser (not the Wails WebView) sees live plugin-config changes without page reload, with no CSP errors visible in DevTools Console
@@ -496,10 +497,22 @@ Plans:
   4. The footer "Share Session" button opens the Share modal for the currently-active session with no independent state drift
   5. A "Stay on Hub after creating session" toggle in Settings → Session Behavior prevents auto-switching to a newly Hub-created session when enabled
   6. A never-shared local session's Hub card reads 0 viewers — the count excludes the app's own internal WebSocket subscribers (Terminal/Chat/status watcher) and reflects only real remote/shared viewers (#121; touches the same `ViewerCount`/relay-hub plumbing as #117, so fix alongside FIX-02)
-  7. On a non-admin macOS account where `macsys` `sameuserproof` is unreadable, Tailscale status reports "Connected" (not "installed but not connected") via a CLI `status` fallback when the SDK read fails (#120)
 
 **Plans**: TBD
 **UI hint**: yes
+
+### Phase 169: Tailscale Detection Fix
+
+**Goal**: On a non-admin macOS account, Tailscale connection state is reported correctly ("Connected" rather than "installed but not connected"), clearing Issue #120.
+**Depends on**: None (orthogonal to the Funnel/web-share/Hub work — different subsystem, macOS-specific).
+**Requirements**: FIX-05
+**Success Criteria** (what must be TRUE):
+
+  1. On a non-admin macOS account where the `macsys` `sameuserproof` file is unreadable (root:admin 0640), Tailscale status reports "Connected" via a CLI `status` fallback when the SDK read fails — instead of the current "installed but not connected"
+  2. On accounts where the SDK read succeeds, behavior is unchanged (fallback is only engaged on read failure)
+
+**Plans**: TBD
+**UI hint**: no
 
 ## Progress
 
@@ -509,6 +522,7 @@ Plans:
 | 166. Funnel Frontend + Help Guide | 5/5 | Complete (verified 8/8) | 2026-06-30 |
 | 167. Native Notifications | 7/7 | Complete   | 2026-07-01 |
 | 168. Bug Fix & Settings Polish | 0/? | Not started | - |
+| 169. Tailscale Detection Fix | 0/? | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

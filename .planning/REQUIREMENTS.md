@@ -103,7 +103,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FIX-02 | Phase 168 | Pending |
 | FIX-03 | Phase 168 | Pending |
 | FIX-04 | Phase 168 | Pending |
-| FIX-05 | Phase 168 | Pending |
+| FIX-05 | Phase 169 | Pending |
 
 **Coverage:**
 
@@ -113,4 +113,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-06-30*
-*Last updated: 2026-07-01 — added FIX-04 (#121 phantom viewer count) + FIX-05 (#120 Tailscale detection) to Phase 168; #120 labeled bug*
+*Last updated: 2026-07-01 — added FIX-04 (#121 phantom viewer count) to Phase 168 + FIX-05 (#120 Tailscale detection) split into new Phase 169 (orthogonal subsystem, needs non-admin macOS test env); #120 labeled bug*

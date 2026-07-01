@@ -10,11 +10,11 @@ last_updated: "2026-07-01T14:30:00.000Z"
 last_activity: 2026-07-01
 last_activity_desc: Closed Phase 167 complete with M-41 live-delivery deferred; advanced to Phase 168 (bug-fix-settings-polish)
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 3
   total_plans: 17
   completed_plans: 17
-  percent: 75
+  percent: 60
 ---
 
 # Project State
@@ -34,7 +34,7 @@ Status: Ready to plan
 Last activity: 2026-07-01 — Closed Phase 167 complete (M-41 live delivery deferred); advanced to Phase 168
 
 ```
-v4.2 Progress: [███████████████░░░░░] 75% (3/4 phases — 165 ✅ DONE (live), 166 ✅ DONE (verified 8/8), 167 ✅ DONE (code-verified 11/11; M-41 live deferred))
+v4.2 Progress: [████████████░░░░░░░░] 60% (3/5 phases — 165 ✅ DONE (live), 166 ✅ DONE (verified 8/8), 167 ✅ DONE (code-verified 11/11; M-41 live deferred); 168 + 169 remain)
 ```
 
 ## Live UAT Findings (2026-06-30, real Funnel-granted tailnet)
@@ -73,15 +73,17 @@ v4.2 Progress: [███████████████░░░░░] 75
 | 165 | Funnel Backend | FNL-01, FNL-02, FNL-03, FNL-04, FNL-05, FNL-06, FNL-07 | ✅ DONE — code-verified + all live UAT pass (M-34 off-tailnet 200, M-35 a/b/c/d, M-36 fallback) |
 | 166 | Funnel Frontend + Help Guide | FUI-01, FUI-02, FUI-03, FUI-04, FUI-05, FUI-06, HLP-01, HLP-02 | ✅ DONE — verified 8/8 (2026-06-30); human UAT fixed 4 CSS defects (f3c8d848); M-37–M-40 pending prod-build UAT |
 | 167 | Native Notifications | NTF-01, NTF-02, NTF-03, NTF-04 | ✅ DONE — 7/7 plans, code-verified 11/11; **M-41 live delivery DEFERRED** to release-time UAT (signed builds, unautomatable) |
-| 168 | Bug Fix & Settings Polish | FIX-01, FIX-02, FIX-03, FIX-04, FIX-05, UX-01, UX-02 | ⬜ Not started — next: /gsd-plan-phase 168 (now covers #112/#115/#116/#117/#118 + #120/#121) |
+| 168 | Bug Fix & Settings Polish | FIX-01, FIX-02, FIX-03, FIX-04, UX-01, UX-02 | ⬜ Not started — next: /gsd-plan-phase 168 (covers #112/#115/#116/#117/#118/#121) |
+| 169 | Tailscale Detection Fix | FIX-05 | ⬜ Not started — #120 split out (orthogonal; non-admin macOS test env) |
 
-**Total:** 26 requirements mapped across 4 phases (100% coverage). *(Phase 168 expanded 2026-07-01: +FIX-04 #121 phantom viewer count, +FIX-05 #120 Tailscale detection.)*
+**Total:** 26 requirements mapped across 5 phases (100% coverage). *(2026-07-01: +FIX-04 #121 phantom viewer count into Phase 168; +FIX-05 #120 Tailscale detection split into new Phase 169.)*
 
 ### Key Sequencing Constraints
 
 - Phase 165 must precede Phase 166 (Funnel UI depends on backend atomicity — partial deployment causes silent 403s for external guests)
 - Phase 165's dual-origin fix may resolve the Funnel multi-viewer kick in #117; verify in Phase 165 UAT before scoping Phase 168's #117 relay buffer work
 - Phases 167 and 168 are independent of Funnel; ordering is for focus, not correctness
+- Phase 169 (Tailscale detection, #120) is independent of everything else — orthogonal subsystem; can be planned/executed any time. Split from 168 (2026-07-01) to isolate its non-admin-macOS test environment from the web-share/Hub verification surface.
 - Phase 165 UAT must include a machine outside the tailnet (false-parity risk, per Phase 155 precedent)
 
 ## Key Decisions (v4.2)
