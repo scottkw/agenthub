@@ -112,6 +112,18 @@ body {
   font-family: var(--hub-font-ui);
 }
 
+/* Form-control font reset. Native <button>/<input>/<select>/<textarea> do NOT
+   inherit font-family — without this they fall back to the UA default (Arial),
+   which reads as inconsistent typography across the app. Controls that need a
+   specific face (e.g. mono inputs) set font-family explicitly and win on
+   specificity, so this reset only repairs the otherwise-unstyled controls. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
 /* ─── App layout (flex column — banner above row) ───────────────── */
 .app {
   display: flex;
@@ -1220,6 +1232,48 @@ body {
   font-size: var(--hub-font-size-base);
   line-height: 1.6;
   margin-bottom: 12px;
+}
+
+/* Lists (ordered + unordered). Without an explicit rule they inherit the
+   leftover body defaults (16px / #c0caf5) instead of matching paragraphs
+   (14px / --hub-text-secondary), and padding-left:0 pushes the markers outside
+   the text column. Mirror .help-tab__content p and indent the markers inward. */
+.help-tab__content ul,
+.help-tab__content ol {
+  color: var(--hub-text-secondary);
+  font-size: var(--hub-font-size-base);
+  line-height: 1.6;
+  margin-bottom: 12px;
+  padding-left: 24px;
+}
+.help-tab__content li {
+  color: var(--hub-text-secondary);
+  font-size: var(--hub-font-size-base);
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+
+/* Fenced code blocks (e.g. the Sharing Guide ACL grant). react-markdown renders
+   these as <pre><code>; without this they fall back to generic `monospace`,
+   inconsistent with inline `.help__kbd` code (JetBrains Mono). Give them the
+   mono token + block chrome, and neutralize the inline pill styling on the
+   inner <code> so a multi-line block reads as a block, not stacked pills. */
+.help-tab__content pre {
+  font-family: var(--hub-font-mono);
+  background-color: var(--hub-surface-elevated);
+  border: 1px solid var(--hub-border);
+  border-radius: var(--hub-radius-sm);
+  padding: 12px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+}
+.help-tab__content pre code {
+  font-family: var(--hub-font-mono);
+  font-size: var(--hub-font-size-sm);
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--hub-text-secondary);
 }
 
 /* --- Search input area --- */
@@ -7151,16 +7205,25 @@ body {
   background: var(--hub-surface-elevated);
   border: 1px solid var(--hub-border);
   border-radius: var(--hub-radius-sm);
-  padding: 16px;
   overflow: hidden;
+  /* Collapsed state: zero the vertical padding + top/bottom border so the panel
+     fully disappears. With box-sizing: border-box, max-height:0 alone still
+     leaves a padding+border strip (16+16+1+1 = 34px) showing the clipped warning
+     even when the toggle is off. --open restores them. */
   max-height: 0;
+  padding: 0 16px;
+  border-top-width: 0;
+  border-bottom-width: 0;
 }
 .hub-funnel-risk-panel--open {
   max-height: 400px;
+  padding: 16px;
+  border-top-width: 1px;
+  border-bottom-width: 1px;
 }
 @media (prefers-reduced-motion: no-preference) {
   .hub-funnel-risk-panel {
-    transition: max-height 200ms ease-out, opacity 150ms ease;
+    transition: max-height 200ms ease-out, padding 200ms ease-out, opacity 150ms ease;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -7187,6 +7250,20 @@ body {
   align-items: center;
   gap: 8px;
   margin: 8px 0;
+  font-size: var(--hub-font-size-base);
+  color: var(--hub-text-secondary);
+}
+/* Style the native <select> to match the app (mirrors .settings-panel__select).
+   font-family is handled by the global control reset; this rule carries the
+   dark-theme surface/border/color so it isn't a white native control. */
+.hub-funnel-risk-panel__expiry select {
+  font-size: var(--hub-font-size-base);
+  background-color: var(--hub-surface);
+  color: var(--hub-text-primary);
+  border: 1px solid var(--hub-border);
+  border-radius: var(--hub-radius-sm);
+  padding: 4px 8px;
+  outline: none;
 }
 .hub-funnel-risk-panel__help-link {
   font-size: var(--hub-font-size-sm);
@@ -7203,6 +7280,11 @@ body {
   display: flex;
   gap: 8px;
   margin-top: 12px;
+}
+/* CTA to UI-SPEC: 14px / 600 (the reused .link-confirm-popover__btn base is 13px/400). */
+.hub-funnel-risk-panel__actions .link-confirm-popover__btn--continue {
+  font-size: var(--hub-font-size-base);
+  font-weight: var(--hub-font-weight-emphasis);
 }
 
 /* Phase 166 / FUI-04/05 — internet public section (SessionSharePanel) */
