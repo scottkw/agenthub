@@ -1171,15 +1171,26 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
     }
   }, [])
 
-  // Phase 146 FIX-03 (out-of-band redesign) — open remote session in browser (#98).
-  // GAP-146-A Plan 05: held-cap reuse (remoteCapsCached) + modal fallback.
+  // Phase 146 FIX-03 (out-of-band redesign) — held-cap reuse (remoteCapsCached) +
+  // modal fallback for depositing a cap.
+  //
+  // Phase 168-03 (D-17) — REVERSES the Phase 146 external-browser design: opening
+  // a remote session now opens an in-app web-session tab (openWebSessionTab)
+  // instead of BrowserOpenURL. OpenRemoteSessionURL is still called to get the
+  // daemon-composed, SID-correct cap-bearing URL (WR-01 protection preserved —
+  // the daemon builds the URL from its own RemoteCapStore entry, so the path SID
+  // always matches the deposited cap); the URL is parsed (origin -> baseURL,
+  // ?cap= -> capToken) and handed to openWebSessionTab, which carries those
+  // values PER-TAB so a second remote session never reuses the first's cap/host.
   const handleOpenRemoteSession = useCallback(
     async (session: AdaptedRemoteSessionInfo): Promise<void> => {
-      // Held-cap reuse: cap already held → build open URL from daemon store, no modal.
+      // Held-cap reuse: cap already held → build the open URL from the daemon
+      // store and open it in-app (no modal).
       if (remoteCapsCached.has(session.id)) {
         try {
           const url = await OpenRemoteSessionURL(session.id)
-          BrowserOpenURL(url)
+          const parsed = new URL(url)
+          openWebSessionTab(session.id, parsed.origin, parsed.searchParams.get('cap') ?? '')
           return
         } catch {
           // Stale/evicted cap — fall through to modal for self-heal.
@@ -1199,7 +1210,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
         baseURL,
       })
     },
-    [remoteCapsCached, setSaveBanner],
+    [remoteCapsCached, setSaveBanner, openWebSessionTab],
   )
 
   // Phase 122-03 — remote-session file-browse entry point. If the cap is
@@ -1248,9 +1259,12 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
   // as cap-cached and open the file-browser tab. The cap token never enters
   // React state (T-122-03-01).
   //
-  // Phase 146 FIX-03 (out-of-band): adds 'open-session' branch BEFORE hub-modal/files.
-  // For open-session: call BrowserOpenURL with baseURL + /sessions/{id}?cap=TOKEN;
-  // skip RegisterRemoteCap and the file-browser (T-146-04: cap goes straight into URL).
+  // Phase 146 FIX-03 (out-of-band): 'open-session' branch runs BEFORE hub-modal/files.
+  // For open-session: skip RegisterRemoteCap's file-browser path (T-146-04: cap goes
+  // straight into the open URL, not into a stored-then-browsed file session).
+  //
+  // Phase 168-03 (D-17) — the open-session branch now opens the in-app web-session
+  // tab (openWebSessionTab) rather than an external browser window.
   const handleModalExchange = useCallback(
     async (code: string): Promise<void> => {
       const pending = joinModalForSession
@@ -1267,16 +1281,18 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
         const cap = await ExchangeJoinCodeAtURL(baseURL, code)
         // Deposit the cap so the daemon's RemoteCapStore holds the keyed entry.
         await RegisterRemoteCap(pending.id, baseURL, cap)
-        // Mark session as cap-cached so future "Open in browser" reuses it.
+        // Mark session as cap-cached so future opens reuse it (held-cap branch above).
         setRemoteCapsCached((prev) => {
           const next = new Set(prev)
           next.add(pending.id)
           return next
         })
         // Build the SID-correct cap-bearing URL from the daemon's stored entry
-        // (keyed by the cap just deposited — daemon ensures path SID = lookup key).
+        // (keyed by the cap just deposited — daemon ensures path SID = lookup key),
+        // then open it in-app (D-17).
         const url = await OpenRemoteSessionURL(pending.id)
-        BrowserOpenURL(url)
+        const parsed = new URL(url)
+        openWebSessionTab(pending.id, parsed.origin, parsed.searchParams.get('cap') ?? '')
         return
       }
 
@@ -1303,7 +1319,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
         handleOpenFileBrowser(pending.id, pending.name)
       }
     },
-    [joinModalForSession, remotePeers, handleOpenFileBrowser],
+    [joinModalForSession, remotePeers, handleOpenFileBrowser, openWebSessionTab],
   )
 
   // Phase 131 — open the Hub tab. HUB-02: coexists
