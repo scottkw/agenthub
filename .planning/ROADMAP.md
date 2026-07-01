@@ -498,7 +498,15 @@ Plans:
   5. A "Stay on Hub after creating session" toggle in Settings → Session Behavior prevents auto-switching to a newly Hub-created session when enabled
   6. A never-shared local session's Hub card reads 0 viewers — the count excludes the app's own internal WebSocket subscribers (Terminal/Chat/status watcher) and reflects only real remote/shared viewers (#121; touches the same `ViewerCount`/relay-hub plumbing as #117, so fix alongside FIX-02)
 
-**Plans**: TBD
+**Plans**: 7 plans (5 waves)
+Plans:
+- [ ] 168-01-PLAN.md — FIX-04: Hub.RemoteViewerCount() (web-origin only) + engine viewerCount swap [wave 1]
+- [ ] 168-02-PLAN.md — FIX-01: web-guest plugin-config self-fetch + SSE + baseURL prop seam [wave 1]
+- [ ] 168-03-PLAN.md — FIX-03: reroute remote-session open to in-app web-session tab (per-tab cap/host) [wave 2]
+- [ ] 168-04-PLAN.md — UX-01: "Stay on Hub after creating a session" setting + toggle + createTab gate [wave 3]
+- [ ] 168-05-PLAN.md — UX-02: footer "Share Session" button opens lifted Share modal, gated on tab type [wave 4]
+- [ ] 168-06-PLAN.md — FIX-02: Hub.DisconnectWebViewers() + owner-only RPC + Share-modal Disconnect button [wave 4]
+- [ ] 168-07-PLAN.md — Regression-suite wiring: TESTING.md manifest/traceability + M-13 reword + manual M-NN [wave 5]
 **UI hint**: yes
 
 ### Phase 169: Tailscale Detection Fix
