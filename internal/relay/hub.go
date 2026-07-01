@@ -241,6 +241,38 @@ func (h *Hub) RemoteViewerCount() int {
 	return count
 }
 
+// DisconnectWebViewers force-closes every currently subscribed Origin=="web"
+// subscriber for this session's hub, leaving Origin=="local" subscribers
+// (the app's own TerminalPanel/ChatPanel/status-watcher/preview connections)
+// completely untouched (D-05, Phase 168 / FIX-02, #117).
+//
+// It reuses the exact same close mechanism as broadcastResize's close-on-full
+// path — go sub.CloseSlow() — rather than inventing a second termination
+// mechanism. Matching subscribers are collected into a local slice under
+// h.mu, the lock is released, and ONLY THEN is CloseSlow called per
+// subscriber. This unlock-before-IO ordering is mandatory: CloseSlow calls
+// back into Unsubscribe, which re-enters h.mu — calling CloseSlow while still
+// holding h.mu self-deadlocks (T-157-04, mirrored from broadcastResize's
+// documented hazard at hub.go:288-291/311-322).
+//
+// DisconnectWebViewers does not revoke the session's capability token — web
+// viewers may reconnect with the same join code (D-06). Full access
+// revocation remains the existing "disable web sharing" path.
+func (h *Hub) DisconnectWebViewers() {
+	h.mu.Lock()
+	targets := make([]*Subscriber, 0, len(h.subscribers))
+	for s := range h.subscribers {
+		if s.Origin == "web" {
+			targets = append(targets, s)
+		}
+	}
+	h.mu.Unlock()
+
+	for _, sub := range targets {
+		go sub.CloseSlow()
+	}
+}
+
 // ResizeClient stores the subscriber's reported dimensions and applies the
 // host-authority PTY-size policy (VIEW-01, VIEW-02):
 //

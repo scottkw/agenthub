@@ -696,3 +696,137 @@ func TestBroadcastMeta_NonBlocking(t *testing.T) {
 		t.Fatal("timeout waiting for CloseSlow on full channel")
 	}
 }
+
+// TestDisconnectWebViewers asserts DisconnectWebViewers closes exactly the
+// Origin=="web" subscribers and never touches Origin=="local" ones, and that
+// the local subscriber keeps receiving broadcast frames afterward (Phase 168
+// / FIX-02, #117).
+func TestDisconnectWebViewers(t *testing.T) {
+	hub, ptyWriter := makeTestHub(t)
+
+	var mu sync.Mutex
+	closedWeb1, closedWeb2, closedLocal := false, false, false
+
+	web1 := &Subscriber{
+		Msgs: make(chan []byte, 256),
+		CloseSlow: func() {
+			mu.Lock()
+			defer mu.Unlock()
+			closedWeb1 = true
+		},
+		Origin: "web",
+	}
+	web2 := &Subscriber{
+		Msgs: make(chan []byte, 256),
+		CloseSlow: func() {
+			mu.Lock()
+			defer mu.Unlock()
+			closedWeb2 = true
+		},
+		Origin: "web",
+	}
+	local := &Subscriber{
+		Msgs: make(chan []byte, 256),
+		CloseSlow: func() {
+			mu.Lock()
+			defer mu.Unlock()
+			closedLocal = true
+		},
+		Origin: "local",
+	}
+
+	hub.Subscribe(web1)
+	hub.Subscribe(web2)
+	hub.Subscribe(local)
+	go hub.Run()
+
+	hub.DisconnectWebViewers()
+
+	testutil.WaitFor(t, 2*time.Second, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return closedWeb1 && closedWeb2
+	}, "web subscribers' CloseSlow was not called")
+
+	mu.Lock()
+	if closedLocal {
+		t.Fatal("DisconnectWebViewers closed the local-origin subscriber — it must be untouched (D-05)")
+	}
+	mu.Unlock()
+
+	// The local subscriber must still receive a subsequently broadcast frame.
+	data := []byte("still alive")
+	if _, err := ptyWriter.Write(data); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+	select {
+	case frame := <-local.Msgs:
+		payload := frame[1:]
+		if string(payload) != string(data) {
+			t.Errorf("expected payload %q, got %q", data, payload)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for local subscriber to receive post-disconnect frame")
+	}
+
+	ptyWriter.Close()
+}
+
+// TestHub_TwoWebOriginSubscribers_NoEviction is a regression guard for the
+// #117 "second viewer kicks first" half. RESEARCH (A1) found no eviction code
+// path anywhere in the hub — this test proves subscribing a second web-origin
+// subscriber never closes the first, and both keep receiving broadcast frames.
+func TestHub_TwoWebOriginSubscribers_NoEviction(t *testing.T) {
+	hub, ptyWriter := makeTestHub(t)
+
+	var mu sync.Mutex
+	web1Closed := false
+
+	web1 := &Subscriber{
+		Msgs: make(chan []byte, 256),
+		CloseSlow: func() {
+			mu.Lock()
+			defer mu.Unlock()
+			web1Closed = true
+		},
+		Origin: "web",
+	}
+	hub.Subscribe(web1)
+	go hub.Run()
+
+	// Subscribing a second web-origin viewer must NOT evict the first.
+	web2 := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "web"}
+	hub.Subscribe(web2)
+
+	mu.Lock()
+	if web1Closed {
+		t.Fatal("subscribing a second web-origin viewer closed the first — eviction-on-subscribe regression (#117)")
+	}
+	mu.Unlock()
+
+	data := []byte("two viewers")
+	if _, err := ptyWriter.Write(data); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	timeout := time.After(2 * time.Second)
+	var got1, got2 []byte
+	for got1 == nil || got2 == nil {
+		select {
+		case f := <-web1.Msgs:
+			got1 = f
+		case f := <-web2.Msgs:
+			got2 = f
+		case <-timeout:
+			t.Fatalf("timeout: web1 received=%v, web2 received=%v", got1 != nil, got2 != nil)
+		}
+	}
+
+	mu.Lock()
+	if web1Closed {
+		t.Fatal("web1 was closed after the broadcast — eviction-on-subscribe regression (#117)")
+	}
+	mu.Unlock()
+
+	ptyWriter.Close()
+}
