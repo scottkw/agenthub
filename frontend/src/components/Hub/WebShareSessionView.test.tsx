@@ -89,6 +89,12 @@ function mountView(
         sessionId="sess-123"
         capToken="tok-abc"
         relayPort={0}
+        // Phase 168 FIX-01: explicitly pass pluginConfig=null (not omitted) so
+        // this suite's wsURL/rendering assertions don't trigger the web-guest
+        // self-fetch/EventSource effect (isWebGuest is keyed on `undefined`,
+        // not `null`) — that behavior has its own dedicated suite in
+        // __tests__/WebShareSessionView.plugin-config.test.tsx.
+        pluginConfig={null}
         {...overrides}
       />,
     )

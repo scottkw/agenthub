@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import type { ITheme } from '@xterm/xterm'
 import { daemon } from '../../wailsjs/go/models'
 import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline'
@@ -76,6 +76,50 @@ export function WebShareSessionView({
   // terminal on ws://127.0.0.1:0 while chat works).
   const wsURL = `${wsOrigin}/sessions/${encodeURIComponent(sessionId)}/ws?cap=${encodeURIComponent(capToken)}`
 
+  // Phase 168 FIX-01 (#112) — web-guest plugin-config self-fetch + SSE
+  // hot-swap. Restores the config that only ever arrived via a Wails
+  // `pluginConfig` prop pre-Phase-159; a web guest (or FIX-03's in-app
+  // remote-peer tab, which has no local pluginConfig for a different peer)
+  // has no such prop and must self-fetch from the same origin the wsURL
+  // above targets.
+  const [livePluginConfig, setLivePluginConfig] = useState<PluginSettings | null>(null)
+  const isWebGuest = pluginConfig === undefined
+
+  useEffect(() => {
+    if (!isWebGuest) return
+
+    const ctrl = new AbortController()
+    fetch(`${apiBaseURL}/api/plugin-config?cap=${encodeURIComponent(capToken)}`, {
+      signal: ctrl.signal,
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((cfg) => {
+        if (cfg) setLivePluginConfig(cfg as PluginSettings)
+      })
+      .catch(() => {
+        // Network error / abort — fall through to the built-in TerminalPanel
+        // defaults (matches the /api/plugin-config 503 fallback contract).
+      })
+
+    const es = new EventSource(`${apiBaseURL}/api/plugin-config/stream?cap=${encodeURIComponent(capToken)}`)
+    es.addEventListener('plugin-config', (ev) => {
+      try {
+        setLivePluginConfig(JSON.parse((ev as MessageEvent).data) as PluginSettings)
+      } catch {
+        // Malformed frame — ignore, keep the last-known-good config.
+      }
+    })
+
+    return () => {
+      ctrl.abort()
+      es.close()
+    }
+  }, [isWebGuest, capToken, apiBaseURL])
+
+  // Effective config: the live self-fetched/SSE value takes priority once
+  // populated; otherwise fall back to the Wails-provided prop (desktop path).
+  const effectivePluginConfig = livePluginConfig ?? pluginConfig
+
   return (
     <div className="hub-modal__body hub-modal__body--interactive">
       {/* D-02: TerminalPanel is full-bleed; no column-shrink wrapper.
@@ -89,7 +133,7 @@ export function WebShareSessionView({
         fontSize={14}
         onFontSizeChange={() => {}}
         theme={theme ?? {}}
-        pluginConfig={pluginConfig}
+        pluginConfig={effectivePluginConfig}
         wsURL={wsURL}
       />
 
