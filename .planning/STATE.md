@@ -4,16 +4,16 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 167
 current_phase_name: native-notifications
-status: testing
-stopped_at: Phase 167 gap-closure plan 05 executed (M-41 crash regression hardened) — awaiting M-41 re-run on signed production build
-last_updated: "2026-07-01T12:24:07.258Z"
+status: executing
+stopped_at: Completed 167-06-PLAN.md (M-41 live-delivery gap closure, instrumentation-first) -- awaiting M-41 signed-build re-run capturing new log output
+last_updated: "2026-07-01T13:43:23.635Z"
 last_activity: 2026-07-01
-last_activity_desc: Phase 167-05 gap closure executed — hardened darwin sendNotification (bundle-id guard + @try/@catch), added notification_darwin_test.go, updated TESTING.md; M-41 re-run on signed build still open
+last_activity_desc: Phase 167 execution started
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 15
-  completed_plans: 15
+  total_plans: 17
+  completed_plans: 16
   percent: 50
 ---
 
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 ## Current Position
 
 Phase: 167 (native-notifications) — EXECUTING
-Plan: 5 of 5
-Status: Gap-closure plan 05 complete (M-41 crash regression hardened) — awaiting M-41 re-run on signed production build
-Last activity: 2026-07-01 — Phase 167-05 gap-closure plan executed
+Plan: 6 of 7
+Status: Executing Phase 167
+Last activity: 2026-07-01 — Completed 167-06-PLAN.md (M-41 live-delivery gap closure, instrumentation-first)
 
 ```
 v4.2 Progress: [██████████░░░░░░░░░░] 50% (2/4 phases — 165 ✅ DONE (live), 166 ✅ DONE (verified 8/8))
@@ -133,8 +133,8 @@ v4.2 Progress: [██████████░░░░░░░░░░] 50
 
 ## Session Continuity
 
-Last session: 2026-07-01T12:24:07.258Z
-Stopped at: Completed 167-05-PLAN.md (gap closure)
+Last session: 2026-07-01T13:43:23.627Z
+Stopped at: Completed 167-06-PLAN.md (M-41 live-delivery gap closure, instrumentation-first) -- awaiting M-41 signed-build re-run capturing new log output
 Resume file: None
 Next action: Phase 167's M-41 crash regression is now hardened (bundle-id guard + @try/@catch in the darwin native notification path). Run `/gsd-verify-work 167` to re-run M-41 on a SIGNED PRODUCTION BUILD (not `wails dev`) on macOS/Windows/Linux — confirms real toast delivery + tray-hidden behavior with the hardening in place. This is the sole remaining open item before Phase 167 can be marked complete and Phase 168 (Bug Fix & Settings Polish) begins.
 
@@ -209,6 +209,7 @@ Next action: Phase 167's M-41 crash regression is now hardened (bundle-id guard 
 | Phase 167 P03 | 12min | 2 tasks | 6 files |
 | Phase 167 P04 | 20min | 2 tasks | 7 files |
 | Phase 167 P05 (gap closure) | 8min | 2 tasks | 4 files |
+| Phase 167 P06 | 6min | 3 tasks | 8 files |
 
 ## Decisions
 
@@ -233,3 +234,5 @@ Next action: Phase 167's M-41 crash regression is now hardened (bundle-id guard 
 - [Phase ?]: Phase 167-04: toggle placed under settings-behavior (Behavior section), NOT settings-session-behavior, per the LOCKED user correction overriding NTF-04's original wording
 - [Phase ?]: Phase 167-05 (M-41 gap closure): guard sendNotification synchronously BEFORE dispatch_async (not only inside it) — the primary fix, preventing the crash-prone UNUserNotificationCenter call from ever being reached in an unbundled process; @try/@catch retained as defense-in-depth only
 - [Phase ?]: Phase 167-05: no test invented for the async dispatch-queue crash path itself (go test never pumps the main queue, would false-pass); the honest, load-bearing assertion is hasAppBundleID() == false under an unbundled go-test binary
+- [Phase ?]: Phase 167-06: SetNotifyOnWaiting(true) proactively invokes requestNotificationAuthFunc before the daemon nil-check -- surfaces the macOS permission prompt at toggle-time (leading suspected M-41 fix)
+- [Phase ?]: Phase 167-06: instrumented every native-notification branch (attempt/not-granted/authorization-error/delivery) with logging; no live-delivery test invented since go test never pumps the main dispatch queue

@@ -456,7 +456,7 @@ Plans:
 
   *(Note: toggle placement moved to the **Behavior** section per the LOCKED user correction in 167-CONTEXT.md — success-criterion-4 "Session Behavior" wording is superseded; intent unchanged.)*
 
-**Plans**: 5/7 plans complete (167-06, 167-07 gap-closure for the M-41 live-delivery blocker pending)
+**Plans**: 6/7 plans executed
 
 Plans:
 **Wave 1**
@@ -478,7 +478,7 @@ Plans:
 
 **Gap closure** *(M-41 live-delivery blocker — native toast never displays on a signed build)*
 
-- [ ] 167-06-PLAN.md — Instrument every native notification path (attempt/not-granted/auth-error/delivery logging), request UNUserNotificationCenter authorization proactively on toggle-enable, register a willPresentNotification foreground-presentation delegate, emit a `notification:permission-denied` event on denial, add maybeNotifyWaiting edge-fire + cache-load logging; headless Go tests for the authorization seam + TESTING.md registration (NTF-01/04)
+- [x] 167-06-PLAN.md — Instrument every native notification path (attempt/not-granted/auth-error/delivery logging), request UNUserNotificationCenter authorization proactively on toggle-enable, register a willPresentNotification foreground-presentation delegate, emit a `notification:permission-denied` event on denial, add maybeNotifyWaiting edge-fire + cache-load logging; headless Go tests for the authorization seam + TESTING.md registration (NTF-01/04)
 - [ ] 167-07-PLAN.md — Frontend permission-denied hint in the Settings Behavior section wired to the `notification:permission-denied` event (System Settings → Notifications remediation) + vitest coverage + TESTING.md registration (NTF-04) *(depends on 167-06)*
 
 **UI hint**: yes
@@ -505,7 +505,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 165. Funnel Backend | 5/5 | Complete   | 2026-06-30 |
 | 166. Funnel Frontend + Help Guide | 5/5 | Complete (verified 8/8) | 2026-06-30 |
-| 167. Native Notifications | 5/7 | Gap closure — M-41 live-delivery fix planned (167-06/07), awaiting execution + signed-build UAT | 2026-07-01 |
+| 167. Native Notifications | 6/7 | In Progress|  |
 | 168. Bug Fix & Settings Polish | 0/? | Not started | - |
 
 ---
