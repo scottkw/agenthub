@@ -11,6 +11,7 @@ import { HelpSectionNav } from './HelpSectionNav'
 import { HelpContent } from './HelpContent'
 import gettingStartedMd from '../content/help/getting-started.md?raw'
 import chatMd from '../content/help/chat.md?raw'
+import sharingMd from '../content/help/sharing-guide.md?raw'
 import faqMd from '../content/help/faq.md?raw'
 
 // ---------------------------------------------------------------------------
@@ -61,6 +62,8 @@ function stripMd(text: string): string {
 const SECTION_META: ReadonlyArray<{ id: string; label: string; markdown: string }> = [
   { id: 'help-getting-started', label: 'Getting Started', markdown: gettingStartedMd },
   { id: 'help-chat', label: 'Chat', markdown: chatMd },
+  // Phase 166-04 / HLP-01: Sharing Outside Your Tailnet (Funnel + device-share ACL)
+  { id: 'help-sharing', label: 'Sharing Outside Your Tailnet', markdown: sharingMd },
   { id: 'help-faq', label: 'Frequently Asked Questions', markdown: faqMd },
 ]
 

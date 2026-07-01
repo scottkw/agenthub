@@ -10,6 +10,8 @@ import React, { useEffect } from 'react'
 export const SECTIONS = [
   { id: 'help-getting-started', label: 'Getting Started' },
   { id: 'help-chat', label: 'Chat' },
+  // Phase 166-04 / HLP-01: must stay in sync with SECTION_META in HelpTab.tsx (Pitfall 5)
+  { id: 'help-sharing', label: 'Sharing Outside Your Tailnet' },
   { id: 'help-faq', label: 'Frequently Asked Questions' },
 ] as const
 
