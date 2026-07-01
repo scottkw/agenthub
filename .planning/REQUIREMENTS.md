@@ -43,7 +43,7 @@ Requirements for this milestone. Each maps to a roadmap phase.
 ### Hub / Settings Polish (UX)
 
 - [x] **UX-01**: A Settings → Session Behavior option lets the user prevent auto-switching to a newly Hub-created session (stay on the Hub tab). — Issue #116
-- [ ] **UX-02**: The Footer "Enable Web" button is renamed "Share Session" and opens the Hub Share modal instead of directly toggling web serving, eliminating the state-drift between the button and the modal. — Issue #115
+- [x] **UX-02**: The Footer "Enable Web" button is renamed "Share Session" and opens the Hub Share modal instead of directly toggling web serving, eliminating the state-drift between the button and the modal. — Issue #115
 
 ### Bug Fixes (FIX)
 
@@ -98,7 +98,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NTF-03 | Phase 167 | Complete |
 | NTF-04 | Phase 167 | Complete |
 | UX-01 | Phase 168 | Complete |
-| UX-02 | Phase 168 | Pending |
+| UX-02 | Phase 168 | Complete |
 | FIX-01 | Phase 168 | Complete |
 | FIX-02 | Phase 168 | Pending |
 | FIX-03 | Phase 168 | Complete |
