@@ -25,12 +25,14 @@ The entire CI suite IS the regression suite. No build tags, no relocated files �
 
 | Group | Count | Location | Run Command | Guards |
 |-------|-------|----------|-------------|--------|
-| Go unit/integration | **368** `*_test.go` files | `internal/`, repo root | `go test -race -short ./...` | Daemon API, relay wire framing, capability model, PTY, webserver, files, status, tailnet |
-| vitest (frontend) | **134** `*.test.ts/tsx` files | `frontend/src/` | `cd frontend && pnpm test` | React component render contracts, UI state, CSS token source gates, lib adapters (relay, remote, hub, status) |
+| Go unit/integration | **370** `*_test.go` files | `internal/`, repo root | `go test -race -short ./...` | Daemon API, relay wire framing, capability model, PTY, webserver, files, status, tailnet |
+| vitest (frontend) | **135** `*.test.ts/tsx` files | `frontend/src/` | `cd frontend && pnpm test` | React component render contracts, UI state, CSS token source gates, lib adapters (relay, remote, hub, status) |
 | Playwright e2e | **9** `*.spec.ts` files | `frontend/e2e/` | `cd frontend && pnpm exec playwright test` | Web surface: file browser cap gate, file write/upload/delete, CSP, web-links toggle, plugin hot-swap, vendored xterm addons, cross-surface chat parity gate (PARITY-01/EXPORT-01), web-share guest scope (WEBCHAT-03) |
 | build-script | **2** `build-script.test.sh, install-sh.test.sh` | `tests/` | `bash tests/build-script.test.sh && bash tests/install-sh.test.sh` | Go build + Wails asset embedding |
-| **Total** | **513** | — | — | — |
+| **Total** | **516** | — | — | — |
 
+> Note: Phase 167 (NTF-01..04, Native Notifications — awaiting-input desktop notification): Go +2 new files — `internal/daemon/engine_notify_test.go` (167-01: `NotifyOnWaiting` daemon-settings default-false/persist/round-trip, mirrors `engine_shell_warn_test.go`) and `internal/daemon/api_notify_test.go` (167-01: GET/PATCH notify-on-waiting route handler tests, mirrors the `start-minimized` route tests). `app_test.go` EXTENDED in-place (167-03, no new file): `TestMaybeNotifyWaiting`/`TestMaybeNotifyWaiting_FirstTickNoNotify`/`TestMaybeNotifyWaiting_BodyFormat`/`TestMaybeNotifyWaiting_DisabledNoop`/`TestMaybeNotifyWaiting_Pruning`/`TestDisplayNameForCLI` (edge-detected once-per-transition notifier via an injected `sendNotificationFunc` seam — no real OS notification fires in tests; cold-start baseline; disabled-toggle no-op; map-pruning DoS guard T-167-06; static CLI→display-name lookup). vitest +1 new file — `frontend/src/components/__tests__/SettingsTab.notify-toggle.test.tsx` (167-04: notify-on-waiting toggle in the Behavior section — NOT Session Behavior, per the LOCKED user correction overriding NTF-04's original wording — default OFF, render/load/save/save-error coverage, source-level placement guard). Implementation: `internal/daemon/engine.go` (`NotifyOnWaiting bool` on `daemonSettings`), `internal/daemon/api.go`/`client.go` (Get/Set routes + client), `app.go` (`displayNameForCLI`, `maybeNotifyWaiting`, `GetNotifyOnWaiting`/`SetNotifyOnWaiting` bound methods, `refreshTrayState` wiring), `notification_darwin.go` (per-session identifier threaded through `sendNotification`), `notification_windows.go`/`notification_linux.go` (NEW beeep wrappers), `frontend/src/components/SettingsTab.tsx` + `SettingsSearch.tsx`. Counts 368→370 Go / 134→135 vitest / 513→516 total. Added **M-41** manual checklist item (Category U).
+>
 > Note: Phase 166 (FUI-01..06 + HLP-01/02, Funnel frontend + Help guide): vitest +2 new files — `frontend/src/components/__tests__/funnelBinding.contract.test.tsx` (166-01: `?raw` import-contract guard for the hand-authored `SetSessionFunnel` stub + `SessionInfo.funnelActive` field) and `frontend/src/components/__tests__/FunnelRiskPanel.test.tsx` (166-02: risk statement, five expiry presets + 3600 default, Help cross-link, onEnable/onCancel). Coverage also added to existing files: `SessionShareModal.test.tsx` (two-step enable gesture, local-fallback fail-closed D-15, warm-up → live URL, one-click disable, 30s timeout + timer cleanup), `SessionSharePanel.test.tsx` (Internet (public) read-only URL + Copy URL/Open/QR, warm-up/timeout copy, no-write-link D-12), `SessionCard.test.tsx` + `TabBar.test.tsx` (colorblind-safe internet-exposure indicators driven by funnelActive), `HelpTab.integration.test.tsx` (sharing-guide article in both nav arrays). Implementation: `FunnelRiskPanel.tsx`, `SessionShareModal.tsx`, `SessionSharePanel.tsx`, `HubPanel.tsx` (shareModalSession poll-sync), `SessionCard.tsx`, `TabBar.tsx`, `App.tsx`, `HelpTab.tsx`, `HelpSectionNav.tsx`, `content/help/sharing-guide.md`, `style.css` (tokens + component classes). Counts 132→134 vitest / 511→513 total. Added M-37..M-40 manual checklist items.
 >
 > Note: Phase 165-03 (FNL-01, Wails bridge — App.SetSessionFunnel + DaemonClient.SetSessionFunnel + SessionInfo.FunnelActive): No new test files — tests added to existing `app_test.go` (TestApp_SetSessionFunnel_NilClient nil-guard, TestListSessions_PropagatesFunnelActive true/false propagation via fake funnelClient seam; appTestFakeFunnelClient test double + testAppWithAPI helper added) and `internal/daemon/client_test.go` (TestDaemonClient_SetSessionFunnel httptest POST /sessions/{id}/funnel body assertion, TestDaemonClient_SetSessionFunnel_ErrorStatus non-2xx surfaces error). Implementation: `app.go` (SessionInfo.FunnelActive bool json:"funnelActive", App.SetSessionFunnel bound method, ListSessions copy-loop FunnelActive propagation), `internal/daemon/client.go` (DaemonClient.SetSessionFunnel). Counts unchanged (368 Go / 511 total). New traceability rows for `app_test.go` and `internal/daemon/client_test.go` added under FNL-01.
@@ -298,6 +300,13 @@ The path column must contain a repo-relative file path ending in `.go`, `.ts`, `
 | FUI-06 | frontend/src/components/__tests__/SessionShareModal.test.tsx | vitest | Phase 166-02: risk-panel Help link invokes the modal's onOpenHelp callback (closes modal + delegates). |
 | HLP-01 | frontend/src/components/__tests__/HelpTab.integration.test.tsx | vitest | Phase 166-04: sharing-guide article registered in BOTH nav arrays (SECTION_META + SECTIONS); section present, ordering chat→sharing→faq. |
 | HLP-02 | frontend/src/components/__tests__/HelpTab.integration.test.tsx | vitest | Phase 166-04: sharing-guide content — copy-pasteable ACL grant block, wildcard-default gotcha, Tailscale doc links (no raw `<a>` tags). |
+| NTF-01 | app_test.go | Go | Phase 167-03: TestMaybeNotifyWaiting_FirstTickNoNotify — cold-start baseline: first tray-poller tick after launch silently baselines current statuses, no notification fires; `refreshTrayState` drives `maybeNotifyWaiting` independent of window visibility (tray-hidden requirement). |
+| NTF-02 | app_test.go | Go | Phase 167-03: TestMaybeNotifyWaiting — non-waiting→waiting transition fires exactly once; TestMaybeNotifyWaiting_Pruning — a session absent from the latest ListSessions() slice is pruned from the de-dup map (T-167-06 bounded-growth guard). |
+| NTF-03 | app_test.go | Go | Phase 167-03: TestMaybeNotifyWaiting_BodyFormat — notification body contains session Name + agent display name, title "AgentHub", per-session identifier `agenthub.session-waiting.<id>`; TestDisplayNameForCLI — static CLI→display-name lookup table test. |
+| NTF-04 | internal/daemon/engine_notify_test.go | Go | Phase 167-01: `NotifyOnWaiting` daemon setting default false, persists across reload, round-trips via engine getter/setter (mirrors `engine_shell_warn_test.go`). |
+| NTF-04 | internal/daemon/api_notify_test.go | Go | Phase 167-01: GET/PATCH notify-on-waiting route handlers — default false, PATCH flips + GET confirms, bad-body 400, DaemonClient round-trip (mirrors the start-minimized route tests). |
+| NTF-04 | app_test.go | Go | Phase 167-03: TestMaybeNotifyWaiting_DisabledNoop — with the toggle off, `maybeNotifyWaiting` fires nothing regardless of transitions. |
+| NTF-04 | frontend/src/components/__tests__/SettingsTab.notify-toggle.test.tsx | vitest | Phase 167-04: notify-on-waiting toggle renders in the Behavior section (NOT Session Behavior — LOCKED user correction), default OFF, loads via GetNotifyOnWaiting, flips via SetNotifyOnWaiting, rejection surfaces inline error without flipping displayed state, source-level placement guard (toggle physically between the Behavior and Session Behavior headings). |
 
 ---
 
@@ -609,6 +618,18 @@ The alias-set wire contract, client-side validateAlias, alias-control component 
   3. Reconnect Tailscale, reopen the modal, and confirm the toggle re-enables.
   - _Why not automatable:_ requires toggling the real system tailscaled / web-server mode; the fail-closed disable + note is unit-asserted in `SessionShareModal.test.tsx` (webServerMode='local').
   - _Source:_ Phase 166 FUI-01 / D-15 (mirrors Phase 165 FNL boundary M-36).
+
+### Category U — Native Notifications (NTF)
+
+- **M-41** Cross-platform on-screen notification delivery on `→ waiting`, including tray-hidden (NTF-01/02/03/04):
+  1. On each of macOS / Windows / Linux: enable the "Notify me when a session is awaiting input" toggle (Settings → Behavior).
+  2. Hide the window to the tray (QuitGUIOnly-style, not full quit).
+  3. Drive a session into `waiting` (e.g. an agent prompt awaiting a y/n).
+  4. Confirm exactly ONE OS-native notification appears identifying the session name + agent type while the window is hidden.
+  5. Repeat with the toggle OFF — confirm no notification appears (NTF-04).
+  - macOS must show "AgentHub" attribution (native `UNUserNotificationCenter` path, not beeep).
+  - _Why not automatable:_ Real OS notification centers require a live desktop session; CI runners (`build.yml`) have none on any of the 3 platforms. The trigger logic, de-dup, cold-start baseline, body format, and disabled-toggle no-op are all unit-tested via the injected `sendNotificationFunc` seam (see NTF-01/02/03/04 traceability rows) — this manual item proves only the real OS delivery + tray-hidden behavior end-to-end.
+  - _Source:_ Phase 167 NTF-01/02/03/04; 167-VALIDATION.md Manual-Only Verifications.
 
 ---
 
