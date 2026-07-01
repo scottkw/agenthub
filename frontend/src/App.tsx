@@ -1057,7 +1057,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
   // Phase 168-03 (FIX-03) — extended to (sessionId, baseURL?, capToken?). The
   // app's own web-share bootstrap tab (mode==='web') still omits baseURL/
   // capToken and is resolved from the mount-stable webParams at render time
-  // (unchanged behavior). Remote-peer tabs (opened via handleOpenRemoteSession)
+  // (unchanged behavior). Remote-peer tabs (opened via the remote-open action)
   // pass a baseURL + capToken that are carried PER-TAB on the Tab object, so
   // two different remote sessions never share params (RESEARCH Pitfall 3).
   const openWebSessionTab = useCallback((sessionId: string, baseURL?: string, capToken?: string) => {

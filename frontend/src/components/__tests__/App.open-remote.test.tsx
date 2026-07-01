@@ -5,6 +5,15 @@
 //
 // These tests fail against the Phase 146 Plans 01-04 code base and go GREEN
 // when Plan 05 adds the held-cap reuse path, WR-01 URL fix, and WR-03 copy.
+//
+// Phase 168-03 (FIX-03, #118) additions — D-17 REVERSES the Phase 146 external-
+// browser design. Opening a remote session now opens an in-app web-session tab
+// (openWebSessionTab) instead of BrowserOpenURL. The held-cap and modal-exchange
+// branches still call OpenRemoteSessionURL to get the daemon-composed, SID-correct
+// cap-bearing URL (WR-01 protection preserved) — but the URL is now PARSED
+// (origin -> baseURL, ?cap= -> capToken) and handed to openWebSessionTab instead
+// of BrowserOpenURL. These tests fail against the pre-168-03 code base (which still
+// calls BrowserOpenURL) and go GREEN once the in-app reroute lands.
 
 // Wave 0 RED tests for Phase 146 FIX-03 — out-of-band open contract (REDESIGNED).
 //
@@ -136,10 +145,11 @@ describe('App.tsx — handleModalExchange open-session branch (FIX-03)', () => {
     expect(slice).toContain('open-session')
   })
 
-  it('open-session branch uses OpenRemoteSessionURL to get the cap-bearing URL (WR-01 fix)', () => {
+  it('open-session branch uses OpenRemoteSessionURL to get the cap-bearing URL (WR-01 fix, preserved by FIX-03)', () => {
     // Plan 05 WR-01: the open-session branch no longer hand-builds /sessions/{id}?cap=
     // directly (mismatch-prone). Instead it calls OpenRemoteSessionURL (daemon-composed).
-    // Verify OpenRemoteSessionURL appears in the handleModalExchange open-session branch.
+    // Phase 168-03 keeps this SID-correctness guarantee — the URL is now parsed and
+    // handed to openWebSessionTab instead of BrowserOpenURL (see tests below).
     const idx = raw.indexOf('handleModalExchange')
     const slice = raw.slice(idx, idx + 1600)
     expect(slice).toContain('OpenRemoteSessionURL')
@@ -147,12 +157,13 @@ describe('App.tsx — handleModalExchange open-session branch (FIX-03)', () => {
     expect(slice).not.toContain("pending.id + '?cap='")
   })
 
-  it('open-session branch calls BrowserOpenURL with the cap-bearing URL', () => {
+  it('open-session branch calls openWebSessionTab, NOT BrowserOpenURL, with the cap-bearing URL (FIX-03, D-17)', () => {
     const idx = raw.indexOf('handleModalExchange')
-    // Plan 05 WR-01 fix added deposit + OpenRemoteSessionURL before BrowserOpenURL;
-    // use a larger slice to cover the full open-session branch.
+    // Plan 05 WR-01 fix added deposit + OpenRemoteSessionURL; 168-03 replaces the
+    // trailing BrowserOpenURL(url) call with an in-app openWebSessionTab(...) call.
     const slice = raw.slice(idx, idx + 1600)
-    expect(slice).toContain('BrowserOpenURL')
+    expect(slice).toContain('openWebSessionTab')
+    expect(slice).not.toContain('BrowserOpenURL')
   })
 })
 
@@ -235,6 +246,21 @@ describe('App.tsx — handleOpenRemoteSession held-cap reuse (GAP-146-A, Plan 05
     expect(raw).toContain('OpenRemoteSessionURL')
   })
 
+  // Phase 168-03 (FIX-03, D-17) — in-app reroute of the held-cap branch.
+  it('held-cap path: handleOpenRemoteSession does NOT call BrowserOpenURL (FIX-03, D-17)', () => {
+    const idx = raw.indexOf('handleOpenRemoteSession')
+    const slice = raw.slice(idx, idx + 700)
+    expect(slice).not.toContain('BrowserOpenURL')
+  })
+
+  it('held-cap path: handleOpenRemoteSession calls openWebSessionTab with the parsed cap-bearing URL (FIX-03)', () => {
+    const idx = raw.indexOf('handleOpenRemoteSession')
+    const slice = raw.slice(idx, idx + 700)
+    // The OpenRemoteSessionURL result must be opened in-app via openWebSessionTab,
+    // parameterized on session.id (not a shared/global session id).
+    expect(slice).toContain('openWebSessionTab(session.id')
+  })
+
   it('WR-01 fixed: hand-built pending.id + ?cap= is gone from the open-session branch', () => {
     // The WR-01 mismatch-prone URL must be removed from handleModalExchange.
     // After the fix the URL is built by OpenRemoteSessionURL in the daemon.
@@ -246,6 +272,51 @@ describe('App.tsx — handleOpenRemoteSession held-cap reuse (GAP-146-A, Plan 05
     // Use 1200 chars to cover the whole callback including the no-cap fallback branch.
     const slice = raw.slice(idx, idx + 1200)
     expect(slice).toContain('setJoinModalForSession')
+  })
+})
+
+// ─── FIX-03 behavior: per-tab isolation — two remote sessions open independent tabs ──
+//
+// openWebSessionTab is internal to the App component (not exported), so this suite
+// follows the established source-inspection convention (see App.test.tsx) rather than
+// mounting the full App tree. Together the two assertions below prove per-call
+// isolation: (1) the tab id is deterministically keyed by the sessionId ARGUMENT
+// (webSessionTabId(sessionId)), so two different remote sessionIds always produce two
+// different tab ids; and (2) the created Tab's baseURL/capToken are sourced directly
+// from THIS call's own parameters — never from the shared/global webParams — so two
+// concurrent remote tabs can never cross-contaminate each other's cap/host
+// (RESEARCH Pitfall 3 / T-168-04).
+describe('App.tsx — openWebSessionTab per-tab isolation (FIX-03, two remote sessions)', () => {
+  it('tab id is keyed by the sessionId argument, not a shared value (distinct sessions -> distinct tab ids)', () => {
+    const idx = raw.indexOf('const openWebSessionTab')
+    expect(idx, 'openWebSessionTab must be present in App.tsx').toBeGreaterThan(-1)
+    const slice = raw.slice(idx, idx + 900)
+    expect(slice).toContain('webSessionTabId(sessionId)')
+  })
+
+  it('openWebSessionTab signature is (sessionId, baseURL?, capToken?) — extended for FIX-03', () => {
+    const idx = raw.indexOf('const openWebSessionTab')
+    const slice = raw.slice(idx, idx + 200)
+    expect(slice).toContain('sessionId: string, baseURL?: string, capToken?: string')
+  })
+
+  it('the created Tab carries baseURL/capToken from THIS call, not the global webParams', () => {
+    const idx = raw.indexOf('const openWebSessionTab')
+    const slice = raw.slice(idx, idx + 900)
+    expect(slice).toContain('baseURL,')
+    expect(slice).toContain('capToken,')
+    // Must not read from the mount-stable global webParams inside this function —
+    // that would make a second remote tab silently reuse the first's cap/host.
+    expect(slice).not.toContain('webParams')
+  })
+
+  it('the __websession__ render branch resolves per-tab params from the active tab, not the global webParams, for remote tabs (RESEARCH Pitfall 3)', () => {
+    const idx = raw.indexOf("activeId.startsWith('__websession__')")
+    expect(idx, 'the __websession__ render branch must be present').toBeGreaterThan(-1)
+    const slice = raw.slice(idx, idx + 1400)
+    expect(slice).toContain('activeWebTab')
+    expect(slice).toContain('isRemoteWebTab')
+    expect(slice).toContain('baseURL={activeWebTab?.baseURL}')
   })
 })
 
