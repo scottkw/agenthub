@@ -26,6 +26,8 @@ const SEARCH_INDEX: ReadonlyArray<SearchEntry> = [
   ...SETTINGS_JUMP_LINKS.map((l) => ({ label: l.label, target: l.id })),
   // Top-level toggle and button labels (kept in sync with SettingsTab.tsx).
   { label: 'Start minimized to system tray', target: 'settings-behavior' },
+  // Phase 167 NTF-04 — must byte-match the SettingsTab toggle label.
+  { label: 'Notify me when a session is awaiting input', target: 'settings-behavior' },
   { label: 'Auto-close tab on exit', target: 'settings-session-behavior' },
   // Phase 150 SET-01 — must byte-match the SettingsTab toggle label (trailing period included).
   { label: 'Warn before web-sharing a shell session.', target: 'settings-session-behavior' },

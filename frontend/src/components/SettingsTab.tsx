@@ -16,6 +16,9 @@ import {
   SetStartMinimized,
   GetAutoCloseSession,
   SetAutoCloseSession,
+  // Phase 167 NTF-04 — awaiting-input native notification toggle
+  GetNotifyOnWaiting,
+  SetNotifyOnWaiting,
   RegenerateSigningKey,
   // Phase 107-03 SHELL-11 — shell binary path setting
   GetShellPath,
@@ -114,6 +117,12 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
   const [autoCloseSaving, setAutoCloseSaving] = useState(false)
   const [autoCloseError, setAutoCloseError] = useState<string | null>(null)
 
+  // Notify-on-waiting toggle state (Phase 167 NTF-04) — default OFF (D-04 locked decision).
+  const [notifyOnWaiting, setNotifyOnWaiting] = useState(false)
+  const [notifyOnWaitingLoaded, setNotifyOnWaitingLoaded] = useState(false)
+  const [notifyOnWaitingSaving, setNotifyOnWaitingSaving] = useState(false)
+  const [notifyOnWaitingError, setNotifyOnWaitingError] = useState<string | null>(null)
+
   // Phase 150 SET-01 — shell web-share warning enabled master switch (D-08 default ON).
   const [shellWarnEnabled, setShellWarnEnabled] = useState(true) // default ON (D-08)
   const [shellWarnLoaded, setShellWarnLoaded] = useState(false)
@@ -195,6 +204,14 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
       setAutoCloseSession(val)
       setAutoCloseLoaded(true)
     }).catch(() => setAutoCloseLoaded(true))
+  }, [])
+
+  // Load notify-on-waiting preference on mount (Phase 167 NTF-04).
+  useEffect(() => {
+    GetNotifyOnWaiting().then(val => {
+      setNotifyOnWaiting(val)
+      setNotifyOnWaitingLoaded(true)
+    }).catch(() => setNotifyOnWaitingLoaded(true))
   }, [])
 
   // Load shell web-share warning enabled preference on mount (Phase 150 SET-01).
@@ -357,6 +374,21 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
     }
   }
 
+  // Phase 167 NTF-04 \u2014 instant toggle (no confirm dialog), mirrors handleToggleMinimized.
+  async function handleToggleNotifyOnWaiting() {
+    const next = !notifyOnWaiting
+    setNotifyOnWaitingSaving(true)
+    setNotifyOnWaitingError(null)
+    try {
+      await SetNotifyOnWaiting(next)
+      setNotifyOnWaiting(next)
+    } catch (err) {
+      setNotifyOnWaitingError('Could not save preference \u2014 ' + (err instanceof Error ? err.message : String(err)))
+    } finally {
+      setNotifyOnWaitingSaving(false)
+    }
+  }
+
   // Phase 150 SET-01 — D-07: turning OFF requires confirmation; turning ON is instant.
   async function handleToggleShellWarnEnabled() {
     const next = !shellWarnEnabled
@@ -465,6 +497,34 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
             When enabled, AgentHub launches with the window hidden. Click the tray icon to open it.
           </p>
           {toggleError && <p className="settings-panel__error">{toggleError}</p>}
+        </div>
+
+        {/* Phase 167 NTF-04 — notify-on-waiting toggle (Behavior section, per LOCKED user
+            correction — NOT Session Behavior; default OFF). */}
+        <div className="settings-panel__field-group">
+          {notifyOnWaitingLoaded && (
+            <label
+              className={`settings-panel__toggle-row${notifyOnWaiting ? ' settings-panel__toggle-row--checked' : ''}`}
+              htmlFor="notifyOnWaiting"
+              style={notifyOnWaitingSaving ? { pointerEvents: 'none', opacity: 0.6 } : undefined}
+            >
+              <span className="settings-panel__toggle-track">
+                <span className="settings-panel__toggle-thumb" />
+              </span>
+              <span className="settings-panel__toggle-label">Notify me when a session is awaiting input</span>
+            </label>
+          )}
+          <input
+            type="checkbox"
+            id="notifyOnWaiting"
+            className="settings-panel__toggle-input"
+            checked={notifyOnWaiting}
+            onChange={() => void handleToggleNotifyOnWaiting()}
+          />
+          <p className="settings-panel__description">
+            Shows a native OS notification the moment a session starts waiting for your input, even when AgentHub is hidden in the tray. Off by default.
+          </p>
+          {notifyOnWaitingError && <p className="settings-panel__error">{notifyOnWaitingError}</p>}
         </div>
 
         {/* Session Behavior section (Phase 84 D-11) */}
