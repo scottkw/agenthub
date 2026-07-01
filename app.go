@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -119,13 +120,20 @@ type App struct {
 	// real OS notification fires. Defaults to sendNotification. Phase 167 /
 	// NTF-01..03, mirrors the saveFileDialogFunc injection pattern.
 	sendNotificationFunc func(identifier, title, body string)
+
+	// requestNotificationAuthFunc allows unit tests to spy on the proactive
+	// authorization entry point without firing a real OS permission prompt.
+	// Defaults to requestNotificationAuth. Phase 167-06 (M-41 gap closure) —
+	// mirrors the sendNotificationFunc injection pattern.
+	requestNotificationAuthFunc func()
 }
 
 // NewApp creates a new App without starting any subsystems.
 func NewApp() *App {
 	a := &App{
-		saveFileDialogFunc:   runtime.SaveFileDialog,
-		sendNotificationFunc: sendNotification,
+		saveFileDialogFunc:          runtime.SaveFileDialog,
+		sendNotificationFunc:        sendNotification,
+		requestNotificationAuthFunc: requestNotificationAuth,
 	}
 	a.lastTrayQuartile.Store(-1) // Phase 98 PRG-03 — ensure first SetTrayProgress call always updates
 	return a
@@ -178,6 +186,9 @@ func (a *App) maybeNotifyWaiting(sessions []SessionInfo) {
 		}
 		if s.Status == string(status.StatusWaiting) && known && prev != string(status.StatusWaiting) {
 			body := fmt.Sprintf("%s (%s) is waiting for your input.", s.Name, displayNameForCLI(s.CLI))
+			// Phase 167-06 (M-41 gap closure): confirms from outside whether
+			// the trigger actually reached the native send on a signed build.
+			log.Printf("notification: non-waiting->waiting edge fired for session %s (status=%s notifyOnWaiting=%v)", s.ID, s.Status, a.notifyOnWaiting.Load())
 			a.sendNotificationFunc("agenthub.session-waiting."+s.ID, "AgentHub", body)
 		}
 	}
@@ -231,6 +242,8 @@ func (a *App) startup(ctx context.Context) {
 	// On error, leave the atomic at its zero value (false — the safe default).
 	if val, err := a.client.GetNotifyOnWaiting(); err == nil {
 		a.notifyOnWaiting.Store(val)
+	} else {
+		log.Printf("notification: initial NotifyOnWaiting cache load failed (%v) — defaulting to false until the toggle is set", err)
 	}
 
 	// Start tray state poller (updates icon, tooltip, session list every 5s).
@@ -726,6 +739,13 @@ func (a *App) GetNotifyOnWaiting() bool {
 // a cold-start notification burst for sessions already waiting.
 func (a *App) SetNotifyOnWaiting(val bool) error {
 	a.notifyOnWaiting.Store(val)
+	// Phase 167-06 (M-41 gap closure): proactively surface the macOS
+	// permission prompt the moment the toggle is enabled, regardless of
+	// daemon connectivity — the leading suspected fix (during UAT the app
+	// showed as "Off" in System Settings with NO prompt ever seen).
+	if val && a.requestNotificationAuthFunc != nil {
+		a.requestNotificationAuthFunc()
+	}
 	if a.client == nil {
 		return fmt.Errorf("daemon not connected")
 	}

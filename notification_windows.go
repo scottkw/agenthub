@@ -15,7 +15,14 @@ import (
 // parity with darwin/linux but is not used by beeep (Windows AUMID branding
 // is deferred).
 func sendNotification(identifier, title, body string) {
+	log.Printf("notification: dispatching beeep notification %q", title)
 	if err := beeep.Notify(title, body, nil); err != nil {
 		log.Printf("notification: delivery failed: %v", err)
 	}
 }
+
+// requestNotificationAuth is the Windows no-op counterpart of the darwin
+// proactive-authorization seam (Phase 167-06, M-41 gap closure). beeep needs
+// no OS-level authorization step on Windows, so this exists only so
+// NewApp's requestNotificationAuthFunc default compiles cross-platform.
+func requestNotificationAuth() {}

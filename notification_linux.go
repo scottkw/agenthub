@@ -14,7 +14,14 @@ import (
 // identifier parameter is accepted for signature parity with darwin/windows
 // but is not used by beeep (Linux app_name branding is deferred).
 func sendNotification(identifier, title, body string) {
+	log.Printf("notification: dispatching beeep notification %q", title)
 	if err := beeep.Notify(title, body, nil); err != nil {
 		log.Printf("notification: delivery failed: %v", err)
 	}
 }
+
+// requestNotificationAuth is the Linux no-op counterpart of the darwin
+// proactive-authorization seam (Phase 167-06, M-41 gap closure). beeep needs
+// no OS-level authorization step on Linux, so this exists only so NewApp's
+// requestNotificationAuthFunc default compiles cross-platform.
+func requestNotificationAuth() {}
