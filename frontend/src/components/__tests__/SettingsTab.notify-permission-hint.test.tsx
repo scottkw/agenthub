@@ -64,6 +64,7 @@ vi.mock('../../wailsjs/go/main/App', () => ({
 // cleanup-on-unmount (T-167-13).
 const unsubscribeSpy = vi.fn()
 let capturedPermissionDeniedHandler: (() => void) | null = null
+let capturedPermissionGrantedHandler: (() => void) | null = null
 
 vi.mock('../../wailsjs/wailsjs/runtime/runtime', () => ({
   BrowserOpenURL: vi.fn(),
@@ -71,6 +72,9 @@ vi.mock('../../wailsjs/wailsjs/runtime/runtime', () => ({
   EventsOn: vi.fn((eventName: string, handler: (...args: unknown[]) => void) => {
     if (eventName === 'notification:permission-denied') {
       capturedPermissionDeniedHandler = handler as () => void
+    }
+    if (eventName === 'notification:permission-granted') {
+      capturedPermissionGrantedHandler = handler as () => void
     }
     return unsubscribeSpy
   }),
@@ -139,6 +143,7 @@ describe('NTF-04/M-41 gap closure: SettingsTab notification-permission-denied hi
     vi.mocked(AppBindings.GetNotifyOnWaiting).mockResolvedValue(false)
     vi.mocked(AppBindings.SetNotifyOnWaiting).mockResolvedValue(undefined)
     capturedPermissionDeniedHandler = null
+    capturedPermissionGrantedHandler = null
     unsubscribeSpy.mockClear()
   })
 
@@ -197,13 +202,65 @@ describe('NTF-04/M-41 gap closure: SettingsTab notification-permission-denied hi
     expect(hintIdx).toBeLessThan(sessionBehaviorIdx)
   })
 
-  it('calls the EventsOn-returned unsubscribe function on unmount', async () => {
+  it('calls the EventsOn-returned unsubscribe function for both subscriptions on unmount', async () => {
     const props = makeProps()
     ;({ container, root } = renderSettingsTab(props))
     await flushEffects()
 
     expect(unsubscribeSpy).not.toHaveBeenCalled()
     root.unmount()
-    expect(unsubscribeSpy).toHaveBeenCalledTimes(1)
+    // Two subscriptions (denied + granted, WR-01) → two unsubscribe calls.
+    expect(unsubscribeSpy).toHaveBeenCalledTimes(2)
+  })
+
+  // WR-01 (code review, Phase 167): the hint must self-heal instead of staying
+  // stuck for the whole session once the user actually fixes permissions.
+  it('subscribes to the notification:permission-granted event on mount', async () => {
+    const props = makeProps()
+    ;({ container, root } = renderSettingsTab(props))
+    await flushEffects()
+
+    expect(WailsRuntime.EventsOn).toHaveBeenCalledWith(
+      'notification:permission-granted',
+      expect.any(Function)
+    )
+    expect(capturedPermissionGrantedHandler).not.toBeNull()
+  })
+
+  it('clears the hint when a permission-granted event fires after a denial', async () => {
+    const props = makeProps()
+    ;({ container, root } = renderSettingsTab(props))
+    await flushEffects()
+
+    // Denial surfaces the hint...
+    await act(async () => { capturedPermissionDeniedHandler!() })
+    await flushEffects()
+    expect(container.textContent).toContain(HINT_TEXT_FRAGMENT)
+
+    // ...and a subsequent grant (re-auth after fixing System Settings) clears it.
+    await act(async () => { capturedPermissionGrantedHandler!() })
+    await flushEffects()
+    expect(container.textContent).not.toContain(HINT_TEXT_FRAGMENT)
+  })
+
+  it('clears a stale hint when the toggle is turned back on', async () => {
+    // Toggle starts OFF; the hint is showing from an earlier denial.
+    vi.mocked(AppBindings.GetNotifyOnWaiting).mockResolvedValue(false)
+    const props = makeProps()
+    ;({ container, root } = renderSettingsTab(props))
+    await flushEffects()
+
+    await act(async () => { capturedPermissionDeniedHandler!() })
+    await flushEffects()
+    expect(container.textContent).toContain(HINT_TEXT_FRAGMENT)
+
+    // Turning the toggle ON optimistically clears the stale hint before the
+    // backend re-requests authorization (WR-01). The checkbox has id="notifyOnWaiting".
+    const toggle = container.querySelector<HTMLInputElement>('#notifyOnWaiting')
+    expect(toggle).not.toBeNull()
+    await act(async () => { toggle!.click() })
+    await flushEffects()
+
+    expect(container.textContent).not.toContain(HINT_TEXT_FRAGMENT)
   })
 })

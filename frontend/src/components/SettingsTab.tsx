@@ -228,10 +228,15 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
 
   // Phase 167-07 (M-41 gap closure) — subscribe to the backend's
   // notification:permission-denied event so a denied macOS authorization
-  // request surfaces a remediation hint instead of a silent dead end.
+  // request surfaces a remediation hint instead of a silent dead end. The
+  // paired permission-granted subscription lets the hint self-heal once the
+  // user fixes permissions and re-toggles (Phase 167 WR-01) — otherwise the
+  // hint stayed stuck for the whole session and its own remediation text
+  // ("toggle off and on again") never cleared it.
   useEffect(() => {
-    const off = EventsOn('notification:permission-denied', () => setNotifyPermissionDenied(true))
-    return off
+    const offDenied = EventsOn('notification:permission-denied', () => setNotifyPermissionDenied(true))
+    const offGranted = EventsOn('notification:permission-granted', () => setNotifyPermissionDenied(false))
+    return () => { offDenied(); offGranted() }
   }, [])
 
   async function handleCopyPassword() {
@@ -391,6 +396,10 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
     const next = !notifyOnWaiting
     setNotifyOnWaitingSaving(true)
     setNotifyOnWaitingError(null)
+    // Clear any stale permission-denied hint before re-requesting authorization
+    // (Phase 167 WR-01) — the backend re-runs the auth request on enable and
+    // will re-emit denied if it is still denied, or granted to self-heal.
+    if (next) setNotifyPermissionDenied(false)
     try {
       await SetNotifyOnWaiting(next)
       setNotifyOnWaiting(next)

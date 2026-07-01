@@ -67,14 +67,18 @@ func requestNotificationAuth() {
 //export onNotificationAuthResult
 func onNotificationAuthResult(granted C.int) {
 	log.Printf("notification: proactive authorization result granted=%d", int(granted))
-	if granted != 0 {
-		return
+	// Emit denied OR granted so the Settings hint can self-heal (Phase 167 WR-01):
+	// a bare return on grant left a stale denied-hint stuck for the session after
+	// the user fixed permissions and re-toggled. Hand off to a goroutine — the
+	// completion-handler thread is not safe for all Wails calls (mirrors
+	// onTraySession in tray.go).
+	event := "notification:permission-granted"
+	if granted == 0 {
+		event = "notification:permission-denied"
 	}
-	// Hand off to a goroutine — the completion-handler thread is not safe for
-	// all Wails calls (mirrors onTraySession in tray.go).
 	go func() {
 		if appInstance != nil && appInstance.ctx != nil {
-			runtime.EventsEmit(appInstance.ctx, "notification:permission-denied", nil)
+			runtime.EventsEmit(appInstance.ctx, event, nil)
 		}
 	}()
 }
