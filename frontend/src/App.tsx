@@ -1696,7 +1696,15 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
           const wsSessionId = activeWebTab?.sessionId ?? webParams.sessionId ?? activeId.slice('__websession__'.length)
           const wsCapToken = isRemoteWebTab ? (activeWebTab?.capToken ?? '') : (webParams.capToken ?? '')
           return (
+            // CR-03 fix: key on the resolved session id so React remounts
+            // WebShareSessionView (rather than reusing the instance and its
+            // useState chat/unread/mention/plugin-config state) whenever the
+            // active __websession__ tab switches to a different remote
+            // session. Before Phase 168-03 enabled multiple simultaneous
+            // remote-peer tabs, this render site only ever had one possible
+            // session, so the missing key was harmless.
             <WebShareSessionView
+              key={wsSessionId}
               sessionId={wsSessionId}
               capToken={wsCapToken}
               baseURL={activeWebTab?.baseURL}
