@@ -1029,6 +1029,38 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
     return () => { cancelled = true; clearInterval(interval) }
   }, [activeId])
 
+  // CR-02 fix: keep hubSessions live while the Share modal is open from a
+  // non-Hub tab. The Hub-tab poll above (T-131-10) intentionally only runs
+  // while the Hub tab is active — the footer "Share Session" entry point is
+  // used precisely when it is NOT — so without this, the modal's live-sync
+  // effect below never receives Funnel warm-up / viewerCount updates while
+  // open from a session tab. Scoped strictly to "modal is open AND Hub tab
+  // is not already polling" so this does not become an always-on poll (the
+  // DoS-guard intent behind T-131-10 is preserved — polling only happens
+  // while a share modal is actually mounted).
+  useEffect(() => {
+    if (mode === 'web') return // Phase 120-06: no Wails RPC in browser mode.
+    if (!shareModalSession) return
+    if (activeId === HUB_TAB.id) return // Hub-tab poll above already covers this case.
+    let cancelled = false
+    async function refresh() {
+      try {
+        const sessions = await ListSessions()
+        if (!cancelled) setHubSessions(sessions)
+      } catch {
+        // Best-effort — the modal simply keeps showing its last-known state.
+      }
+    }
+    void refresh()
+    const interval = setInterval(() => void refresh(), 3000)
+    return () => { cancelled = true; clearInterval(interval) }
+    // Keyed on shareModalSession?.id (not the whole object, which gets a new
+    // reference every time the sync effect below applies a server update) —
+    // otherwise this effect would tear down and restart its interval (firing
+    // an immediate extra refresh) on every single poll tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shareModalSession?.id, activeId])
+
   // Phase 168-05 (UX-02, RESEARCH Pitfall 3 / Pattern 4): keep the lifted Share modal's
   // session prop in sync with hubSessions. shareModalSession is a snapshot taken at
   // open-time (either from a Hub card click or the footer's openShareModalForActiveSession);
