@@ -4,17 +4,17 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 167
 current_phase_name: native-notifications
-status: executing
+status: verifying
 stopped_at: Completed 167-03-PLAN.md
-last_updated: "2026-07-01T06:47:29.267Z"
+last_updated: "2026-07-01T07:02:08.625Z"
 last_activity: 2026-07-01
 last_activity_desc: Phase 167 execution started
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 14
-  completed_plans: 13
-  percent: 50
+  completed_plans: 14
+  percent: 75
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 Phase: 167 (native-notifications) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-01 — Phase 167 execution started
 
 ```
@@ -133,7 +133,7 @@ v4.2 Progress: [██████████░░░░░░░░░░] 50
 
 ## Session Continuity
 
-Last session: 2026-07-01T06:47:29.262Z
+Last session: 2026-07-01T06:58:51.309Z
 Stopped at: Completed 167-03-PLAN.md
 Resume file: None
 Next action: Phase 165 is DONE — code-verified + all live UAT (M-34/M-35/M-36) PASS. Next milestone step = Phase 166 (Funnel Frontend + Help Guide): the Share-modal Funnel toggle UI, which was blocked on 165's backend (now proven working end-to-end). Run `/gsd-plan-phase 166` when ready. NOTE for future live Funnel UATs: the /app/ path needs a PRODUCTION build (`wails build -tags wailsassets`) — `wails dev` daemon returns 503 "app bundle not configured" (no embedded SPA), expected not a bug.
@@ -207,6 +207,7 @@ Next action: Phase 165 is DONE — code-verified + all live UAT (M-34/M-35/M-36)
 | Phase 167 P01 | 12min | 2 tasks | 5 files |
 | Phase 167 P02 | 8min | 2 tasks | 6 files |
 | Phase 167 P03 | 12min | 2 tasks | 6 files |
+| Phase 167 P04 | 20min | 2 tasks | 7 files |
 
 ## Decisions
 
@@ -227,3 +228,5 @@ Next action: Phase 165 is DONE — code-verified + all live UAT (M-34/M-35/M-36)
 - [Phase ?]: Phase 167-03: maybeNotifyWaiting requires a KNOWN previous status (not just first-run) before firing, matching RESEARCH's reference implementation exactly
 - [Phase ?]: Phase 167-03: SetNotifyOnWaiting stores the atomic cache before the daemon persist call so the tray poller never reads a stale toggle mid-tick
 - [Phase ?]: Phase 167-03: GetNotifyOnWaiting reads only the cached atomic.Bool (no daemon round trip) to keep the poller and Settings toggle in agreement
+- [Phase ?]: Phase 167-04: notifyOnWaiting toggle mirrors handleToggleMinimized (instant, no confirm dialog) rather than the shell-warn confirm-on-disable pattern
+- [Phase ?]: Phase 167-04: toggle placed under settings-behavior (Behavior section), NOT settings-session-behavior, per the LOCKED user correction overriding NTF-04's original wording
