@@ -80,6 +80,17 @@ interface SessionSharePanelProps {
    * No gating logic — write link is always shown when writeURL/writeCode present.
    */
   browseEnabled?: boolean
+  // ---- Phase 166 FUI-04/FUI-05: Internet (public) Funnel section ----
+  /** true once the daemon confirms the Funnel is live (session.funnelActive). */
+  funnelActive?: boolean
+  /** The read-only Funnel-base public URL (obtained by re-issuing caps after warm-up). */
+  funnelUrl?: string | null
+  /** true between enable and the funnelActive flip — shows the TLS warm-up state. */
+  warmingUp?: boolean
+  /** true when warm-up did not complete within 30s. */
+  warmupTimedOut?: boolean
+  /** One-click Funnel teardown — SetSessionFunnel(id, false, 0). No confirm dialog (D-13). */
+  onDisableFunnel?: () => void
 }
 
 /**
@@ -103,6 +114,11 @@ export function SessionSharePanel({
   readCode,
   writeCode,
   browseEnabled = false,
+  funnelActive = false,
+  funnelUrl = null,
+  warmingUp = false,
+  warmupTimedOut = false,
+  onDisableFunnel,
 }: SessionSharePanelProps): React.ReactElement {
   const [readCopied, setReadCopied] = useState(false)
   const [writeCopied, setWriteCopied] = useState(false)
@@ -111,6 +127,35 @@ export function SessionSharePanel({
   const [readQRb64, setReadQRb64] = useState<string | null>(null)
   const [writeQRb64, setWriteQRb64] = useState<string | null>(null)
   const [qrError, setQrError] = useState<string | null>(null)
+  // Phase 166 FUI-05 — Internet (public) section local state.
+  const [funnelCopied, setFunnelCopied] = useState(false)
+  const [showFunnelQR, setShowFunnelQR] = useState(false)
+  const [funnelQRb64, setFunnelQRb64] = useState<string | null>(null)
+  const [funnelQRError, setFunnelQRError] = useState<string | null>(null)
+
+  // The Internet section is present whenever the Funnel is engaged (warming, timed out,
+  // or live). Kept out of the DOM entirely when Funnel is off to avoid an empty section.
+  const funnelEngaged = warmingUp || warmupTimedOut || funnelActive
+
+  async function handleToggleFunnelQR(): Promise<void> {
+    if (!funnelUrl) return
+    if (showFunnelQR) {
+      setShowFunnelQR(false)
+      return
+    }
+    setFunnelQRError(null)
+    if (!funnelQRb64) {
+      try {
+        // The public URL is itself the join-gated entry point — encode it directly (D-12).
+        const b64 = await GetCapabilityQRCode(funnelUrl)
+        setFunnelQRb64(b64)
+      } catch {
+        setFunnelQRError('QR unavailable — tap to retry')
+        return
+      }
+    }
+    setShowFunnelQR(true)
+  }
 
   async function handleCopy(url: string, setter: (v: boolean) => void): Promise<void> {
     try {
@@ -264,6 +309,77 @@ export function SessionSharePanel({
       )}
 
       {qrError && <p className="session-share-panel__error">{qrError}</p>}
+
+      {/* Phase 166 FUI-04/FUI-05 — Internet (public) Funnel section. Only the read-only
+          Funnel URL is ever shown here — never a public write link (D-12). */}
+      {funnelEngaged && (
+        <div className="hub-share-internet-section">
+          <div className="hub-share-internet-section__heading">Internet (public)</div>
+
+          {warmingUp && (
+            <div className="hub-share-internet-section__warmup">Starting up… (TLS warming up)</div>
+          )}
+
+          {warmupTimedOut && (
+            <p className="hub-share-internet-section__error">
+              Connection timed out. Try disabling and re-enabling.
+            </p>
+          )}
+
+          {funnelActive && funnelUrl && !warmingUp && (
+            <>
+              <div className="hub-share-internet-section__url-row">
+                <span className="session-share-panel__label">Public URL (read-only):</span>
+                <span className="session-share-panel__url" title={funnelUrl}>{funnelUrl}</span>
+                <div className="session-share-panel__actions">
+                  <button
+                    type="button"
+                    className="daemon-panel__btn"
+                    onClick={() => void handleCopy(funnelUrl, setFunnelCopied)}
+                    aria-label="Copy public internet URL to clipboard"
+                  >
+                    {funnelCopied ? 'Copied!' : 'Copy URL'}
+                  </button>
+                  <button
+                    type="button"
+                    className="daemon-panel__btn"
+                    onClick={() => BrowserOpenURL(funnelUrl)}
+                    aria-label="Open public internet URL in browser"
+                  >
+                    Open
+                  </button>
+                  <button
+                    type="button"
+                    className="daemon-panel__btn"
+                    onClick={() => void handleToggleFunnelQR()}
+                    aria-label={showFunnelQR ? 'Hide public URL QR code' : 'Show public URL QR code'}
+                  >
+                    {showFunnelQR ? 'Hide QR' : 'QR'}
+                  </button>
+                </div>
+              </div>
+              {showFunnelQR && funnelQRb64 && (
+                <img
+                  className="session-share-panel__qr"
+                  src={`data:image/png;base64,${funnelQRb64}`}
+                  width={200}
+                  height={200}
+                  alt="QR code for public internet URL"
+                />
+              )}
+              {funnelQRError && <p className="session-share-panel__error">{funnelQRError}</p>}
+            </>
+          )}
+
+          <button
+            type="button"
+            className="hub-share-internet-section__disable"
+            onClick={() => onDisableFunnel?.()}
+          >
+            Disable internet share
+          </button>
+        </div>
+      )}
     </div>
   )
 }
