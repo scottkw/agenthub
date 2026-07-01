@@ -170,3 +170,14 @@ None - no external service configuration required.
 ---
 *Phase: 168-bug-fix-settings-polish*
 *Completed: 2026-07-01*
+
+## Self-Check: PASSED
+
+- FOUND: frontend/src/App.tsx
+- FOUND: frontend/src/components/TabBar.tsx
+- FOUND: frontend/src/components/__tests__/App.open-remote.test.tsx
+- FOUND: TESTING.md
+- FOUND commit: 98ac41ba
+- FOUND commit: e1aa4c32
+- FOUND commit: f3f18be3
+- FOUND commit: d1616496
