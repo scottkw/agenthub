@@ -535,3 +535,129 @@ describe('SessionShareModal — FUI-06: Help cross-link', () => {
     expect(onOpenHelp).toHaveBeenCalled()
   })
 })
+
+// ---------------------------------------------------------------------------
+// Phase 166 — FUI-05 warm-up state machine + FUI-04 disable (Plan 05)
+// Share must be ON (webEnabled) so the SessionSharePanel — which hosts the
+// Internet (public) section — is rendered.
+// ---------------------------------------------------------------------------
+const mockedIssueCapabilitiesForFunnel = IssueCapabilities as ReturnType<typeof vi.fn>
+
+async function tick(): Promise<void> {
+  await new Promise<void>((r) => setTimeout(r, 0))
+}
+
+async function enableFunnel(c: HTMLElement): Promise<void> {
+  await flushSync(() => { findFunnelToggle(c)!.click() })
+  const cta = findByText(c, 'Enable internet share')!
+  await flushSync(() => { cta.click() })
+  await tick()
+}
+
+describe('SessionShareModal — FUI-05: warm-up → live URL', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('shows the "Starting up… (TLS warming up)" state immediately after enable', async () => {
+    const { container: c } = renderModal({ webEnabled: true, webServerMode: 'tailscale' })
+    await tick() // seeding IssueCapabilities → cachedShare → SessionSharePanel renders
+    await enableFunnel(c)
+    expect(c.textContent).toMatch(/Starting up… \(TLS warming up\)/)
+  })
+
+  it('re-issues IssueCapabilities and reveals the public URL when funnelActive flips true', async () => {
+    const { container: c, root: r } = renderModal({ webEnabled: true, webServerMode: 'tailscale' })
+    await tick()
+    await enableFunnel(c)
+    const callsBefore = mockedIssueCapabilitiesForFunnel.mock.calls.length
+    // Simulate the HubPanel 3s-poll sync delivering funnelActive=true.
+    const session = makeSession({ webEnabled: true, funnelActive: true })
+    flushSync(() => {
+      r.render(
+        React.createElement(SessionShareModal, {
+          session,
+          webServerMode: 'tailscale',
+          webServerRunning: true,
+          onClose: vi.fn(),
+        }),
+      )
+    })
+    await tick()
+    expect(mockedIssueCapabilitiesForFunnel.mock.calls.length).toBeGreaterThan(callsBefore)
+    expect(c.textContent).toMatch(/Public URL \(read-only\)/)
+    expect(c.textContent).not.toMatch(/Starting up/)
+  })
+})
+
+describe('SessionShareModal — FUI-04: one-click disable', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('"Disable internet share" calls SetSessionFunnel(id, false, 0)', async () => {
+    const { container: c, root: r } = renderModal({ webEnabled: true, webServerMode: 'tailscale' })
+    await tick()
+    await enableFunnel(c)
+    // Advance to the active state so the disable button sits in the live section.
+    const session = makeSession({ webEnabled: true, funnelActive: true })
+    flushSync(() => {
+      r.render(
+        React.createElement(SessionShareModal, {
+          session,
+          webServerMode: 'tailscale',
+          webServerRunning: true,
+          onClose: vi.fn(),
+        }),
+      )
+    })
+    await tick()
+    const disableBtn = findByText(c, 'Disable internet share')!
+    await flushSync(() => { disableBtn.click() })
+    await tick()
+    expect(mockedSetSessionFunnel).toHaveBeenCalledWith('sess-1', false, 0)
+  })
+})
+
+describe('SessionShareModal — FUI-05: warm-up timeout + timer cleanup (fake timers)', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('surfaces the timeout error after 30s without funnelActive', async () => {
+    vi.useFakeTimers()
+    try {
+      const { container: c } = renderModal({ webEnabled: true, webServerMode: 'tailscale' })
+      await React.act(async () => { await vi.advanceTimersByTimeAsync(0) }) // seeding
+      await React.act(async () => { findFunnelToggle(c)!.click() })
+      // enable → resolve SetSessionFunnel → warmingUp + arm 30s timeout
+      await React.act(async () => {
+        findByText(c, 'Enable internet share')!.click()
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      expect(c.textContent).toMatch(/Starting up/)
+      await React.act(async () => { await vi.advanceTimersByTimeAsync(30000) })
+      expect(c.textContent).toMatch(/Connection timed out\. Try disabling and re-enabling\./)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('clears the 30s timeout on disable — no late timeout fire', async () => {
+    vi.useFakeTimers()
+    try {
+      const { container: c } = renderModal({ webEnabled: true, webServerMode: 'tailscale' })
+      await React.act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      await React.act(async () => { findFunnelToggle(c)!.click() })
+      await React.act(async () => {
+        findByText(c, 'Enable internet share')!.click()
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      // Disable during warm-up (the disable button is present while the section is engaged).
+      await React.act(async () => {
+        findByText(c, 'Disable internet share')!.click()
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      expect(mockedSetSessionFunnel).toHaveBeenCalledWith('sess-1', false, 0)
+      // Advance well past the 30s window — the cleared timeout must not fire.
+      await React.act(async () => { await vi.advanceTimersByTimeAsync(31000) })
+      expect(c.textContent).not.toMatch(/Connection timed out/)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})

@@ -274,7 +274,14 @@ export function SessionShareModal({
   const [riskPanelOpen, setRiskPanelOpen] = useState(false)
   const [expirySeconds, setExpirySeconds] = useState(3600) // D-05 default: 1 hour
   const [funnelError, setFunnelError] = useState<string | null>(null)
+  // Phase 166 FUI-05 warm-up state machine (Plan 05):
+  //   enable → warmingUp=true → (session.funnelActive flips true via the 3s poll) →
+  //   IssueCapabilities re-issue → funnelUrl set, warmingUp=false. A 30s timeout arms
+  //   warmupTimedOut. The timeout ref is cleared on completion, disable, and unmount.
   const [warmingUp, setWarmingUp] = useState(false)
+  const [warmupTimedOut, setWarmupTimedOut] = useState(false)
+  const [funnelUrl, setFunnelUrl] = useState<string | null>(null)
+  const warmupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // D-15: fail closed — Funnel requires the web server to be in Tailscale mode.
   const funnelDisabled = webServerMode !== 'tailscale'
@@ -303,12 +310,72 @@ export function SessionShareModal({
       setRiskPanelOpen(false)
       setFunnelError(null)
       setFunnelOn(true)
-      setWarmingUp(true) // Plan 05 consumes this to drive the warm-up reveal
+      setWarmingUp(true) // warm-up UX until session.funnelActive flips true
+      setWarmupTimedOut(false)
+      // Arm the 30s warm-up timeout (Pitfall 4: single ref, cleared on completion/disable/unmount).
+      if (warmupTimeoutRef.current) clearTimeout(warmupTimeoutRef.current)
+      warmupTimeoutRef.current = setTimeout(() => {
+        setWarmingUp(false)
+        setWarmupTimedOut(true)
+        warmupTimeoutRef.current = null
+      }, 30000)
     } catch {
       // Leave the toggle OFF and surface an inline error (copywriting contract).
       setFunnelOn(false)
       setFunnelError('Failed to enable internet sharing. Please try again.')
     }
+  }
+
+  // Warm-up completion: once the daemon confirms Funnel is live (session.funnelActive,
+  // delivered by HubPanel's 3s-poll sync), re-issue caps to get the Funnel-base read URL
+  // (the daemon swaps the cap base once Funnel is active — RESEARCH) and clear warm-up.
+  // Gated on !funnelUrl so it fires exactly once, and also covers reopening a modal for a
+  // session that was already Funnel-active. Cancelled-async pattern (mirrors the seeding effect).
+  useEffect(() => {
+    if (!session.funnelActive) return
+    if (funnelUrl) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const resp = await IssueCapabilities(session.id)
+        if (cancelled) return
+        setFunnelUrl(resp.readUrl)
+        setWarmingUp(false)
+        setWarmupTimedOut(false)
+        if (warmupTimeoutRef.current) {
+          clearTimeout(warmupTimeoutRef.current)
+          warmupTimeoutRef.current = null
+        }
+      } catch {
+        // IssueCapabilities failed — leave warming; the 30s timeout surfaces an error.
+      }
+    })()
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.funnelActive, funnelUrl])
+
+  // Pitfall 4: clear any pending warm-up timeout when the modal unmounts.
+  useEffect(() => {
+    return () => {
+      if (warmupTimeoutRef.current) clearTimeout(warmupTimeoutRef.current)
+    }
+  }, [])
+
+  async function handleDisableFunnel(): Promise<void> {
+    // Clear the warm-up timeout first so a late fire cannot flip warmupTimedOut post-disable.
+    if (warmupTimeoutRef.current) {
+      clearTimeout(warmupTimeoutRef.current)
+      warmupTimeoutRef.current = null
+    }
+    try {
+      await SetSessionFunnel(session.id, false, 0) // FNL-05 four-path teardown
+    } catch {
+      // Best-effort teardown — still clear local state; the indicator reconciles on next poll.
+    }
+    setFunnelOn(false)
+    setFunnelUrl(null)
+    setWarmingUp(false)
+    setWarmupTimedOut(false)
   }
 
   function handleOpenHelp(): void {
@@ -506,6 +573,11 @@ export function SessionShareModal({
               readCode={cachedShare.readCode}
               writeCode={cachedShare.writeCode}
               browseEnabled={browseEnabled}
+              funnelActive={session.funnelActive}
+              funnelUrl={funnelUrl}
+              warmingUp={warmingUp}
+              warmupTimedOut={warmupTimedOut}
+              onDisableFunnel={() => void handleDisableFunnel()}
             />
           )}
         </div>
