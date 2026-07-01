@@ -156,6 +156,10 @@ export function SetStartMinimized(val: boolean): Promise<void>
 export function GetAutoCloseSession(): Promise<boolean>
 export function SetAutoCloseSession(val: boolean): Promise<void>
 
+// Notify-on-waiting bound methods (Phase 167 / NTF-04)
+export function GetNotifyOnWaiting(): Promise<boolean>
+export function SetNotifyOnWaiting(val: boolean): Promise<void>
+
 // Plugin settings bound methods (PLUG-03 / Phase 92)
 export function GetPluginSettings(): Promise<daemon.PluginSettings>
 export function SetPluginSettings(arg1: daemon.PluginSettings): Promise<void>

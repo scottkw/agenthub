@@ -227,6 +227,12 @@ func (a *App) startup(ctx context.Context) {
 	}
 	a.client = daemon.NewDaemonClient(socketPath)
 
+	// Cache the persisted NotifyOnWaiting preference (Phase 167 / NTF-04).
+	// On error, leave the atomic at its zero value (false — the safe default).
+	if val, err := a.client.GetNotifyOnWaiting(); err == nil {
+		a.notifyOnWaiting.Store(val)
+	}
+
 	// Start tray state poller (updates icon, tooltip, session list every 5s).
 	a.startTrayPoller(ctx)
 
@@ -703,6 +709,27 @@ func (a *App) SetStartMinimized(val bool) error {
 		return fmt.Errorf("daemon not connected")
 	}
 	return a.client.SetStartMinimized(val)
+}
+
+// GetNotifyOnWaiting returns the cached native-notification-on-waiting
+// preference (Phase 167 / NTF-04). Reads the atomic cache rather than the
+// daemon so the tray-poller's edge detector and the Settings toggle always
+// agree on the current value without an extra round trip.
+func (a *App) GetNotifyOnWaiting() bool {
+	return a.notifyOnWaiting.Load()
+}
+
+// SetNotifyOnWaiting updates the cached preference immediately (so
+// maybeNotifyWaiting picks it up on the very next tick) and persists it via
+// the daemon client. When notifications are newly enabled, the tray
+// poller's next tick performs a fresh baseline capture (Task 1), preventing
+// a cold-start notification burst for sessions already waiting.
+func (a *App) SetNotifyOnWaiting(val bool) error {
+	a.notifyOnWaiting.Store(val)
+	if a.client == nil {
+		return fmt.Errorf("daemon not connected")
+	}
+	return a.client.SetNotifyOnWaiting(val)
 }
 
 // GetAutoCloseSession returns the persisted auto-close-on-exit preference.
@@ -1427,6 +1454,7 @@ func (a *App) refreshTrayState() {
 	var sessions []SessionInfo
 	if connected {
 		sessions = a.ListSessions()
+		a.maybeNotifyWaiting(sessions) // Phase 167 / NTF-01..03
 	}
 	a.updateTray(sessions, connected)
 }
