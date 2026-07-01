@@ -4648,6 +4648,10 @@ body {
   --hub-attn-badge-bg: rgba(224,175,104,0.18);
   --hub-attn-badge-text: #e0af68;
   --hub-attn-static-border: #e0af68;
+  /* === Phase 166: Internet-exposure badge tokens (dark) === */
+  /* COLORBLIND-SAFE: internet badge dark hex #43ddb2 — reinforcement only; GlobeAltIcon shape + "INTERNET" text carry state */
+  --hub-internet-badge-bg: rgba(67, 221, 178, 0.15);
+  --hub-internet-badge-text: #43ddb2;
   /* Phase 147: Help page search highlight token (dark theme) */
   --hub-search-highlight-bg: rgba(122, 162, 247, 0.25);
 }
@@ -4703,6 +4707,10 @@ body {
   --hub-attn-badge-bg: rgba(180,83,9,0.14);
   --hub-attn-badge-text: #b45309;
   --hub-attn-static-border: #b45309;
+  /* === Phase 166: Internet-exposure badge tokens (light) === */
+  /* COLORBLIND-SAFE: internet badge light hex #0d7a5c — WCAG AA ~5.2:1 on white; icon + text carry state */
+  --hub-internet-badge-bg: rgba(13, 122, 92, 0.13);
+  --hub-internet-badge-text: #0d7a5c;
   /* Phase 147: Help page search highlight token (light theme) */
   --hub-search-highlight-bg: rgba(61, 111, 232, 0.20);
   /* Comp semantic colors (light — light-theme values preserved this pass) */
@@ -7104,4 +7112,139 @@ body {
   .chat-composer__inject-btn::before {
     transition: none;
   }
+}
+
+/* ===== Phase 166: Funnel Frontend + Help Guide component classes ===== */
+
+/* Phase 166 / FUI-03 — internet exposure badge (SessionCard) */
+.hub-internet-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--hub-internet-badge-bg);
+  border-radius: var(--hub-radius-pill);
+  padding: 2px 8px;
+}
+.hub-internet-badge__icon {
+  width: 12px;
+  height: 12px;
+  color: var(--hub-internet-badge-text);
+}
+.hub-internet-badge__label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--hub-internet-badge-text);
+}
+
+/* Phase 166 / FUI-03 — tab internet icon (TabBar) */
+.tab__internet-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--hub-internet-badge-text);
+  flex-shrink: 0;
+}
+
+/* Phase 166 / FUI-01 — inline risk panel (SessionShareModal) */
+.hub-funnel-risk-panel {
+  background: var(--hub-surface-elevated);
+  border: 1px solid var(--hub-border);
+  border-radius: var(--hub-radius-sm);
+  padding: 16px;
+  overflow: hidden;
+  max-height: 0;
+}
+.hub-funnel-risk-panel--open {
+  max-height: 400px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hub-funnel-risk-panel {
+    transition: max-height 200ms ease-out, opacity 150ms ease;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hub-funnel-risk-panel { transition: none; }
+}
+.hub-funnel-risk-panel__warning {
+  border-left: 3px solid var(--hub-warning);
+  padding-left: 8px;
+  margin-bottom: 12px;
+}
+.hub-funnel-risk-panel__icon {
+  color: var(--hub-warning);
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+}
+.hub-funnel-risk-panel__text {
+  font-size: var(--hub-font-size-base);
+  color: var(--hub-text-secondary);
+  line-height: 1.5;
+}
+.hub-funnel-risk-panel__expiry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+.hub-funnel-risk-panel__help-link {
+  font-size: var(--hub-font-size-sm);
+  color: var(--hub-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.hub-funnel-risk-panel__help-link:hover {
+  color: var(--hub-accent);
+}
+.hub-funnel-risk-panel__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Phase 166 / FUI-04/05 — internet public section (SessionSharePanel) */
+.hub-share-internet-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hub-border);
+}
+.hub-share-internet-section__heading {
+  font-size: var(--hub-font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--hub-text-muted);
+  margin-bottom: 8px;
+}
+.hub-share-internet-section__warmup {
+  font-size: var(--hub-font-size-sm);
+  font-style: italic;
+  color: var(--hub-text-muted);
+}
+.hub-share-internet-section__url-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.hub-share-internet-section__disable {
+  margin-top: 8px;
+  font-size: var(--hub-font-size-base);
+  color: var(--hub-text-muted);
+  background: none;
+  border: 1px solid var(--hub-border);
+  border-radius: var(--hub-radius-sm);
+  cursor: pointer;
+  padding: 4px 12px;
+}
+.hub-share-internet-section__disable:focus-visible {
+  outline: 2px solid var(--hub-accent);
+}
+.hub-share-internet-section__error {
+  font-size: var(--hub-font-size-sm);
+  color: var(--hub-destructive);
+  margin-top: 6px;
 }
