@@ -4,11 +4,13 @@ import {
   IssueCapabilities,
   ToggleWebServing,
   SetSessionBrowse,
+  SetSessionFunnel,
   GetLocalNetworkPassword,
 } from '../../wailsjs/go/main/App'
 import { SessionSharePanel } from '../SessionSharePanel'
 import { HomeDirWriteWarning } from '../HomeDirWriteWarning'
 import { ShellWebShareBanner } from '../ShellWebShareBanner'
+import { FunnelRiskPanel } from './FunnelRiskPanel'
 // Phase 150 SET-01 — shared shell-detection authority. `cli` may be a full path
 // ('/bin/zsh'), so isShellCli() normalizes to basename before matching.
 import { isShellCli } from '../../lib/shellCli'
@@ -22,6 +24,8 @@ interface ShareSession {
   webEnabled: boolean
   homeDir: boolean
   browseEnabled: boolean
+  // Phase 166 FUI-05: seeds the Internet-section state consumed in Plan 05.
+  funnelActive: boolean
 }
 
 interface CachedShare {
@@ -42,6 +46,10 @@ export interface SessionShareModalProps {
   shellWebShareWarningEnabled?: boolean
   onShellWebShareConfirm?: () => Promise<void>
   onShellWebShareCancel?: () => void
+  // Phase 166 FUI-06 — invoked by the risk panel's "See the Sharing Guide" cross-link.
+  // The modal closes itself first, then hands off to the host to navigate to the
+  // help-sharing section (wired at the App level; optional so tests/other hosts can omit).
+  onOpenHelp?: () => void
 }
 
 /**
@@ -74,6 +82,7 @@ export function SessionShareModal({
   shellWebShareWarningEnabled,
   onShellWebShareConfirm,
   onShellWebShareCancel,
+  onOpenHelp,
 }: SessionShareModalProps): React.ReactElement {
   // ---- Animation phase machine (entering → open → exiting) ----
   // Same pattern as HubModal but without grow animation (no sourceRect / transformOrigin).
@@ -255,6 +264,59 @@ export function SessionShareModal({
     }
   }
 
+  // ---- Funnel (internet share) state (Phase 166 FUI-01/02/06/D-15) ----
+  // funnelOn: whether the session is actually exposed to the internet (server truth,
+  //   seeded from session.funnelActive; Plan 05's poll keeps it live via the sync effect).
+  // riskPanelOpen: the two-step gesture guard — toggle ON reveals the panel but does NOT
+  //   commit; only the explicit "Enable internet share" CTA calls SetSessionFunnel (D-02).
+  // warmingUp: placeholder flag consumed by Plan 05's warm-up UX (surfaced as a data attr).
+  const [funnelOn, setFunnelOn] = useState(session.funnelActive)
+  const [riskPanelOpen, setRiskPanelOpen] = useState(false)
+  const [expirySeconds, setExpirySeconds] = useState(3600) // D-05 default: 1 hour
+  const [funnelError, setFunnelError] = useState<string | null>(null)
+  const [warmingUp, setWarmingUp] = useState(false)
+
+  // D-15: fail closed — Funnel requires the web server to be in Tailscale mode.
+  const funnelDisabled = webServerMode !== 'tailscale'
+
+  function handleFunnelToggle(): void {
+    if (funnelDisabled) return // defense-in-depth; the input is also disabled
+    if (funnelOn) return // active → disabling is the Internet-section button (Plan 05)
+    if (riskPanelOpen) {
+      // Toggling a pending panel off = cancel.
+      handleFunnelCancel()
+      return
+    }
+    // Reveal the risk panel; no API call yet (FUI-01/D-03).
+    setFunnelError(null)
+    setRiskPanelOpen(true)
+  }
+
+  function handleFunnelCancel(): void {
+    setRiskPanelOpen(false)
+    setFunnelError(null)
+  }
+
+  async function handleFunnelEnable(): Promise<void> {
+    try {
+      await SetSessionFunnel(session.id, true, expirySeconds)
+      setRiskPanelOpen(false)
+      setFunnelError(null)
+      setFunnelOn(true)
+      setWarmingUp(true) // Plan 05 consumes this to drive the warm-up reveal
+    } catch {
+      // Leave the toggle OFF and surface an inline error (copywriting contract).
+      setFunnelOn(false)
+      setFunnelError('Failed to enable internet sharing. Please try again.')
+    }
+  }
+
+  function handleOpenHelp(): void {
+    // Close the modal first, then let the host navigate to the help-sharing section.
+    handleClose()
+    onOpenHelp?.()
+  }
+
   // ---- Render ----
   return (
     <div
@@ -378,6 +440,61 @@ export function SessionShareModal({
               <span className="settings-panel__toggle-label">Enable remote file browsing</span>
             </label>
           </div>
+
+          {/* Phase 166 FUI-01/02/06/D-15: Funnel (internet share) toggle + inline risk panel.
+              Toggle ON reveals the risk panel but never commits — only the explicit
+              "Enable internet share" CTA calls SetSessionFunnel (D-02). Fails closed when
+              the web server is not in Tailscale mode (D-15). */}
+          <div
+            className="hub-funnel-toggle-section"
+            aria-disabled={funnelDisabled}
+            data-funnel-warming={warmingUp ? 'true' : undefined}
+            style={funnelDisabled ? { opacity: 0.6, pointerEvents: 'none' } : undefined}
+          >
+            <label
+              className={`settings-panel__toggle-row${funnelOn || riskPanelOpen ? ' settings-panel__toggle-row--checked' : ''}`}
+              style={{ cursor: funnelDisabled ? 'not-allowed' : 'pointer' }}
+            >
+              <input
+                type="checkbox"
+                className="settings-panel__toggle-input"
+                role="switch"
+                aria-checked={funnelOn || riskPanelOpen}
+                aria-label="Enable internet sharing"
+                checked={funnelOn || riskPanelOpen}
+                disabled={funnelDisabled}
+                onChange={() => handleFunnelToggle()}
+              />
+              <span className="settings-panel__toggle-track">
+                <span className="settings-panel__toggle-thumb" />
+              </span>
+              <span className="settings-panel__toggle-label">Enable internet sharing</span>
+            </label>
+            {funnelDisabled && (
+              <div
+                className="hub-funnel-toggle-section__note"
+                style={{ fontSize: 'var(--hub-font-size-sm)', color: 'var(--hub-text-muted)', marginTop: 4 }}
+              >
+                Internet sharing requires Tailscale
+              </div>
+            )}
+          </div>
+
+          {/* Inline risk panel — mounted only in Tailscale mode; `open` drives the
+              max-height expand (motion-guarded in style.css). */}
+          {!funnelDisabled && (
+            <FunnelRiskPanel
+              open={riskPanelOpen}
+              expirySeconds={expirySeconds}
+              onExpiryChange={setExpirySeconds}
+              onEnable={() => void handleFunnelEnable()}
+              onCancel={handleFunnelCancel}
+              onOpenHelp={handleOpenHelp}
+            />
+          )}
+          {funnelError && (
+            <div className="hub-share-internet-section__error">{funnelError}</div>
+          )}
 
           {/* Share panel: shown only when sharing is ON and caps are available.
               D-11: simplified SessionSharePanel (CAP-05 two-gate stripped). */}
