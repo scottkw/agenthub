@@ -386,7 +386,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 - [x] **Phase 165: Funnel Backend** - Atomic Funnel lifecycle: LocalClient promotion, EnableFunnel/DisableFunnel, Funnel-aware Origin allowlist + BaseURL + share-URL builders, four-path teardown, CheckFunnelAccess preflight, auto-expiry enforcement (completed 2026-06-30)
 - [x] **Phase 166: Funnel Frontend + Help Guide** (5/5 plans) — completed 2026-06-30, verified 8/8 - Risk-acknowledgment dialog, auto-expiry selector, colorblind-safe internet-exposure indicator, Funnel URL display, one-click disable, in-app Sharing Guide Help article
-- [ ] **Phase 167: Native Notifications** - beeep cross-platform notification on waiting-state transition, de-dup guard, Settings toggle (default off) (executed 2026-07-01 — awaiting M-41 human UAT)
+- [ ] **Phase 167: Native Notifications** - beeep cross-platform notification on waiting-state transition, de-dup guard, Settings toggle (default off) (5/5 plans executed 2026-07-01, incl. 167-05 M-41 crash-regression gap closure — awaiting M-41 re-run on signed build)
 - [ ] **Phase 168: Bug Fix & Settings Polish** - Fix #112 (web-guest plugin-config SSE), #117 (multi-viewer kick + disconnect UI), #118 (remote-open in-app tab), #115 (Footer Share modal), #116 (Hub auto-switch setting)
 
 ## Phase Details
@@ -456,7 +456,7 @@ Plans:
 
   *(Note: toggle placement moved to the **Behavior** section per the LOCKED user correction in 167-CONTEXT.md — success-criterion-4 "Session Behavior" wording is superseded; intent unchanged.)*
 
-**Plans**: 4/4 plans complete + 1 gap-closure plan (M-41 regression)
+**Plans**: 5/5 plans complete
 
 Plans:
 **Wave 1**
@@ -474,7 +474,7 @@ Plans:
 
 **Gap closure** *(M-41 regression — unguarded native notification crash)*
 
-- [ ] 167-05-PLAN.md — Harden the darwin native notification path: bundle-id guard + @try/@catch + Go log-and-swallow so the always-on tray poller can no longer abort the GUI process under wails dev; headless bundle-id regression test + TESTING.md registration (NTF-01/02/03/04)
+- [x] 167-05-PLAN.md — Harden the darwin native notification path: bundle-id guard + @try/@catch + Go log-and-swallow so the always-on tray poller can no longer abort the GUI process under wails dev; headless bundle-id regression test + TESTING.md registration (NTF-01/02/03/04)
 
 **UI hint**: yes
 
@@ -500,7 +500,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 165. Funnel Backend | 5/5 | Complete   | 2026-06-30 |
 | 166. Funnel Frontend + Help Guide | 5/5 | Complete (verified 8/8) | 2026-06-30 |
-| 167. Native Notifications | 4/4 | Complete   | 2026-07-01 |
+| 167. Native Notifications | 5/5 | Executed — awaiting M-41 human UAT (signed build) | 2026-07-01 |
 | 168. Bug Fix & Settings Polish | 0/? | Not started | - |
 
 ---

@@ -5,15 +5,15 @@ milestone_name: Funnel Sharing & Polish
 current_phase: 167
 current_phase_name: native-notifications
 status: testing
-stopped_at: Phase 167 executed (4/4 plans) + verified 10/11 — awaiting M-41 human UAT
-last_updated: "2026-07-01T07:02:08.625Z"
+stopped_at: Phase 167 gap-closure plan 05 executed (M-41 crash regression hardened) — awaiting M-41 re-run on signed production build
+last_updated: "2026-07-01T12:24:07.258Z"
 last_activity: 2026-07-01
-last_activity_desc: Phase 167 executed (4/4) + verifier PASS 10/11 — human_needed (M-41 cross-platform notification delivery)
+last_activity_desc: Phase 167-05 gap closure executed — hardened darwin sendNotification (bundle-id guard + @try/@catch), added notification_darwin_test.go, updated TESTING.md; M-41 re-run on signed build still open
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 14
-  completed_plans: 14
+  total_plans: 15
+  completed_plans: 15
   percent: 50
 ---
 
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 ## Current Position
 
 Phase: 167 (native-notifications) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-07-01 — Phase 167 execution started
+Plan: 5 of 5
+Status: Gap-closure plan 05 complete (M-41 crash regression hardened) — awaiting M-41 re-run on signed production build
+Last activity: 2026-07-01 — Phase 167-05 gap-closure plan executed
 
 ```
 v4.2 Progress: [██████████░░░░░░░░░░] 50% (2/4 phases — 165 ✅ DONE (live), 166 ✅ DONE (verified 8/8))
@@ -133,10 +133,10 @@ v4.2 Progress: [██████████░░░░░░░░░░] 50
 
 ## Session Continuity
 
-Last session: 2026-07-01T06:58:51.309Z
-Stopped at: Completed 167-03-PLAN.md
+Last session: 2026-07-01T12:24:07.258Z
+Stopped at: Completed 167-05-PLAN.md (gap closure)
 Resume file: None
-Next action: Phase 165 is DONE — code-verified + all live UAT (M-34/M-35/M-36) PASS. Next milestone step = Phase 166 (Funnel Frontend + Help Guide): the Share-modal Funnel toggle UI, which was blocked on 165's backend (now proven working end-to-end). Run `/gsd-plan-phase 166` when ready. NOTE for future live Funnel UATs: the /app/ path needs a PRODUCTION build (`wails build -tags wailsassets`) — `wails dev` daemon returns 503 "app bundle not configured" (no embedded SPA), expected not a bug.
+Next action: Phase 167's M-41 crash regression is now hardened (bundle-id guard + @try/@catch in the darwin native notification path). Run `/gsd-verify-work 167` to re-run M-41 on a SIGNED PRODUCTION BUILD (not `wails dev`) on macOS/Windows/Linux — confirms real toast delivery + tray-hidden behavior with the hardening in place. This is the sole remaining open item before Phase 167 can be marked complete and Phase 168 (Bug Fix & Settings Polish) begins.
 
 ## Decisions (carry-forward from v4.1 — architecture reference)
 
@@ -208,6 +208,7 @@ Next action: Phase 165 is DONE — code-verified + all live UAT (M-34/M-35/M-36)
 | Phase 167 P02 | 8min | 2 tasks | 6 files |
 | Phase 167 P03 | 12min | 2 tasks | 6 files |
 | Phase 167 P04 | 20min | 2 tasks | 7 files |
+| Phase 167 P05 (gap closure) | 8min | 2 tasks | 4 files |
 
 ## Decisions
 
@@ -230,3 +231,5 @@ Next action: Phase 165 is DONE — code-verified + all live UAT (M-34/M-35/M-36)
 - [Phase ?]: Phase 167-03: GetNotifyOnWaiting reads only the cached atomic.Bool (no daemon round trip) to keep the poller and Settings toggle in agreement
 - [Phase ?]: Phase 167-04: notifyOnWaiting toggle mirrors handleToggleMinimized (instant, no confirm dialog) rather than the shell-warn confirm-on-disable pattern
 - [Phase ?]: Phase 167-04: toggle placed under settings-behavior (Behavior section), NOT settings-session-behavior, per the LOCKED user correction overriding NTF-04's original wording
+- [Phase ?]: Phase 167-05 (M-41 gap closure): guard sendNotification synchronously BEFORE dispatch_async (not only inside it) — the primary fix, preventing the crash-prone UNUserNotificationCenter call from ever being reached in an unbundled process; @try/@catch retained as defense-in-depth only
+- [Phase ?]: Phase 167-05: no test invented for the async dispatch-queue crash path itself (go test never pumps the main queue, would false-pass); the honest, load-bearing assertion is hasAppBundleID() == false under an unbundled go-test binary
