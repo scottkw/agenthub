@@ -318,6 +318,25 @@ describe('App.tsx — openWebSessionTab per-tab isolation (FIX-03, two remote se
     expect(slice).toContain('isRemoteWebTab')
     expect(slice).toContain('baseURL={activeWebTab?.baseURL}')
   })
+
+  // CR-03 (168-REVIEW): the WebShareSessionView render site had no `key`, so
+  // switching between two remote-peer tabs did NOT unmount/remount the
+  // component — its local useState (chatOpen/unreadCount/hasMention/
+  // livePluginConfig) leaked from session A into session B's render. Fixed
+  // by keying on the same wsSessionId used to resolve this render's own
+  // sessionId prop, forcing a clean remount whenever the active
+  // __websession__ tab changes to a different session.
+  it('CR-03: <WebShareSessionView> is keyed by wsSessionId so switching remote tabs forces a remount (no cross-session state leak)', () => {
+    const idx = raw.indexOf("activeId.startsWith('__websession__')")
+    expect(idx, 'the __websession__ render branch must be present').toBeGreaterThan(-1)
+    const slice = raw.slice(idx, idx + 1400)
+    const wsvIdx = slice.indexOf('<WebShareSessionView')
+    expect(wsvIdx, '<WebShareSessionView> element must be present in this branch').toBeGreaterThan(-1)
+    // The key prop must appear on the element itself (before sessionId prop),
+    // not merely somewhere later in the file.
+    const elementSlice = slice.slice(wsvIdx, wsvIdx + 400)
+    expect(elementSlice).toContain('key={wsSessionId}')
+  })
 })
 
 // ─── WR-03 behavior: RemoteJoinCodeModal used/expired error copy ───────────────
