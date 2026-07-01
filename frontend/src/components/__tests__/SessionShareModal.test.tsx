@@ -43,6 +43,7 @@ vi.mock('../../wailsjs/go/main/App', () => ({
   SetSessionBrowse: vi.fn().mockResolvedValue(undefined),
   SetSessionFunnel: vi.fn().mockResolvedValue(undefined),
   GetLocalNetworkPassword: vi.fn().mockResolvedValue('lan-pass-secret'),
+  DisconnectViewers: vi.fn().mockResolvedValue(undefined),
 }))
 
 // Import mocked bindings for assertion
@@ -59,6 +60,7 @@ interface ModalOpts {
   homeDir?: boolean
   browseEnabled?: boolean
   funnelActive?: boolean
+  viewerCount?: number
   webServerMode?: 'local' | 'tailscale'
   webServerRunning?: boolean
   // Phase 150 SET-01 shell-warn props
@@ -80,6 +82,7 @@ function makeSession(opts: ModalOpts = {}) {
     homeDir: opts.homeDir ?? false,
     browseEnabled: opts.browseEnabled ?? false,
     funnelActive: opts.funnelActive ?? false,
+    viewerCount: opts.viewerCount ?? 0,
   }
 }
 

@@ -6,6 +6,7 @@ import {
   SetSessionBrowse,
   SetSessionFunnel,
   GetLocalNetworkPassword,
+  DisconnectViewers,
 } from '../../wailsjs/go/main/App'
 import { SessionSharePanel } from '../SessionSharePanel'
 import { HomeDirWriteWarning } from '../HomeDirWriteWarning'
@@ -26,6 +27,9 @@ interface ShareSession {
   browseEnabled: boolean
   // Phase 166 FUI-05: seeds the Internet-section state consumed in Plan 05.
   funnelActive: boolean
+  // Phase 168 FIX-04/FIX-02: remote (web-origin) viewer count — gates the
+  // "Disconnect all viewers" button (D-04/D-05, only shown when > 0).
+  viewerCount: number
 }
 
 interface CachedShare {
@@ -261,6 +265,20 @@ export function SessionShareModal({
       }
     } catch {
       // SetSessionBrowse failed — revert (browseEnabled unchanged).
+    }
+  }
+
+  // ---- Disconnect all viewers (Phase 168 FIX-02, #117) ----
+  // Only an inline error surface — there is no local optimistic flag to revert
+  // (session.viewerCount is server-truth from the Hub poll, not local state).
+  const [disconnectError, setDisconnectError] = useState<string | null>(null)
+  async function handleDisconnectViewers(): Promise<void> {
+    try {
+      await DisconnectViewers(session.id)
+      setDisconnectError(null)
+    } catch {
+      // D-06: drops connections only — does NOT call ToggleWebServing/revoke the cap.
+      setDisconnectError("Couldn't disconnect viewers — try again.")
     }
   }
 
@@ -507,6 +525,26 @@ export function SessionShareModal({
               <span className="settings-panel__toggle-label">Enable remote file browsing</span>
             </label>
           </div>
+
+          {/* Phase 168 FIX-02 (#117): owner-only "Disconnect all viewers" escape hatch.
+              Shown only when there are remote (web-origin) viewers (D-04/D-05). Reuses
+              the reversible ghost/outline .hub-share-internet-section__disable style —
+              NOT the destructive filled-red button style (UI-SPEC Color ruling) — since
+              this drops connections only and does not revoke the share cap (D-06). */}
+          {session.viewerCount > 0 && (
+            <div className="hub-share-modal__disconnect-viewers">
+              <button
+                type="button"
+                className="hub-share-internet-section__disable"
+                onClick={() => void handleDisconnectViewers()}
+              >
+                Disconnect all viewers
+              </button>
+              {disconnectError && (
+                <div className="hub-share-internet-section__error">{disconnectError}</div>
+              )}
+            </div>
+          )}
 
           {/* Phase 166 FUI-01/02/06/D-15: Funnel (internet share) toggle + inline risk panel.
               Toggle ON reveals the risk panel but never commits — only the explicit
