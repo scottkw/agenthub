@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { GlobeAltIcon } from '@heroicons/react/24/outline'
 // WR/POL: agentBadgeModifier extracted to a shared lib so the Hub card left
 // spine (.hub-card[data-agent]) and this tab dot (.tab__agent-badge--*) derive
 // the per-CLI "session type" color from one source and cannot drift.
@@ -80,6 +81,13 @@ interface TabBarProps {
    * browser if they closed it). A guest without file access gets no chevron.
    */
   webFilesEnabled?: boolean
+  /**
+   * Phase 166 / FUI-03 — per-session internet exposure state, keyed by sessionId.
+   * When funnelActiveSessions[tab.sessionId] is true, the tab renders a globe icon
+   * with aria-label/title "Internet exposed". Derived from hubSessions in App.tsx
+   * (rides the existing 3s poll — no new interval added).
+   */
+  funnelActiveSessions?: Record<string, boolean>
 }
 
 /**
@@ -99,6 +107,7 @@ export function TabBar({
   onBrowseFiles,
   webMode = false,
   webFilesEnabled = false,
+  funnelActiveSessions,
 }: TabBarProps): React.ReactElement {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -226,6 +235,18 @@ export function TabBar({
               title={sessionStatuses?.[tab.sessionId] || 'running'}
             />
             <span className={badgeClass} aria-hidden="true" />
+            {/* Phase 166 / FUI-03 — tab internet exposure indicator.
+                COLORBLIND-SAFE: GlobeAltIcon shape carries state; color is reinforcement only.
+                Text label is in aria-label + title — not rendered visually (D-09). */}
+            {funnelActiveSessions?.[tab.sessionId] && (
+              <span
+                className="tab__internet-icon"
+                aria-label="Internet exposed"
+                title="Internet exposed"
+              >
+                <GlobeAltIcon aria-hidden="true" />
+              </span>
+            )}
             {editingId === tab.id ? (
               <input
                 ref={inputRef}
