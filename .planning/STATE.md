@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Funnel Sharing & Polish
-current_phase: 168
-current_phase_name: bug-fix-settings-polish
-status: executing
-stopped_at: Completed 168-09 gap-closure (FIX-03 remote web-session tab RC-A/B/C) — automated gates green; awaiting live UAT Test 3 re-test on a prod build
-last_updated: "2026-07-02T15:19:28.000Z"
+current_phase: 169
+current_phase_name: tailscale-detection-fix
+status: ready
+stopped_at: Phase 168 complete — UAT 4/4 PASS (FIX-03 live re-test confirmed on a two-Mac tailnet prod build), canonical verification regenerated 6/6 passed; ready to plan Phase 169
+last_updated: "2026-07-02T15:55:00.000Z"
 last_activity: 2026-07-02
-last_activity_desc: Phase 168 gap-closure 168-09 executed (FIX-03 remote tab: daemon-proxy transport + full-height wrapper + relabel); live Test 3 pending
+last_activity_desc: Phase 168 verified complete (UAT 4/4 PASS incl. live FIX-03 remote-tab re-test after 168-09; VERIFICATION.md regenerated 6/6 passed) — transitioned to Phase 169
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 26
   completed_plans: 26
-  percent: 60
+  percent: 80
 ---
 
 # Project State
@@ -24,17 +24,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 168 — bug-fix-settings-polish
+**Current focus:** Phase 169 — tailscale-detection-fix
 
 ## Current Position
 
-Phase: 168 (bug-fix-settings-polish) — EXECUTING (gap-closure done; live UAT pending)
-Plan: 9 of 9 — 168-09 gap-closure complete (FIX-03 RC-A/B/C)
-Status: Awaiting live UAT Test 3 (two-Mac remote-open) re-test on a production build
-Last activity: 2026-07-02 — 168-09 executed (FIX-03 remote web-session tab); automated gates green, live Test 3 pending
+Phase: 169 (tailscale-detection-fix) — READY TO PLAN
+Plan: Not started — run /gsd-plan-phase 169
+Status: Phase 168 complete (UAT 4/4 PASS, verification 6/6). Phase 169 (#120 non-admin macOS Tailscale detection) is the last open v4.2 phase.
+Last activity: 2026-07-02 — Phase 168 verified complete (live FIX-03 remote-tab re-test PASS after 168-09; VERIFICATION.md regenerated 6/6 passed), transitioned to Phase 169
 
 ```
-v4.2 Progress: [████████████░░░░░░░░] 60% (3/5 phases — 165 ✅ DONE (live), 166 ✅ DONE (verified 8/8), 167 ✅ DONE (code-verified 11/11; M-41 live deferred); 168 + 169 remain)
+v4.2 Progress: [████████████████░░░░] 80% (4/5 phases — 165 ✅ DONE (live), 166 ✅ DONE (verified 8/8), 167 ✅ DONE (code-verified 11/11; M-41 live deferred), 168 ✅ DONE (verified 6/6, UAT 4/4 live); 169 remains)
 ```
 
 ## Live UAT Findings (2026-06-30, real Funnel-granted tailnet)
@@ -73,8 +73,8 @@ v4.2 Progress: [████████████░░░░░░░░] 60
 | 165 | Funnel Backend | FNL-01, FNL-02, FNL-03, FNL-04, FNL-05, FNL-06, FNL-07 | ✅ DONE — code-verified + all live UAT pass (M-34 off-tailnet 200, M-35 a/b/c/d, M-36 fallback) |
 | 166 | Funnel Frontend + Help Guide | FUI-01, FUI-02, FUI-03, FUI-04, FUI-05, FUI-06, HLP-01, HLP-02 | ✅ DONE — verified 8/8 (2026-06-30); human UAT fixed 4 CSS defects (f3c8d848); M-37–M-40 pending prod-build UAT |
 | 167 | Native Notifications | NTF-01, NTF-02, NTF-03, NTF-04 | ✅ DONE — 7/7 plans, code-verified 11/11; **M-41 live delivery DEFERRED** to release-time UAT (signed builds, unautomatable) |
-| 168 | Bug Fix & Settings Polish | FIX-01, FIX-02, FIX-03, FIX-04, UX-01, UX-02 | ⬜ Not started — next: /gsd-plan-phase 168 (covers #112/#115/#116/#117/#118/#121) |
-| 169 | Tailscale Detection Fix | FIX-05 | ⬜ Not started — #120 split out (orthogonal; non-admin macOS test env) |
+| 168 | Bug Fix & Settings Polish | FIX-01, FIX-02, FIX-03, FIX-04, UX-01, UX-02 | ✅ DONE — 9/9 plans (incl. 168-08/09 gap-closures); verified 6/6, live UAT 4/4 PASS (#112/#115/#116/#117/#118/#121 code-fixed) |
+| 169 | Tailscale Detection Fix | FIX-05 | ⬜ Not started — next: /gsd-plan-phase 169 (#120; orthogonal, non-admin macOS test env) |
 
 **Total:** 26 requirements mapped across 5 phases (100% coverage). *(2026-07-01: +FIX-04 #121 phantom viewer count into Phase 168; +FIX-05 #120 Tailscale detection split into new Phase 169.)*
 
@@ -137,10 +137,10 @@ v4.2 Progress: [████████████░░░░░░░░] 60
 
 ## Session Continuity
 
-Last session: 2026-07-01T22:04:04.132Z
-Stopped at: Completed 168-07-PLAN.md — Phase 168 all 7 plans executed, ready for verification
+Last session: 2026-07-02T15:55:00.000Z
+Stopped at: Phase 168 complete — UAT 4/4 PASS (FIX-03 live remote-tab re-test confirmed after 168-09), VERIFICATION.md regenerated 6/6 passed; transitioned to Phase 169, ready to plan
 Resume file: None
-Next action: Phase 168 (Bug Fix & Settings Polish) is the last open v4.2 phase — FIX-01/02/03 + UX-01/02 (#112 web-guest plugin-config SSE, #117 multi-viewer kick + disconnect UI, #118 remote-open in-app tab, #115 Footer Share modal, #116 Hub auto-switch setting). Run `/gsd-plan-phase 168` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
+Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 phase — FIX-05: non-admin macOS accounts report Tailscale "installed but not Connected" because `macsys` `sameuserproof` is unreadable; add a CLI `status` fallback. Run `/gsd-plan-phase 169` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
 
 ## Decisions (carry-forward from v4.1 — architecture reference)
 
