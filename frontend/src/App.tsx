@@ -1719,6 +1719,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
               relayPort={relayPort ?? 0}
               theme={terminalTheme}
               pluginConfig={isRemoteWebTab ? undefined : (pluginConfig ?? undefined)}
+              remote={isRemoteWebTab}
             />
           )
         })()}

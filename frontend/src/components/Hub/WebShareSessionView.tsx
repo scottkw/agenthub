@@ -13,8 +13,21 @@ export interface WebShareSessionViewProps {
   sessionId: string
   /** Web-share capability token from URL ?cap= param. Never decoded client-side. */
   capToken: string
-  /** Local relay port — always 0 on web-share (safe sentinel, ignored when wsURL present). */
+  /**
+   * Relay port. 0 only for the native web-share guest path (safe sentinel,
+   * ignored when wsURL is present). For FIX-03 in-app remote-peer tabs
+   * (`remote===true`) this MUST be the desktop daemon relay port — RelayClient
+   * builds `ws://127.0.0.1:{relayPort}/api/relay/remote/{id}/ws` from it.
+   */
   relayPort: number
+  /**
+   * FIX-03 (plan 09, RC-A): true when this is an in-app remote-peer tab. Routes
+   * the terminal through the daemon WS proxy (remote:true, NO wsURL) — the same
+   * transport the working Phase 134 HubInteractiveModal uses — instead of a
+   * direct cross-origin `wss://<peer>/sessions/{id}/ws?cap=` the peer's byte-exact
+   * Origin allowlist 403s. Also hides chat (no cross-origin chat proxy route).
+   */
+  remote?: boolean
   /** Terminal colour theme (pass terminalTheme from App.tsx). */
   theme?: ITheme
   /** Plugin configuration (pass pluginConfig from App.tsx). */
@@ -48,7 +61,11 @@ export function WebShareSessionView({
   theme,
   pluginConfig,
   baseURL,
+  remote,
 }: WebShareSessionViewProps): React.ReactElement {
+  // FIX-03 (plan 09) RC-A transport switch. When true, the terminal routes
+  // through the daemon proxy (remote:true, wsURL undefined) and chat is hidden.
+  const useProxy = remote === true
   // D-02 overlay drawer state — same hooks as HubInteractiveModal
   const [chatOpen, setChatOpen] = useState(false)
   // NOTIF-01 / D-10: unread badge state driven by ChatPanel's onUnreadChange callback
@@ -134,35 +151,46 @@ export function WebShareSessionView({
         onFontSizeChange={() => {}}
         theme={theme ?? {}}
         pluginConfig={effectivePluginConfig}
-        wsURL={wsURL}
+        remote={useProxy}
+        wsURL={useProxy ? undefined : wsURL}
       />
 
-      {/* D-09: ChatPanel is always-mounted (open prop controls visibility only).
-          Unread messages accrue in ChatPanel state even while the drawer is closed.
-          Phase 155: wsURL, apiBaseURL, and capToken are forwarded so ChatPanel
-          connects via webserver and can fetch history/export with the cap. */}
-      <ChatPanel
-        sessionId={sessionId}
-        relayPort={relayPort}
-        open={chatOpen}
-        wsURL={wsURL}
-        apiBaseURL={apiBaseURL}
-        capToken={capToken}
-        onUnreadChange={handleUnreadChange}
-      />
+      {/* FIX-03 (plan 09) RC-A: chat is hidden for remote in-app tabs. A working
+          remote chat would need an analogous daemon chat proxy (backend, out of
+          scope for this frontend gap closure); the working Phase 134 modal's
+          ChatPanel has no remote proxy route either, so hiding chat matches the
+          modal's effective behavior and keeps the terminal (the priority) working.
+          The native web-guest path (!useProxy) keeps chat + toggle unchanged. */}
+      {!useProxy && (
+        <>
+          {/* D-09: ChatPanel is always-mounted (open prop controls visibility only).
+              Unread messages accrue in ChatPanel state even while the drawer is closed.
+              Phase 155: wsURL, apiBaseURL, and capToken are forwarded so ChatPanel
+              connects via webserver and can fetch history/export with the cap. */}
+          <ChatPanel
+            sessionId={sessionId}
+            relayPort={relayPort}
+            open={chatOpen}
+            wsURL={wsURL}
+            apiBaseURL={apiBaseURL}
+            capToken={capToken}
+            onUnreadChange={handleUnreadChange}
+          />
 
-      {/* Chat toggle button — floats over the bottom-right of the terminal body.
-          COLORBLIND-SAFE: ChatBubbleLeftRightIcon (shape) + aria-label are primary signals.
-          ChatBadge provides the unread count / mention glyph. */}
-      <button
-        type="button"
-        className="hub-modal__chat-toggle"
-        aria-label={chatOpen ? 'Close chat' : 'Open chat'}
-        onClick={() => setChatOpen((prev) => !prev)}
-      >
-        <ChatBubbleLeftRightIcon className="hub-modal__chat-toggle-icon" aria-hidden="true" />
-        <ChatBadge count={unreadCount} hasMention={hasMention} />
-      </button>
+          {/* Chat toggle button — floats over the bottom-right of the terminal body.
+              COLORBLIND-SAFE: ChatBubbleLeftRightIcon (shape) + aria-label are primary signals.
+              ChatBadge provides the unread count / mention glyph. */}
+          <button
+            type="button"
+            className="hub-modal__chat-toggle"
+            aria-label={chatOpen ? 'Close chat' : 'Open chat'}
+            onClick={() => setChatOpen((prev) => !prev)}
+          >
+            <ChatBubbleLeftRightIcon className="hub-modal__chat-toggle-icon" aria-hidden="true" />
+            <ChatBadge count={unreadCount} hasMention={hasMention} />
+          </button>
+        </>
+      )}
     </div>
   )
 }

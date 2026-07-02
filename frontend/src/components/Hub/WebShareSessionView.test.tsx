@@ -28,6 +28,7 @@ interface CapturedTerminalProps {
   relayPort?: number
   isActive?: boolean
   wsURL?: string
+  remote?: boolean
   [key: string]: unknown
 }
 
@@ -218,6 +219,44 @@ describe('WebShareSessionView — chat toggle interaction', () => {
 
     // ChatPanel should now be open
     expect(container.querySelector('[data-open="true"]')).not.toBeNull()
+    unmount()
+  })
+})
+
+// Phase 168-09 (FIX-03 RC-A): remote in-app tabs MUST route the terminal through
+// the daemon proxy (remote:true, NO wsURL) rather than the direct cross-origin peer
+// wss the peer's byte-exact Origin allowlist 403s. Chat is hidden for remote tabs
+// (no cross-origin chat proxy route). The native web-guest path is unchanged.
+describe('WebShareSessionView — remote-tab daemon-proxy transport (FIX-03 RC-A)', () => {
+  it('remote={true}: TerminalPanel gets remote:true AND no wsURL (daemon proxy, not direct peer wss)', () => {
+    const { unmount } = mountView({ remote: true, relayPort: 42, baseURL: 'https://peer.example.ts.net' })
+    // Daemon-proxy transport: RelayClient will build
+    // ws://127.0.0.1:{relayPort}/api/relay/remote/{id}/ws (relayClient.ts:247-250).
+    expect(capturedTerminalProps?.remote).toBe(true)
+    expect(capturedTerminalProps?.wsURL).toBeUndefined()
+    unmount()
+  })
+
+  it('default path (no remote): TerminalPanel still gets the direct wsURL, remote falsy', () => {
+    const { unmount } = mountView({ sessionId: 'sess-123', capToken: 'tok-abc' })
+    const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
+    const expectedURL = `${wsScheme}://${window.location.host}/sessions/${encodeURIComponent('sess-123')}/ws?cap=${encodeURIComponent('tok-abc')}`
+    expect(capturedTerminalProps?.wsURL).toBe(expectedURL)
+    expect(capturedTerminalProps?.remote).toBeFalsy()
+    unmount()
+  })
+
+  it('remote={true}: chat toggle button and ChatPanel are NOT rendered (terminal-only)', () => {
+    const { container, unmount } = mountView({ remote: true, relayPort: 42, baseURL: 'https://peer.example.ts.net' })
+    expect(container.querySelector('.hub-modal__chat-toggle')).toBeNull()
+    expect(container.querySelector('[data-testid="mock-chat-panel"]')).toBeNull()
+    unmount()
+  })
+
+  it('no remote: chat toggle button and ChatPanel ARE rendered (native web-guest parity)', () => {
+    const { container, unmount } = mountView()
+    expect(container.querySelector('.hub-modal__chat-toggle')).not.toBeNull()
+    expect(container.querySelector('[data-testid="mock-chat-panel"]')).not.toBeNull()
     unmount()
   })
 })
