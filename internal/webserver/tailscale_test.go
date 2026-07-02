@@ -27,7 +27,7 @@ func TestCheckHealth_NotRunning(t *testing.T) {
 	stub := stubBinary(t)
 	h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 		return nil, fmt.Errorf("dial unix: connection refused")
-	}, stub, nil)
+	}, stub, nil, nil)
 
 	// Binary found but daemon unreachable
 	if !h.BinaryFound {
@@ -73,7 +73,7 @@ func TestCheckHealth_BackendState(t *testing.T) {
 		t.Run(tc.state, func(t *testing.T) {
 			h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 				return &ipnstate.Status{BackendState: tc.state}, nil
-			}, stub, nil)
+			}, stub, nil, nil)
 
 			if !h.BinaryFound {
 				t.Errorf("state=%s: expected BinaryFound=true", tc.state)
@@ -121,7 +121,7 @@ func TestCheckHealth_CertDomains(t *testing.T) {
 					BackendState: "Running",
 					CertDomains:  tc.domains,
 				}, nil
-			}, stub, nil)
+			}, stub, nil, nil)
 
 			if h.HasCerts != tc.wantHasCerts {
 				t.Errorf("expected HasCerts=%v, got %v", tc.wantHasCerts, h.HasCerts)
@@ -141,7 +141,7 @@ func TestCheckHealth_FullyHealthy(t *testing.T) {
 			TailscaleIPs: []netip.Addr{netip.MustParseAddr("100.64.0.1")},
 			CertDomains:  []string{"myhost.tail46d69a.ts.net"},
 		}, nil
-	}, stub, nil)
+	}, stub, nil, nil)
 
 	if !h.BinaryFound {
 		t.Error("expected BinaryFound=true")
@@ -181,7 +181,7 @@ func TestCheckHealth_BinaryNotFound(t *testing.T) {
 	h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 		fnCalled = true
 		return nil, nil
-	}, "/nonexistent/path/tailscale", nil)
+	}, "/nonexistent/path/tailscale", nil, nil)
 
 	if fnCalled {
 		t.Error("statusFunc should not be called when binary is not found")
@@ -207,7 +207,7 @@ func TestCheckHealth_DaemonStopped(t *testing.T) {
 	stub := stubBinary(t)
 	h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 		return nil, fmt.Errorf("connect: connection refused")
-	}, stub, nil)
+	}, stub, nil, nil)
 
 	if !h.BinaryFound {
 		t.Error("expected BinaryFound=true")
@@ -235,7 +235,7 @@ func TestCheckHealth_CustomPathPrecedence(t *testing.T) {
 	// Pass customPath — health check should succeed because binary exists at custom path
 	h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 		return &ipnstate.Status{BackendState: "Running"}, nil
-	}, customPath, nil)
+	}, customPath, nil, nil)
 
 	if !h.BinaryFound {
 		t.Error("expected BinaryFound=true with custom path")
@@ -334,10 +334,129 @@ func TestCheckHealth_AcceptDNS(t *testing.T) {
 			}
 			// NOTE: checkHealth does not yet accept a prefsFunc — this will not compile
 			// until Plan 03 adds the parameter. That compile failure IS the RED signal.
-			h := checkHealth(context.Background(), statusFn, stub, prefsFn)
+			h := checkHealth(context.Background(), statusFn, stub, prefsFn, nil)
 			if h.AcceptDNS != tc.wantAcceptDNS {
 				t.Errorf("AcceptDNS = %v; want %v", h.AcceptDNS, tc.wantAcceptDNS)
 			}
 		})
+	}
+}
+
+// TestCheckHealth_CLIFallback_Success covers SC1 (FIX-05, Issue #120): when the
+// SDK statusFunc fails (e.g. non-admin macOS accounts where the macsys
+// sameuserproof file is unreadable) and the injected CLI fallback returns a
+// Running ipnstate.Status, checkHealth reports Connected=true with IP,
+// HasCerts, and Domain populated from the CLI status, and AcceptDNS stays
+// false (D-02 -- no CLI prefs probe in the fallback path).
+func TestCheckHealth_CLIFallback_Success(t *testing.T) {
+	stub := stubBinary(t)
+
+	statusFn := func(ctx context.Context) (*ipnstate.Status, error) {
+		return nil, fmt.Errorf("dial unix: connection refused")
+	}
+	var capturedBinary string
+	cliFn := func(ctx context.Context, binary string) (*ipnstate.Status, error) {
+		capturedBinary = binary
+		return &ipnstate.Status{
+			BackendState: "Running",
+			TailscaleIPs: []netip.Addr{netip.MustParseAddr("100.64.0.5")},
+			CertDomains:  []string{"fallback-host.ts.net"},
+		}, nil
+	}
+
+	h := checkHealth(context.Background(), statusFn, stub, nil, cliFn)
+
+	if !h.BinaryFound {
+		t.Error("expected BinaryFound=true")
+	}
+	if !h.DaemonUp {
+		t.Error("expected DaemonUp=true when CLI fallback succeeds")
+	}
+	if !h.Installed {
+		t.Error("expected Installed=true when CLI fallback succeeds")
+	}
+	if !h.Connected {
+		t.Error("expected Connected=true when CLI fallback reports BackendState=Running")
+	}
+	if !h.HasCerts {
+		t.Error("expected HasCerts=true when CLI fallback status has CertDomains")
+	}
+	if h.IP != "100.64.0.5" {
+		t.Errorf("expected IP=%q, got %q", "100.64.0.5", h.IP)
+	}
+	if h.Domain != "fallback-host.ts.net" {
+		t.Errorf("expected Domain=%q, got %q", "fallback-host.ts.net", h.Domain)
+	}
+	if h.AcceptDNS {
+		t.Error("expected AcceptDNS=false in the fallback path (D-02, no prefs probe)")
+	}
+	if capturedBinary != stub {
+		t.Errorf("expected CLI fallback invoked with resolved binary %q (D-06), got %q", stub, capturedBinary)
+	}
+}
+
+// TestCheckHealth_CLIFallback_NotInvokedOnSDKSuccess covers SC2: when the SDK
+// statusFunc succeeds, the CLI fallback must never be invoked and the
+// returned TailscaleHealth must be identical to the SDK-success path with no
+// fallback wired at all (behavior unchanged).
+func TestCheckHealth_CLIFallback_NotInvokedOnSDKSuccess(t *testing.T) {
+	stub := stubBinary(t)
+
+	statusFn := func(ctx context.Context) (*ipnstate.Status, error) {
+		return &ipnstate.Status{
+			BackendState: "Running",
+			TailscaleIPs: []netip.Addr{netip.MustParseAddr("100.64.0.1")},
+			CertDomains:  []string{"myhost.tail46d69a.ts.net"},
+		}, nil
+	}
+	called := false
+	cliFn := func(ctx context.Context, binary string) (*ipnstate.Status, error) {
+		called = true
+		return &ipnstate.Status{BackendState: "Running"}, nil
+	}
+
+	h := checkHealth(context.Background(), statusFn, stub, nil, cliFn)
+
+	if called {
+		t.Error("expected CLI fallback NOT to be invoked when the SDK status read succeeds")
+	}
+	if !h.Connected {
+		t.Error("expected Connected=true from the SDK-success path")
+	}
+	if h.IP != "100.64.0.1" {
+		t.Errorf("expected IP=%q from SDK-success path, got %q", "100.64.0.1", h.IP)
+	}
+	if h.Domain != "myhost.tail46d69a.ts.net" {
+		t.Errorf("expected Domain=%q from SDK-success path, got %q", "myhost.tail46d69a.ts.net", h.Domain)
+	}
+}
+
+// TestCheckHealth_CLIFallback_AlsoFails covers D-05: when both the SDK
+// statusFunc and the CLI fallback fail, checkHealth returns the pre-existing
+// not-connected state (BinaryFound=true, DaemonUp=false, Installed=false,
+// Connected=false) -- unchanged from today's behavior.
+func TestCheckHealth_CLIFallback_AlsoFails(t *testing.T) {
+	stub := stubBinary(t)
+
+	statusFn := func(ctx context.Context) (*ipnstate.Status, error) {
+		return nil, fmt.Errorf("dial unix: connection refused")
+	}
+	cliFn := func(ctx context.Context, binary string) (*ipnstate.Status, error) {
+		return nil, fmt.Errorf("exec: tailscale: executable file not found")
+	}
+
+	h := checkHealth(context.Background(), statusFn, stub, nil, cliFn)
+
+	if !h.BinaryFound {
+		t.Error("expected BinaryFound=true")
+	}
+	if h.DaemonUp {
+		t.Error("expected DaemonUp=false when both SDK and CLI fallback fail")
+	}
+	if h.Installed {
+		t.Error("expected Installed=false when both SDK and CLI fallback fail")
+	}
+	if h.Connected {
+		t.Error("expected Connected=false when both SDK and CLI fallback fail")
 	}
 }
