@@ -542,9 +542,15 @@ Plans:
 
 > **Re-plan needed (2026-07-02).** Original CLI-`status`-fallback approach invalidated by Phase 169 code review (CR-01): both the SDK read and a spawned non-setuid `tailscale` CLI run as the same OS user and hit the identical `0640 root:admin` `sameuserproof` gate that `tailscaled` sets by design; only the macsys GUI bypasses it via in-process `SetCredentials`. Re-scoped to honest permission-aware detection (EACCES-vs-daemon-down). See 169-REVIEW.md.
 
-**Plans**: 0/1 plans complete (169-01 executed but approach invalidated — code to be reverted in re-plan)
+**Plans**: 2 plans (re-planned 2026-07-02 — honest permission-aware detection, supersedes the invalidated CLI fallback)
 
-- [~] 169-01-PLAN.md — CLI `tailscale status --json` fallback (INVALIDATED by CR-01; to be reverted). Code committed (608af809, c93d0774) but does not fix #120.
+**Wave 1**
+
+- [ ] 169-01-PLAN.md — Backend: revert the invalidated CLI-status fallback (D-01) + add `permProbeFunc` file-probe seam, `PermissionLimited` field, and honest darwin/macsys EACCES detection with liveness confirm + unit tests (FIX-05)
+
+**Wave 2** *(blocked on Wave 1 — frontend reads the new field)*
+
+- [ ] 169-02-PLAN.md — Frontend guidance + docs: SettingsTab distinct "Permission Limited" state + actionable copy (D-05) + vitest, and TESTING.md reconcile (Suite Manifest, traceability, Category W / M-45 macsys-Standalone rewording per IN-02) (FIX-05)
 
 **UI hint**: no
 
@@ -556,7 +562,7 @@ Plans:
 | 166. Funnel Frontend + Help Guide | 5/5 | Complete (verified 8/8) | 2026-06-30 |
 | 167. Native Notifications | 7/7 | Complete   | 2026-07-01 |
 | 168. Bug Fix & Settings Polish | 9/9 | Complete   | 2026-07-02 |
-| 169. Tailscale Detection Fix | 0/1 | Halted — re-plan (CR-01) | — |
+| 169. Tailscale Detection Fix | 0/2 | Planned (re-plan) — honest detection | — |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
