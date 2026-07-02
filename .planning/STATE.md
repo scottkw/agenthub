@@ -5,15 +5,15 @@ milestone_name: Funnel Sharing & Polish
 current_phase: 168
 current_phase_name: bug-fix-settings-polish
 status: executing
-stopped_at: Completed 168-07-PLAN.md — Phase 168 all 7 plans executed, ready for verification
-last_updated: "2026-07-02T12:49:37.553Z"
+stopped_at: Completed 168-09 gap-closure (FIX-03 remote web-session tab RC-A/B/C) — automated gates green; awaiting live UAT Test 3 re-test on a prod build
+last_updated: "2026-07-02T15:19:28.000Z"
 last_activity: 2026-07-02
-last_activity_desc: Phase 168 execution started
+last_activity_desc: Phase 168 gap-closure 168-09 executed (FIX-03 remote tab: daemon-proxy transport + full-height wrapper + relabel); live Test 3 pending
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 25
-  completed_plans: 24
+  total_plans: 26
+  completed_plans: 26
   percent: 60
 ---
 
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 ## Current Position
 
-Phase: 168 (bug-fix-settings-polish) — EXECUTING
-Plan: 1 of 8
-Status: Executing Phase 168
-Last activity: 2026-07-02 — Phase 168 execution started
+Phase: 168 (bug-fix-settings-polish) — EXECUTING (gap-closure done; live UAT pending)
+Plan: 9 of 9 — 168-09 gap-closure complete (FIX-03 RC-A/B/C)
+Status: Awaiting live UAT Test 3 (two-Mac remote-open) re-test on a production build
+Last activity: 2026-07-02 — 168-09 executed (FIX-03 remote web-session tab); automated gates green, live Test 3 pending
 
 ```
 v4.2 Progress: [████████████░░░░░░░░] 60% (3/5 phases — 165 ✅ DONE (live), 166 ✅ DONE (verified 8/8), 167 ✅ DONE (code-verified 11/11; M-41 live deferred); 168 + 169 remain)
