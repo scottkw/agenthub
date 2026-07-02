@@ -51,7 +51,7 @@ Requirements for this milestone. Each maps to a roadmap phase.
 - [x] **FIX-02**: A shared session supports multiple simultaneous remote viewers without a newly joining viewer kicking an existing one, and the Hub provides a way to disconnect a stuck viewer. — Issue #117
 - [x] **FIX-03**: Opening a remote session from the Hub opens it in an in-app tab (connecting via the remote peer's host), not an external browser window. — Issue #118
 - [x] **FIX-04**: The Hub session-card viewer count reflects only real remote/shared viewers, excluding the app's own internal WebSocket subscribers (TerminalPanel, ChatPanel, status watcher) — a never-shared local session reads 0 viewers. — Issue #121
-- [x] **FIX-05**: Tailscale connection detection reports "Connected" on non-admin macOS accounts where the `macsys` `sameuserproof` file is unreadable, via a CLI `status` fallback when the SDK read fails. — Issue #120
+- [ ] **FIX-05**: Tailscale connection detection reports "Connected" on non-admin macOS accounts where the `macsys` `sameuserproof` file is unreadable, via a CLI `status` fallback when the SDK read fails. — Issue #120 — **BLOCKED (re-approach): the CLI-fallback approach cannot work.** Phase 169 code review (CR-01, independently confirmed via vendored `tailscale.com@v1.98.3` source + live `/Library/Tailscale/` check) established that `tailscaled` writes `sameuserproof` as `0640 root:admin` **by design** (`safesocket_darwin.go` `Fchown(...,0,80)`). Both the SDK read and a spawned `tailscale status` CLI (non-setuid, same OS user) must read that file; only the macsys GUI bypasses it via in-process `SetCredentials`. So the barrier is per-*user*, not per-*binary* — shelling out grants no extra privilege. A different mitigation is required (privileged helper, or close #120 as an upstream/macOS limitation with user guidance).
 
 ## v2 Requirements
 
@@ -103,7 +103,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FIX-02 | Phase 168 | Complete |
 | FIX-03 | Phase 168 | Complete |
 | FIX-04 | Phase 168 | Complete |
-| FIX-05 | Phase 169 | Complete |
+| FIX-05 | Phase 169 | Blocked — re-approach (CR-01: CLI fallback can't clear macsys per-user permission gate) |
 
 **Coverage:**
 

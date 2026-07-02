@@ -4,17 +4,17 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 169
 current_phase_name: tailscale-detection-fix
-status: verifying
-stopped_at: Phase 169 context gathered
+status: blocked
+stopped_at: Phase 169 HALTED — CR-01: CLI-fallback approach cannot fix #120 (per-user macsys permission gate); re-approach needed
 last_updated: "2026-07-02T18:34:27.172Z"
 last_activity: 2026-07-02
-last_activity_desc: Phase 169 execution started
+last_activity_desc: Phase 169 halted after code review — FIX-05 approach invalidated, re-approach pending
 progress:
   total_phases: 5
-  completed_phases: 5
+  completed_phases: 4
   total_plans: 27
-  completed_plans: 27
-  percent: 100
+  completed_plans: 26
+  percent: 80
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 ## Current Position
 
-Phase: 169 (tailscale-detection-fix) — EXECUTING
-Plan: 1 of 1
-Status: Phase complete — ready for verification
-Last activity: 2026-07-02 — Phase 169 execution started
+Phase: 169 (tailscale-detection-fix) — HALTED (re-approach needed)
+Plan: 1 of 1 (code committed, but approach invalidated)
+Status: BLOCKED — code review CR-01 established the CLI `status` fallback cannot fix Issue #120. `tailscaled` writes `/Library/Tailscale/sameuserproof-*` as `0640 root:admin` by design; both the SDK read and a spawned (non-setuid) `tailscale` CLI run as the same OS user and hit the identical per-user permission gate. Only the macsys GUI bypasses it (in-process `SetCredentials`). FIX-05 requires a different mitigation (privileged helper, or close #120 as an upstream/macOS limitation with user guidance). Phase-169 code left in place (additive, harmless) pending the re-approach decision. See 169-REVIEW.md (CR-01) + 169-01-SUMMARY.md.
+Last activity: 2026-07-02 — Phase 169 halted after code review
 
 ```
 v4.2 Progress: [████████████████░░░░] 80% (4/5 phases — 165 ✅ DONE (live), 166 ✅ DONE (verified 8/8), 167 ✅ DONE (code-verified 11/11; M-41 live deferred), 168 ✅ DONE (verified 6/6, UAT 4/4 live); 169 remains)
