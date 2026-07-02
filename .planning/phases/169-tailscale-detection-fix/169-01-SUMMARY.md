@@ -134,3 +134,10 @@ None - no external service configuration required.
 ---
 *Phase: 169-tailscale-detection-fix*
 *Completed: 2026-07-02*
+
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/169-tailscale-detection-fix/169-01-SUMMARY.md`
+- FOUND: commit `608af809` (Task 1)
+- FOUND: commit `c93d0774` (Task 2)
+- FOUND: commit `ad14d116` (this SUMMARY)
