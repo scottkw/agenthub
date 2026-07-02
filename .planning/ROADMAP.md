@@ -539,7 +539,8 @@ Plans:
   1. On a non-admin macOS account where the `macsys` `sameuserproof` file is unreadable (root:admin 0640), Tailscale status reports "Connected" via a CLI `status` fallback when the SDK read fails — instead of the current "installed but not connected"
   2. On accounts where the SDK read succeeds, behavior is unchanged (fallback is only engaged on read failure)
 
-**Plans**: TBD
+**Plans**: 1 plan
+- [ ] 169-01-PLAN.md — CLI `tailscale status --json` fallback in checkHealth (engages only on SDK read error): full-struct reconstruction + injected-fake tests (SC1/SC2/D-05) + TESTING.md registration
 **UI hint**: no
 
 ## Progress
