@@ -59,6 +59,15 @@ export interface SessionShareModalProps {
   // The modal closes itself first, then hands off to the host to navigate to the
   // help-sharing section (wired at the App level; optional so tests/other hosts can omit).
   onOpenHelp?: () => void
+  // Phase 168-08 (UX-02 / #115 gap closure): notifies the host (App.tsx) that the
+  // modal's own "Share the session" toggle changed server-truth share state, so
+  // App-level webEnabled — which drives the footer StatusBar pill — stays in sync.
+  // Invoked from handleShareToggle on BOTH the ON and OFF transitions, only after
+  // ToggleWebServing resolves successfully (preserves the WR-01 success-gate).
+  // Not invoked on the un-warned first-time shell path — that path is covered by
+  // App's handleShellWebShareConfirm, which already sets webEnabled true itself.
+  // Optional so existing tests/hosts that omit it are unaffected.
+  onShareEnabledChange?: (sessionId: string, enabled: boolean) => void
 }
 
 /**
@@ -92,6 +101,7 @@ export function SessionShareModal({
   onShellWebShareConfirm,
   onShellWebShareCancel,
   onOpenHelp,
+  onShareEnabledChange,
 }: SessionShareModalProps): React.ReactElement {
   // ---- Animation phase machine (entering → open → exiting) ----
   // Same pattern as HubModal but without grow animation (no sourceRect / transformOrigin).
@@ -238,6 +248,10 @@ export function SessionShareModal({
         setCachedShare(null)
       }
       // If turning ON, the seeding effect above will issue caps on next render.
+      // Phase 168-08 (UX-02 / #115): notify the host so App-level webEnabled —
+      // and therefore the footer pill — tracks this toggle. Fires for both ON
+      // and OFF, only after a successful ToggleWebServing (WR-01 gate).
+      onShareEnabledChange?.(session.id, next)
     } catch {
       // ToggleWebServing failed — revert (shareEnabled unchanged).
     }

@@ -1952,6 +1952,9 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
           onShellWebShareConfirm={handleShellWebShareConfirm}
           onShellWebShareCancel={handleShellWebShareCancel}
           onOpenHelp={() => handleOpenHelp('help-sharing')}
+          onShareEnabledChange={(sessionId, enabled) =>
+            setWebEnabled((prev) => ({ ...prev, [sessionId]: enabled }))
+          }
         />
       )}
 
