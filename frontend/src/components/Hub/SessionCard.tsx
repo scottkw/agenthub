@@ -17,7 +17,7 @@ import {
   BellAlertIcon,          // ATTN-01: attention icon — colorblind-safe shape carrier
   LockClosedIcon,         // D-13: shape signal for disabled Share button on remote peer cards
   LinkIcon,               // CARD-03: "Connected" state shape signal (colorblind-safe)
-  ArrowTopRightOnSquareIcon, // CARD-04: "Open in browser" menu item icon
+  WindowIcon,             // FIX-03 RC-C: "Open in tab" in-app glyph (D-17 opens an in-app tab, not a browser)
 } from '@heroicons/react/24/outline'
 import { InlineSessionName } from './InlineSessionName'
 // WR-01: deriveHubStatus extracted to shared util (was triplicated across SessionCard/HubFilterBar/HubPanel)
@@ -411,8 +411,8 @@ export function SessionCard({
                 role="menuitem"
                 onClick={(e) => { e.stopPropagation(); onOpenInBrowser?.(session as AdaptedRemoteSessionInfo); setMenuOpen(false) }}
               >
-                <ArrowTopRightOnSquareIcon className="hub-card__conn-icon" aria-hidden="true" />
-                Open in browser
+                <WindowIcon className="hub-card__conn-icon" aria-hidden="true" />
+                Open in tab
               </button>
               <button
                 type="button"

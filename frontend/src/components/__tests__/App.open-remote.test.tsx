@@ -27,7 +27,7 @@
 //   - handleModalExchange: has an 'open-session' branch that builds
 //     /sessions/{id}?cap= URL and calls BrowserOpenURL after exchange.
 //   - Dead code removed: isPeerSelf and rwJoinCode selection logic are gone (D-06/WR-01).
-//   - Behavior assertion: the "Open in browser" menu item on a remote SessionCard is NOT
+//   - Behavior assertion: the "Open in tab" menu item on a remote SessionCard is NOT
 //     disabled and clicking it calls the open handler with the session object — exercises
 //     the actual open entry point rather than inspecting source in isolation.
 //
@@ -167,7 +167,7 @@ describe('App.tsx — handleModalExchange open-session branch (FIX-03)', () => {
   })
 })
 
-// ─── Behavior: remote SessionCard "Open in browser" exercises the open entry point ─
+// ─── Behavior: remote SessionCard "Open in tab" exercises the open entry point ─
 //
 // This is the cross-path assertion the prior test suite lacked. The previous suite
 // only inspected source text in isolation — none of the tests exercised whether the
@@ -177,8 +177,8 @@ describe('App.tsx — handleModalExchange open-session branch (FIX-03)', () => {
 // Per D-03 (out-of-band model): the button must NOT be disabled — even when the
 // session carries no roJoinCode — because the modal is how the viewer obtains the
 // code. Gating the button on roJoinCode was the broadcast-era behavior (removed).
-describe('SessionCard — "Open in browser" behavior (FIX-03 behavior-level assertion)', () => {
-  it('"Open in browser" is present and enabled on a remote card with no roJoinCode (D-03: modal replaces dead-end)', () => {
+describe('SessionCard — "Open in tab" behavior (FIX-03 behavior-level assertion)', () => {
+  it('"Open in tab" is present and enabled on a remote card with no roJoinCode (D-03: modal replaces dead-end)', () => {
     // Session fixture intentionally has NO roJoinCode — the out-of-band design
     // does not broadcast codes; the modal guides the viewer to obtain one.
     const { container: c } = renderRemoteCard({ session: remoteSession })
@@ -186,21 +186,21 @@ describe('SessionCard — "Open in browser" behavior (FIX-03 behavior-level asse
     expect(menuBtn).not.toBeNull()
     flushSync(() => { menuBtn.click() })
     const openBtn = Array.from(c.querySelectorAll('.hub-card__menu-item')).find(
-      (el) => el.textContent?.includes('Open in browser')
+      (el) => el.textContent?.includes('Open in tab')
     ) as HTMLButtonElement | undefined
-    expect(openBtn, '"Open in browser" menu item must be present on a remote card').toBeDefined()
+    expect(openBtn, '"Open in tab" menu item must be present on a remote card').toBeDefined()
     // KEY ASSERTION: button must NOT be disabled — the modal replaces the dead-end 401 (D-03).
     // RED: current SessionCard has disabled={!roJoinCode}; this fails because roJoinCode is absent.
-    expect(openBtn!.disabled, '"Open in browser" must not be disabled when roJoinCode is absent — modal guides user').toBe(false)
+    expect(openBtn!.disabled, '"Open in tab" must not be disabled when roJoinCode is absent — modal guides user').toBe(false)
   })
 
-  it('clicking "Open in browser" calls onOpenInBrowser with the session object', () => {
+  it('clicking "Open in tab" calls onOpenInBrowser with the session object', () => {
     const onOpenInBrowser = vi.fn()
     const { container: c } = renderRemoteCard({ session: remoteSession, onOpenInBrowser })
     const menuBtn = c.querySelector('.hub-card__menu-btn') as HTMLButtonElement
     flushSync(() => { menuBtn.click() })
     const openBtn = Array.from(c.querySelectorAll('.hub-card__menu-item')).find(
-      (el) => el.textContent?.includes('Open in browser')
+      (el) => el.textContent?.includes('Open in tab')
     ) as HTMLButtonElement | undefined
     // Skip click if button is disabled (don't double-fail on the same broken state)
     if (openBtn && !openBtn.disabled) {
@@ -210,7 +210,7 @@ describe('SessionCard — "Open in browser" behavior (FIX-03 behavior-level asse
       )
     } else {
       // Button disabled means the D-03 gate still exists — assert it is enabled first
-      expect(openBtn?.disabled, '"Open in browser" must not be disabled (D-03)').toBe(false)
+      expect(openBtn?.disabled, '"Open in tab" must not be disabled (D-03)').toBe(false)
     }
   })
 })
@@ -313,10 +313,23 @@ describe('App.tsx — openWebSessionTab per-tab isolation (FIX-03, two remote se
   it('the __websession__ render branch resolves per-tab params from the active tab, not the global webParams, for remote tabs (RESEARCH Pitfall 3)', () => {
     const idx = raw.indexOf("activeId.startsWith('__websession__')")
     expect(idx, 'the __websession__ render branch must be present').toBeGreaterThan(-1)
-    const slice = raw.slice(idx, idx + 1400)
+    const slice = raw.slice(idx, idx + 2000)
     expect(slice).toContain('activeWebTab')
     expect(slice).toContain('isRemoteWebTab')
     expect(slice).toContain('baseURL={activeWebTab?.baseURL}')
+  })
+
+  // FIX-03 (plan 09): RC-B full-height wrapper + RC-A remote flag threading.
+  // The __websession__ branch must wrap WebShareSessionView in .terminal-wrapper
+  // (the full-height flex-column chain that resolves the modal's flex:1, fixing
+  // the half-height terminal + dead band) AND pass remote={isRemoteWebTab} so the
+  // remote tab uses the daemon proxy instead of a direct cross-origin peer wss.
+  it('RC-B/RC-A: the __websession__ branch wraps WebShareSessionView in .terminal-wrapper and threads remote={isRemoteWebTab}', () => {
+    const idx = raw.indexOf("activeId.startsWith('__websession__')")
+    expect(idx, 'the __websession__ render branch must be present').toBeGreaterThan(-1)
+    const slice = raw.slice(idx, idx + 2000)
+    expect(slice).toContain('terminal-wrapper')
+    expect(slice).toContain('remote={isRemoteWebTab}')
   })
 
   // CR-03 (168-REVIEW): the WebShareSessionView render site had no `key`, so
@@ -329,7 +342,7 @@ describe('App.tsx — openWebSessionTab per-tab isolation (FIX-03, two remote se
   it('CR-03: <WebShareSessionView> is keyed by wsSessionId so switching remote tabs forces a remount (no cross-session state leak)', () => {
     const idx = raw.indexOf("activeId.startsWith('__websession__')")
     expect(idx, 'the __websession__ render branch must be present').toBeGreaterThan(-1)
-    const slice = raw.slice(idx, idx + 1400)
+    const slice = raw.slice(idx, idx + 2000)
     const wsvIdx = slice.indexOf('<WebShareSessionView')
     expect(wsvIdx, '<WebShareSessionView> element must be present in this branch').toBeGreaterThan(-1)
     // The key prop must appear on the element itself (before sessionId prop),

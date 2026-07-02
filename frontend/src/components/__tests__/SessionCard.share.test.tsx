@@ -249,12 +249,15 @@ describe('CARD-04: Kill menu item guard (stopPropagation)', () => {
 // Phase 138 / CARD-04: Remote-only affordances (Open in browser, Browse files).
 // RED against current SessionCard — remote menu items not yet implemented; Plans 02/03 add them.
 describe('CARD-04: Remote affordances in overflow menu', () => {
-  it('remote card overflow menu contains "Open in browser"', () => {
+  // FIX-03 RC-C (plan 09): D-17 opens an in-app tab, so the label reads "Open in
+  // tab" (in-app glyph) — the stale "Open in browser" external-link wording is gone.
+  it('remote card overflow menu contains "Open in tab" and NOT the stale "Open in browser"', () => {
     const onOpenInBrowser = vi.fn()
     const { container: c } = renderCard({ session: remoteSession, isRemote: true, onOpenInBrowser })
     const menuBtn = c.querySelector('.hub-card__menu-btn') as HTMLButtonElement
     flushSync(() => { menuBtn.click() })
-    expect(c.textContent).toContain('Open in browser')
+    expect(c.textContent).toContain('Open in tab')
+    expect(c.textContent).not.toContain('Open in browser')
   })
   it('remote card overflow menu contains "Browse files"', () => {
     const onBrowseFiles = vi.fn()
@@ -263,11 +266,11 @@ describe('CARD-04: Remote affordances in overflow menu', () => {
     flushSync(() => { menuBtn.click() })
     expect(c.textContent).toContain('Browse files')
   })
-  it('local card overflow menu does NOT contain "Open in browser"', () => {
+  it('local card overflow menu does NOT contain "Open in tab"', () => {
     const { container: c } = renderCard({ session: localSession, isRemote: false })
     const menuBtn = c.querySelector('.hub-card__menu-btn') as HTMLButtonElement
     flushSync(() => { menuBtn.click() })
-    expect(c.textContent).not.toContain('Open in browser')
+    expect(c.textContent).not.toContain('Open in tab')
   })
   it('local card overflow menu does NOT contain "Browse files"', () => {
     const { container: c } = renderCard({ session: localSession, isRemote: false })
@@ -275,9 +278,9 @@ describe('CARD-04: Remote affordances in overflow menu', () => {
     flushSync(() => { menuBtn.click() })
     expect(c.textContent).not.toContain('Browse files')
   })
-  // CR-01 / Phase 146 FIX-03 (out-of-band): "Open in browser" is NOT gated on roJoinCode.
+  // CR-01 / Phase 146 FIX-03 (out-of-band): "Open in tab" is NOT gated on roJoinCode.
   // The button opens for any remote session — the modal guides the viewer to obtain a code.
-  it('"Open in browser" is enabled without roJoinCode (D-03: modal replaces dead-end)', () => {
+  it('"Open in tab" is enabled without roJoinCode (D-03: modal replaces dead-end)', () => {
     const onOpenInBrowser = vi.fn()
     // No roJoinCode — out-of-band design: modal guides the viewer
     const remoteWithUrl = { ...remoteSession, url: 'https://remote.host/session/sess-2' } as SessionInfo
@@ -285,10 +288,10 @@ describe('CARD-04: Remote affordances in overflow menu', () => {
     const menuBtn = c.querySelector('.hub-card__menu-btn') as HTMLButtonElement
     flushSync(() => { menuBtn.click() })
     const openBtn = Array.from(c.querySelectorAll('.hub-card__menu-item')).find(
-      (el) => el.textContent?.includes('Open in browser')
+      (el) => el.textContent?.includes('Open in tab')
     ) as HTMLButtonElement
     // D-03: button must NOT be disabled — modal provides the path to obtain a code
-    expect(openBtn?.disabled, '"Open in browser" must not be disabled (D-03 out-of-band)').toBe(false)
+    expect(openBtn?.disabled, '"Open in tab" must not be disabled (D-03 out-of-band)').toBe(false)
     flushSync(() => { openBtn?.click() })
     // Called with the session object so the handler can route to the modal
     expect(onOpenInBrowser).toHaveBeenCalledWith(expect.objectContaining({ id: 'sess-2' }))

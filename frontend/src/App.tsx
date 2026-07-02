@@ -1704,23 +1704,29 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
           const wsSessionId = activeWebTab?.sessionId ?? webParams.sessionId ?? activeId.slice('__websession__'.length)
           const wsCapToken = isRemoteWebTab ? (activeWebTab?.capToken ?? '') : (webParams.capToken ?? '')
           return (
-            // CR-03 fix: key on the resolved session id so React remounts
-            // WebShareSessionView (rather than reusing the instance and its
-            // useState chat/unread/mention/plugin-config state) whenever the
-            // active __websession__ tab switches to a different remote
-            // session. Before Phase 168-03 enabled multiple simultaneous
-            // remote-peer tabs, this render site only ever had one possible
-            // session, so the missing key was harmless.
-            <WebShareSessionView
-              key={wsSessionId}
-              sessionId={wsSessionId}
-              capToken={wsCapToken}
-              baseURL={activeWebTab?.baseURL}
-              relayPort={relayPort ?? 0}
-              theme={terminalTheme}
-              pluginConfig={isRemoteWebTab ? undefined : (pluginConfig ?? undefined)}
-              remote={isRemoteWebTab}
-            />
+            // FIX-03 (plan 09) RC-B: WebShareSessionView's flex:1 root
+            // (.hub-modal__body--interactive) is inert under the block-context
+            // .terminal-container, collapsing to content height (--hub-bg dead
+            // band). Wrap in .terminal-wrapper (height:100%; display:flex;
+            // flex-direction:column) — the same full-height chain normal
+            // terminal tabs use — so flex:1 fills the pane. Fixes both the remote
+            // tab and the native web-guest bootstrap tab without touching the
+            // shared .hub-modal__* classes (still used by HubInteractiveModal).
+            <div className="terminal-wrapper" style={{ display: 'flex' }}>
+              {/* CR-03: key on wsSessionId so React remounts (drops stale
+                  chat/unread/plugin-config useState) when the active tab switches
+                  to a different remote session. */}
+              <WebShareSessionView
+                key={wsSessionId}
+                sessionId={wsSessionId}
+                capToken={wsCapToken}
+                baseURL={activeWebTab?.baseURL}
+                relayPort={relayPort ?? 0}
+                theme={terminalTheme}
+                pluginConfig={isRemoteWebTab ? undefined : (pluginConfig ?? undefined)}
+                remote={isRemoteWebTab}
+              />
+            </div>
           )
         })()}
 
