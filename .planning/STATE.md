@@ -4,15 +4,15 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 168
 current_phase_name: bug-fix-settings-polish
-status: verifying
+status: executing
 stopped_at: Completed 168-07-PLAN.md — Phase 168 all 7 plans executed, ready for verification
-last_updated: "2026-07-01T22:04:04.141Z"
-last_activity: 2026-07-01
+last_updated: "2026-07-02T12:49:37.553Z"
+last_activity: 2026-07-02
 last_activity_desc: Phase 168 execution started
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 24
+  total_plans: 25
   completed_plans: 24
   percent: 60
 ---
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 ## Current Position
 
-Phase: 168 (bug-fix-settings-polish) — VERIFYING (awaiting human UAT)
-Plan: 7 of 7 executed
-Status: Executed + code-reviewed (3 Critical + 3 Warning fixed); verifier returned human_needed — awaiting UAT (168-UAT.md, 4 live items)
-Last activity: 2026-07-01 — Phase 168 executed, code-reviewed, and verified (human_needed)
+Phase: 168 (bug-fix-settings-polish) — EXECUTING
+Plan: 1 of 8
+Status: Executing Phase 168
+Last activity: 2026-07-02 — Phase 168 execution started
 
 ```
 v4.2 Progress: [████████████░░░░░░░░] 60% (3/5 phases — 165 ✅ DONE (live), 166 ✅ DONE (verified 8/8), 167 ✅ DONE (code-verified 11/11; M-41 live deferred); 168 + 169 remain)

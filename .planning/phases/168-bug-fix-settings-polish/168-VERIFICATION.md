@@ -1,48 +1,41 @@
 ---
 phase: 168-bug-fix-settings-polish
-verified: 2026-07-01T23:09:58Z
+verified: 2026-07-02T13:00:07Z
 status: human_needed
-score: 2/6 must-haves fully verified (4 present + wired, behavior partially or fully unverified by automation)
-behavior_unverified: 4
+score: 5/6 must-haves fully verified (1 present + wired, live end-to-end confirmation still pending)
+behavior_unverified: 1
 overrides_applied: 0
+re_verification:
+  previous_status: human_needed
+  previous_score: "2/6 fully automated-verified, 4/6 present+wired needing human confirmation"
+  gaps_closed:
+    - "SC1 (FIX-01): live browser plugin-config hot-swap + CSP check — human UAT PASS (168-UAT.md Test 1, 2026-07-02)"
+    - "SC2 (FIX-02): live two-browser-viewer smoke test — human UAT PASS (168-UAT.md Test 2, 2026-07-02)"
+    - "SC4 (UX-02) footer pill web-share drift (the exact bug live UAT Test 4 caught) — root-caused and fixed by gap-closure plan 168-08: SessionShareModal.onShareEnabledChange callback + App.tsx setWebEnabled wiring, with real mounted-component regression tests (ON/OFF notify + un-warned no-notify) and an App-wiring source-inspection test, all passing"
+  gaps_remaining:
+    - "SC3 (FIX-03): live two-Mac remote-open in-app tab check — UAT reported 'blocked, no second Mac right now' (168-UAT.md Test 3); still unverified live, unchanged from prior pass"
+    - "SC4 (UX-02) D4: the 168-08 fix itself has full unit/regression coverage of every individual link in the causal chain (modal toggle -> callback -> App wiring -> StatusBar render) but no single test mounts App.tsx end-to-end to observe the footer pill flip live on a real daemon session — the exact integration point that already produced one live-UAT surprise. A fresh live re-check (rerun 168-UAT.md Test 4) is recommended before treating this as durably closed. This is *new evidence needed*, not a regression: the underlying callback-fires and wiring-exists facts are both proven by real tests."
+  regressions: []
 behavior_unverified_items:
-  - truth: "SC1 (FIX-01): A web-share guest sees live plugin-config changes without page reload, with no CSP errors visible in DevTools Console."
-    test: "Open the /app/ share URL in a real (non-Wails) browser; change a plugin-config value server-side; confirm the terminal updates live without reload; inspect DevTools Console for CSP errors."
-    expected: "Config applies live (no reload) and the Console shows no CSP violations."
-    why_human: "The SSE hot-swap state-transition mechanism itself IS behaviorally verified (WebShareSessionView.plugin-config.test.tsx mounts the real component and dispatches a fake SSE event, asserting the applied config changes) — but jsdom cannot evaluate real browser CSP enforcement or a live DevTools Console. Already tracked as TESTING.md M-43 (added by 168-07)."
-  - truth: "SC2 (FIX-02): Multiple simultaneous viewers can connect to one shared session; a stuck viewer can be disconnected via the Share modal Disconnect button, and the Hub viewer count updates within the next poll cycle."
-    test: "Two real browser clients open the same share link; confirm neither is kicked; click 'Disconnect all viewers' and confirm both drop and the Hub card's viewer count returns to 0 within a poll cycle."
-    expected: "Both viewers coexist; Disconnect drops both; visible Hub viewer count reaches 0."
-    why_human: "The backend mechanism (DisconnectWebViewers force-closing only Origin==\"web\" subscribers; two web subscribers coexisting without eviction) IS behaviorally verified by real Go tests (TestDisconnectWebViewers, TestHub_TwoWebOriginSubscribers_NoEviction) that construct live subscribers, broadcast frames, and assert receipt/closure under -race. The end-to-end two-real-browser UI observation (visible viewer-count drop within a poll cycle) cannot be exercised in jsdom/Go unit tests. Already tracked as TESTING.md M-42 (added by 168-07)."
-  - truth: "SC3 (FIX-03): Opening a remote tailnet session from the Hub opens an in-app terminal tab (not an external browser window) that streams the terminal relay correctly."
-    test: "On a live two-Mac tailnet, open a remote session from the Hub; confirm an in-app tab opens (no external browser window) and the terminal streams real PTY output; open a second different remote session and confirm two independent tabs with no cross-contamination."
-    expected: "In-app tab opens per session; terminal streams live; two sessions never share cap/host state."
-    why_human: "Code wiring is confirmed by direct source reading (handleOpenRemoteSession / handleModalExchange call openWebSessionTab, not BrowserOpenURL) and by App.open-remote.test.tsx (a real-mount click-path test on SessionCard's 'Open in browser' item plus source-inspection of the App.tsx routing). Real cross-machine PTY streaming correctness requires a live two-Mac tailnet, which no automated test in this repo can exercise (documented convention — the :34115 wails-dev bridge has no real tailnet peer). Already tracked as TESTING.md M-13 (reworded by 168-07 for the new in-app-tab behavior)."
-  - truth: "SC4 (UX-02, partial — CR-02 sub-behavior): The footer 'Share Session' button opens the Share modal for the currently-active session with no independent state drift, INCLUDING when opened from a non-Hub session tab (Funnel warm-up resolution and 'Disconnect all viewers' visibility/count must stay live)."
-    test: "Create a new session (default stayOnHubAfterCreate=OFF auto-switches to it); from that session's tab (not the Hub tab), click the footer 'Share Session' button; enable Funnel and confirm the warm-up UI resolves to 'live' (not stuck until the 30s timeout) once the daemon actually enables it; have a second viewer join and confirm the viewer count / 'Disconnect all viewers' button visibility update live while the modal stays open from the session tab."
-    expected: "Funnel warm-up resolves promptly via live state, not the 30s fallback; viewer count and Disconnect-button visibility update without closing/reopening the modal."
-    why_human: "This is the exact scenario code review finding CR-02 identified and fixed (168-REVIEW.md, fixed in commit c6255942): a second useEffect polls ListSessions() every 3s while shareModalSession is set and the Hub tab is not already polling. The fix is present and wired (frontend/src/App.tsx:1049-1070) and structurally sound on inspection (correct effect deps, cleanup via clearInterval), but per the executor's own TESTING.md note (line 34) NO dedicated test exercises this specific poll/live-sync behavior — CR-02's live-poll timing is only indirectly touched via SessionShareModal.test.tsx's Funnel warm-up suite through prop threading, not a focused App-level interval test. This is a state-consistency invariant (poll starts/stops correctly, feeds live server truth into an already-open modal) that presence/wiring checks cannot confirm, and it is not yet covered by an existing TESTING.md manual item — a NEW manual item is recommended (see Gaps Summary)."
+  - truth: "SC4 (UX-02): Footer StatusBar pill shows 'WEB ON'/'WEB OFF' matching actual server web-share state on every modal toggle path (footer-opened and Hub-card-opened, warned and un-warned) — no drift, per the gap fixed by plan 168-08."
+    test: "On a live daemon session with a shell CLI: dismiss the one-time shell-web-share warning once, then from the Share modal toggle 'Share the session' ON — confirm the footer pill flips to 'WEB ON' immediately (not stuck on 'WEB OFF'); toggle OFF — confirm it returns to 'WEB OFF'. Repeat opening the modal from a Hub card (not just the footer) to cover both open paths."
+    expected: "Footer pill always matches the modal's live share state; no stale label survives a toggle."
+    why_human: "SessionShareModal.test.tsx behaviorally proves the modal-level callback fires with the correct value on real toggle clicks, and StatusBar.shareSession.test.tsx proves (a) via source-inspection that App.tsx wires that callback verbatim to setWebEnabled, and (b) via a separate mounted-StatusBar test that the pill text correctly reflects the webEnabled prop. No single test mounts App.tsx itself (an established, pre-existing test-suite limitation, not introduced by this fix) to observe the full click-to-pill-flip chain in one render tree on a live daemon. Given this exact seam already produced a live-UAT-only-detectable bug once (168-UAT.md Test 4), a fresh live re-check is the appropriate closing evidence rather than trusting the fix's plausibility."
 human_verification:
-  - test: "SC1 (FIX-01) live browser check — TESTING.md M-43"
-    expected: "Live hot-swap with no CSP console errors on the /app/ surface."
-    why_human: "Real browser CSP/DevTools inspection; not automatable."
-  - test: "SC2 (FIX-02) live two-browser-viewer smoke test — TESTING.md M-42"
-    expected: "Two viewers coexist; Disconnect drops both; Hub viewer count reaches 0 within a poll cycle."
-    why_human: "Requires two real browser clients on a live share link."
-  - test: "SC3 (FIX-03) live two-Mac remote-open in-app tab check — TESTING.md M-13 (reworded)"
-    expected: "In-app tab opens (no external browser); terminal streams correctly; two sessions stay isolated."
-    why_human: "Requires two real Macs on the same tailnet; no automated tailnet peer exists in CI."
-  - test: "SC4 (UX-02) CR-02 live-sync check from a non-Hub session tab — NOT YET in TESTING.md manual checklist"
-    expected: "Funnel warm-up resolves live (not via 30s timeout); viewer count / Disconnect button stay live while the Share modal is open from a session tab, not the Hub tab."
-    why_human: "CR-02's fix (a scoped 3s poll effect) has zero automated coverage per the executor's own TESTING.md disclosure; this is a state-consistency invariant that needs a live run to confirm before treating the Critical finding as durably closed."
+  - test: "SC3 (FIX-03) live two-Mac remote-open in-app tab check (TESTING.md M-13)"
+    expected: "In-app tab opens (no external browser window); terminal streams real PTY output; two independently-opened remote sessions never cross-contaminate."
+    why_human: "Requires two real Macs on the same tailnet. 168-UAT.md Test 3 explicitly reports 'blocked, no second Mac right now' — this is carried forward unresolved from the prior verification pass, not a new finding."
+  - test: "SC4 (UX-02) live re-check of the 168-08 footer-pill-drift fix (recommend adding as a new TESTING.md manual item, e.g. M-44, alongside M-42/M-43)"
+    expected: "Footer pill tracks live web-share state through a real toggle on a live daemon session, from both the footer-opened and Hub-card-opened modal paths, with the shell warning already dismissed."
+    why_human: "This is the exact scenario 168-UAT.md Test 4 found broken. The fix (168-08) is proven correct at every individual seam by real mounted-component tests, but the full chain has not been re-confirmed live end-to-end since the fix landed. Note: 168-08-PLAN.md's own <verification> section defers this exact check to a live-UAT re-run and does not add a permanent TESTING.md manual checklist entry for it — recommend adding one so this regression class has standing coverage."
 ---
 
 # Phase 168: Bug Fix & Settings Polish Verification Report
 
 **Phase Goal:** Five web-share/Hub bugs are repaired and two Settings/Footer UX friction points eliminated, clearing Issues #112, #115, #116, #117, #118, and #121.
-**Verified:** 2026-07-01T23:09:58Z
+**Verified:** 2026-07-02T13:00:07Z
 **Status:** human_needed
-**Re-verification:** No — initial verification
+**Re-verification:** Yes — after gap-closure plan 168-08 (UX-02 / #115 footer pill drift), following live UAT that closed SC1/SC2 and surfaced the SC4 gap.
 
 ## Goal Achievement
 
@@ -50,126 +43,111 @@ human_verification:
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | A web-share guest sees live plugin-config changes without reload, no CSP errors in DevTools | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Core SSE hot-swap mechanism VERIFIED by a real-mount behavioral test (`WebShareSessionView.plugin-config.test.tsx` — dispatches a fake EventSource event and asserts the applied config updates without remount); live-browser CSP-console check needs human (TESTING.md M-43, already documented). |
-| 2 | Multiple simultaneous viewers coexist; owner can disconnect all viewers; Hub count updates within a poll cycle | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Backend mechanism VERIFIED by real Go tests under `-race` (`TestDisconnectWebViewers`, `TestHub_TwoWebOriginSubscribers_NoEviction` — construct real subscribers, broadcast frames, assert receipt/closure); live two-browser UI confirmation needs human (TESTING.md M-42, already documented). |
-| 3 | Opening a remote tailnet session opens an in-app tab (not external browser) and streams correctly | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Code wiring confirmed by direct source read (`handleOpenRemoteSession`/`handleModalExchange` call `openWebSessionTab`, never `BrowserOpenURL`) + `App.open-remote.test.tsx` (real-mount SessionCard click-path test + source-inspection); live cross-machine PTY streaming needs human (TESTING.md M-13, reworded by 168-07). |
-| 4 | Footer "Share Session" button opens the Share modal for the active session with no independent state drift | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | CR-01 fix (footer no-op for just-created session) VERIFIED — `hubSessions` seeded in `createTab`'s success path (App.tsx:822-839), covered by `App.createTab.hubSessionsSeed.test.tsx`. CR-02 fix (live-sync poll while modal open from a non-Hub tab, closing the Funnel-warm-up-hang/stale-viewer-count bug) is present and wired (App.tsx:1049-1070) but has **no dedicated test** — explicitly disclosed as untested in TESTING.md line 34 by the executor. This is a state-consistency invariant that needs a live check (no existing manual item covers it — recommend adding one). |
-| 5 | "Stay on Hub after creating session" toggle in Settings → Session Behavior prevents auto-switch when ON | ✓ VERIFIED | `internal/daemon/engine_stayonhub_test.go`/`api_stayonhub_test.go` (default false, persists, round-trips) all PASS. Frontend gating logic directly read at App.tsx:806-812 — a simple deterministic `if (!stayOnHubAfterCreateRef.current) setActiveId(sessionId)` guard, correctly ordered after unconditional `setTabs` (D-10); confirmed by direct code reading plus `App.createTab.stayOnHub.test.tsx` source-inspection assertions on exact ordering. |
-| 6 | A never-shared local session's Hub card reads 0 viewers (web-origin-only count) | ✓ VERIFIED | `internal/relay/hub_test.go` `TestRemoteViewerCount` and `internal/daemon/engine_test.go` `TestListSessions_ViewerCount` (plus `api_test.go` `TestAPI_ListSessionsViewerCount`) all PASS — real behavioral tests constructing mixed local/web subscribers and asserting the count excludes local-origin ones. `hub.RemoteViewerCount()` verified as the sole `engine.go` ListSessions call site (line 548); `SubscriberCount()`/`NotifyViewerCount` confirmed UNCHANGED (still used by `relay/server.go:506`), per the plan's prohibition. |
+| 1 | A web-share guest sees live plugin-config changes without reload, no CSP errors in DevTools (FIX-01) | ✓ VERIFIED | Mechanism verified by `WebShareSessionView.plugin-config.test.tsx` (real-mount SSE event dispatch); live confirmation now closed by human UAT — 168-UAT.md Test 1: PASS ("Find in scrollback" plugin toggle disabled live in the guest browser, no reload, no CSP violations in DevTools Console). |
+| 2 | Multiple simultaneous viewers coexist; owner can disconnect all viewers; Hub count updates within a poll cycle (FIX-02) | ✓ VERIFIED | Backend mechanism verified by real Go tests under `-race` (`TestDisconnectWebViewers`, `TestHub_TwoWebOriginSubscribers_NoEviction`); live confirmation now closed by human UAT — 168-UAT.md Test 2: PASS. |
+| 3 | Opening a remote tailnet session opens an in-app tab (not external browser) and streams correctly (FIX-03) | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Code wiring confirmed by direct source read (`handleOpenRemoteSession`/`handleModalExchange` call `openWebSessionTab`, never `BrowserOpenURL`) + `App.open-remote.test.tsx`. Live two-Mac confirmation attempted in 168-UAT.md Test 3 but **blocked** ("no second Mac right now") — unresolved, unchanged from the prior verification pass. |
+| 4 | Footer "Share Session" button opens the Share modal for the active session with no independent state drift (UX-02) | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | CR-01 (footer no-op for just-created session) and CR-03 (cross-tab state leak) sub-fixes remain ✓ VERIFIED (unchanged, regression-tested, no files touched by 168-08). The footer-pill-drift sub-bug that live UAT (Test 4) caught — pill stuck on "WEB OFF" while actively shared, once the shell warning was dismissed — is now fixed by gap-closure plan **168-08**: `SessionShareModal.onShareEnabledChange` callback (fires after a successful `ToggleWebServing`, both ON and OFF) wired in `App.tsx` to `setWebEnabled`. Verified fresh in this pass: real code present and correct (see Fresh Code Verification below), 4 new/extended behavioral+source-inspection tests pass, full 141-file/2324-test vitest suite green, `tsc --noEmit` clean, traceability script passes. No test mounts App.tsx end-to-end to observe the live pill flip — routed to human re-check (see Human Verification). |
+| 5 | "Stay on Hub after creating session" toggle prevents auto-switch when ON (UX-01) | ✓ VERIFIED (regression-checked, unchanged) | Not touched by 168-08. `internal/daemon/engine_stayonhub_test.go`/`api_stayonhub_test.go` and `App.createTab.stayOnHub.test.tsx` unaffected; full suite still green. |
+| 6 | A never-shared local session's Hub card reads 0 viewers (FIX-04) | ✓ VERIFIED (regression-checked, unchanged) | Not touched by 168-08. `TestRemoteViewerCount`, `TestListSessions_ViewerCount`, `TestAPI_ListSessionsViewerCount` unaffected. |
 
-**Score:** 2/6 truths fully automated-verified; 4/6 present + wired with strong partial automated coverage, full observable truth requires a human/live check (3 of the 4 were pre-planned as manual-only in TESTING.md; 1 — the CR-02 sub-behavior of truth #4 — is a newly surfaced gap in manual coverage).
+**Score:** 5/6 truths at ✓ VERIFIED status (including 2 newly closed by human UAT this pass); 1/6 (truth #4, the 168-08 sub-behavior only) present + wired with strong per-seam automated coverage but no full live end-to-end confirmation yet. Truth #3 (FIX-03) remains blocked on hardware availability, unchanged from the prior pass — not a new gap.
 
-### Code Review Fix Verification (not just SUMMARY claims — checked against actual code + re-ran tests)
+### Fresh Code Verification — 168-08 Gap Closure (Footer Pill Web-Share Drift, UX-02 / #115)
 
-All 6 findings from 168-REVIEW.md (3 Critical, 3 Warning) were independently re-verified in the current codebase, not just trusted from 168-REVIEW-FIX.md's narrative:
+Focus of this verification pass, checked directly against the current codebase (not trusted from 168-08-SUMMARY.md):
 
-| Finding | Fix commit | Verified in code | Verified by test |
-|---|---|---|---|
-| CR-01 footer Share button no-ops for just-created session | `e5391299` | `frontend/src/App.tsx:822-839` — `setHubSessions` appends a `SessionInfo` entry inside `createTab`'s success path, before `catch` | `App.createTab.hubSessionsSeed.test.tsx` PASS |
-| CR-02 no live updates when modal opened from non-Hub tab | `c6255942` | `frontend/src/App.tsx:1049-1070` — scoped poll effect (`shareModalSession` set AND `activeId !== HUB_TAB.id`) | **No dedicated test** (disclosed in TESTING.md; see truth #4 above) |
-| CR-03 missing `key` leaks state between remote tabs | `554f09b9` | `frontend/src/App.tsx:1714-1715` — `<WebShareSessionView key={wsSessionId} ...>` | `App.open-remote.test.tsx` (extended) PASS |
-| WR-01 modal shows "sharing ON" on backend failure | `5820fa6d` | `handleShellWebShareConfirm` returns `Promise<boolean>`; modal only sets `shareEnabled(true)` on `ok` | `SessionShareModal.test.tsx` (extended, success + new failure-path test) PASS |
-| WR-02 `engine.go` gofmt violation | `794ca22c` | `gofmt -l internal/daemon/engine.go` → empty (verified independently) | N/A (formatting) |
-| WR-03 `types.go` gofmt violation | `1e070a94` | `gofmt -l internal/daemon/types.go` → empty (verified independently) | N/A (formatting) |
-
-All 7 review-fix commits (`e5391299`, `c6255942`, `554f09b9`, `5820fa6d`, `794ca22c`, `1e070a94`, `1204d189`) are present in `git log` on the current branch, and the diffs match the claimed changes.
+| Item | File:Line | Verified |
+|---|---|---|
+| `onShareEnabledChange?: (sessionId: string, enabled: boolean) => void` prop declared | `frontend/src/components/Hub/SessionShareModal.tsx:70` | ✓ Present, optional, correctly typed |
+| Prop destructured in component signature | `SessionShareModal.tsx:104` | ✓ Present |
+| Invoked inside `handleShareToggle`'s success path, after `await ToggleWebServing` resolves, for both ON and OFF | `SessionShareModal.tsx:243-254` (`onShareEnabledChange?.(session.id, next)` at line 254, after `await ToggleWebServing(session.id, next)` at line 244 and `setShareEnabled(next)`/cache-clear) | ✓ Confirmed — not invoked inside the warning-guard early return (lines 239-242), matching the plan's no-double-set requirement with `handleShellWebShareConfirm` |
+| App.tsx single `<SessionShareModal>` render wires the callback | `frontend/src/App.tsx:1945-1958` — `onShareEnabledChange={(sessionId, enabled) => setWebEnabled((prev) => ({ ...prev, [sessionId]: enabled }))}` | ✓ Confirmed — single render site (grep confirms exactly one `<SessionShareModal` in App.tsx), correct setter shape |
+| Regression test: warned-path ON notifies | `frontend/src/components/__tests__/SessionShareModal.test.tsx:710-730` | ✓ PASS (real mount, real click, asserts `ToggleWebServing('sess-1', true)` and `onShareEnabledChange('sess-1', true)` called exactly once, no warning banner) |
+| Regression test: warned-path OFF notifies | `SessionShareModal.test.tsx:732-749` | ✓ PASS (real mount from already-shared state, real click, asserts OFF args on both mocks) |
+| Regression test: un-warned first-time shell path does NOT notify | `SessionShareModal.test.tsx:751-770` | ✓ PASS (asserts banner shown, `ToggleWebServing` NOT called, `onShareEnabledChange` NOT called — proves no double-set with `handleShellWebShareConfirm`) |
+| App-wiring source-inspection test | `frontend/src/components/__tests__/StatusBar.shareSession.test.tsx:178-184` | ✓ PASS (greps the `<SessionShareModal` render block in `App.tsx?raw` for co-located `onShareEnabledChange` and `setWebEnabled`) |
+| TESTING.md Suite Manifest note + 2 traceability rows | `TESTING.md:34, 215, 216` | ✓ Present, matches standing convention |
+| `check-traceability-paths.sh` | — | ✓ `OK: all traceability paths exist` |
+| Commits present in git log, diffs match claims | `2129a423` (fix), `a1b609ff` (test), `6ede69a2` (docs) | ✓ Confirmed via `git show --stat` — diffs are exactly the claimed +17/+94/-0 lines, nothing extraneous |
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `internal/relay/hub.go: (*Hub).RemoteViewerCount()` | Web-origin-only viewer count | ✓ VERIFIED | Present at line 232; `TestRemoteViewerCount` passes |
-| `internal/relay/hub.go: (*Hub).DisconnectWebViewers()` | Force-close web-origin subscribers | ✓ VERIFIED | Present at line 261; `TestDisconnectWebViewers`/`TestHub_TwoWebOriginSubscribers_NoEviction` pass under `-race` |
-| `internal/daemon/engine.go` viewerCount call site | Uses `RemoteViewerCount()`, not `SubscriberCount()` | ✓ VERIFIED | Line 548 confirmed; `SubscriberCount()` untouched, still used by `relay/server.go` |
-| `internal/daemon/api.go` disconnect + stay-on-hub routes | Daemon-local mux only | ✓ VERIFIED | `POST /sessions/{id}/disconnect-viewers` (line 154), `GET/PATCH /settings/stay-on-hub-after-create` (lines 127-128) registered on `a.mux`, not the guest-reachable webserver `/api/...` surface |
-| `internal/daemon/client.go` + `app.go` bound methods | `DisconnectViewers`, `Get/SetStayOnHubAfterCreate` | ✓ VERIFIED | Present, delegate correctly |
-| `frontend/src/components/Hub/WebShareSessionView.tsx: baseURL` prop + self-fetch/SSE | Web-guest live plugin-config | ✓ VERIFIED | Present at lines 29, 68-117; behavioral test passes |
-| `frontend/src/App.tsx: openWebSessionTab(sessionId, baseURL, capToken)` | Per-tab param carry | ✓ VERIFIED | Extended signature at line 1156; per-tab `Tab.baseURL` present at line 233 |
-| `frontend/src/components/SettingsTab.tsx` stay-on-hub toggle | In `id="settings-session-behavior"`, default OFF | ✓ VERIFIED | Lines 589 (section) / 616-641 (toggle) — correctly placed, NOT under `id="settings-behavior"` |
-| `frontend/src/components/StatusBar.tsx` "Share Session" button | Single label, `onShareSession` prop | ✓ VERIFIED | Lines 7, 50, 53 |
-| `frontend/src/components/Hub/SessionShareModal.tsx` "Disconnect all viewers" button | Reversible/ghost style, gated on `viewerCount > 0` | ✓ VERIFIED | Lines 276-282, 537-549; uses `.hub-share-internet-section__disable`, NOT destructive class |
-| `TESTING.md` Suite Manifest / Traceability / manual checklist updates | All new test files registered; M-13 reworded; M-42/M-43 added | ✓ VERIFIED | Confirmed via grep; `bash tests/check-traceability-paths.sh` exits 0 |
+| `internal/relay/hub.go: (*Hub).RemoteViewerCount()` | Web-origin-only viewer count | ✓ VERIFIED (unchanged) | Not touched by 168-08 |
+| `internal/relay/hub.go: (*Hub).DisconnectWebViewers()` | Force-close web-origin subscribers | ✓ VERIFIED (unchanged) | Not touched by 168-08 |
+| `internal/daemon/engine.go` viewerCount call site | Uses `RemoteViewerCount()` | ✓ VERIFIED (unchanged) | Not touched by 168-08 |
+| `frontend/src/components/Hub/WebShareSessionView.tsx` | Web-guest live plugin-config | ✓ VERIFIED (unchanged) | Not touched by 168-08; live-confirmed by 168-UAT Test 1 |
+| `frontend/src/components/SettingsTab.tsx` stay-on-hub toggle | Default OFF | ✓ VERIFIED (unchanged) | Not touched by 168-08 |
+| `frontend/src/components/StatusBar.tsx` "Share Session" button | Single label | ✓ VERIFIED (unchanged) | Not touched by 168-08 |
+| `frontend/src/components/Hub/SessionShareModal.tsx` `onShareEnabledChange` prop | Fires on ON/OFF after successful toggle | ✓ VERIFIED (new, 168-08) | Line 70 (decl), 104 (destructure), 254 (invocation) |
+| `frontend/src/App.tsx` `<SessionShareModal>` wiring | `onShareEnabledChange` → `setWebEnabled` | ✓ VERIFIED (new, 168-08) | Lines 1945-1958 |
+| `TESTING.md` Suite Manifest / Traceability | 168-08 note + 2 rows | ✓ VERIFIED (new, 168-08) | Lines 34, 215, 216 |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|-----|-----|--------|---------|
-| `engine.go` ListSessions | `hub.RemoteViewerCount()` | direct call | ✓ WIRED | Line 548 |
-| App.tsx `handleOpenRemoteSession`/`handleModalExchange` | `openWebSessionTab` | in-app tab, no `BrowserOpenURL` | ✓ WIRED | Lines 1286, 1388; `BrowserOpenURL` only remains at `onOpenURL={BrowserOpenURL}` (help-link handler, unrelated to remote-session open) |
-| App.tsx `createTab` | `setActiveId` | gated on `stayOnHubAfterCreateRef.current` | ✓ WIRED | Lines 806-812; tab always created (line 805) before the gate |
-| StatusBar "Share Session" button | `openShareModalForActiveSession` | `onShareSession` prop | ✓ WIRED | App.tsx:1926, StatusBar.tsx:50 |
-| SessionShareModal "Disconnect all viewers" | `DisconnectViewers(session.id)` RPC | `handleDisconnectViewers` | ✓ WIRED | SessionShareModal.tsx:280-282 → app.go:1034 → client.go:389-390 → api.go:1316-1324 |
-| `<WebShareSessionView>` render site | remounts per remote session | `key={wsSessionId}` | ✓ WIRED | App.tsx:1714-1715 (CR-03 fix) |
+| `SessionShareModal.handleShareToggle` success path | `onShareEnabledChange(session.id, next)` | direct call after `await ToggleWebServing` resolves | ✓ WIRED | `SessionShareModal.tsx:254`; behaviorally proven for both ON and OFF by real click tests |
+| App.tsx `<SessionShareModal>` render | `setWebEnabled` | `onShareEnabledChange` prop callback | ✓ WIRED | `App.tsx:1955-1957`; confirmed by source-inspection test (App.tsx not fully mountable — established, pre-existing test-suite convention) |
+| `webEnabled[sessionId]` | StatusBar pill label | `!!webEnabled[tab.sessionId]` prop → "WEB ON"/"WEB OFF" | ✓ WIRED | Confirmed by pre-existing `StatusBar.shareSession.test.tsx` tests (lines 65-83) that mount StatusBar directly with each `webEnabled` value and assert the rendered label |
+| (full chain) modal click → footer pill on a live App.tsx instance | — | — | ⚠️ NOT DIRECTLY TESTED | No test mounts App.tsx end-to-end; each individual link above is independently proven. Routed to human verification. |
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| Go build | `go build ./...` | clean, exit 0 | ✓ PASS |
-| Go gofmt | `gofmt -l internal/daemon/engine.go internal/daemon/types.go internal/relay/hub.go internal/daemon/api.go internal/daemon/client.go app.go` | empty output | ✓ PASS |
-| Go relay/daemon full package tests (`-race -short -count=1`) | `go test -race -short -count=1 ./internal/relay/... ./internal/daemon/...` | `ok` both packages | ✓ PASS |
-| FIX-04 targeted Go tests | `go test ./internal/relay/... ./internal/daemon/... -run 'TestRemoteViewerCount\|TestListSessions_ViewerCount'` | PASS | ✓ PASS |
-| FIX-02 targeted Go tests (`-race`) | `go test ./internal/relay/... -run 'TestDisconnectWebViewers\|TestHub_TwoWebOriginSubscribers_NoEviction' -race` | PASS | ✓ PASS |
-| UX-01 targeted Go tests | `go test ./internal/daemon/... -run StayOnHub` | PASS (9 subtests) | ✓ PASS |
-| FIX-02 daemon RPC tests | `go test ./internal/daemon/... -run DisconnectViewers` | PASS | ✓ PASS |
-| Targeted vitest (8 files, phase + review-fix tests) | `pnpm vitest run WebShareSessionView.plugin-config App.open-remote App.createTab.stayOnHub SettingsTab.stay-on-hub-toggle StatusBar.shareSession SessionShareModal.disconnect App.createTab.hubSessionsSeed SessionShareModal` | 8 files / 104 tests PASS | ✓ PASS |
-| Full frontend vitest suite | `pnpm vitest run` | 141 files / 2320 tests PASS | ✓ PASS |
+| Targeted vitest (168-08 files) | `pnpm vitest run SessionShareModal StatusBar.shareSession --run` | 3 files / 57 tests PASS | ✓ PASS |
+| Full frontend vitest suite | `pnpm vitest run` | 141 files / 2324 tests PASS (up from 2320 — +4 new tests, 0 new files, matches plan's "net 0 new files" claim) | ✓ PASS |
 | Frontend typecheck | `pnpm exec tsc --noEmit` | clean, exit 0 | ✓ PASS |
 | Traceability checker | `bash tests/check-traceability-paths.sh` | `OK: all traceability paths exist`, exit 0 | ✓ PASS |
+| Backend/relay regression (no files touched by 168-08) | `git diff --stat <prior-commit> HEAD -- internal/ app.go` | empty diff | ✓ CONFIRMED unaffected |
 
 ### Requirements Coverage
 
-| Requirement | Source Plan | Description | Status | Evidence |
-|-------------|-------------|--------------|--------|----------|
-| FIX-01 | 168-02 | Web-guest plugin-config self-fetch + SSE hot-swap | ✓ SATISFIED (mechanism); live CSP check human-pending | Code + behavioral test present; M-43 manual item |
-| FIX-02 | 168-06 | Multi-viewer + owner disconnect | ✓ SATISFIED (mechanism); live 2-viewer check human-pending | Code + Go behavioral tests present; M-42 manual item |
-| FIX-03 | 168-03 | Remote session opens in-app tab | ✓ SATISFIED (mechanism); live cross-machine check human-pending | Code + tests present; M-13 manual item (reworded) |
-| FIX-04 | 168-01 | Hub viewer count excludes local subscribers | ✓ SATISFIED | Fully automated-verified |
-| UX-01 | 168-04 | Stay-on-Hub-after-create toggle | ✓ SATISFIED | Fully automated-verified |
-| UX-02 | 168-05 (+ 168-REVIEW-FIX CR-01/CR-02) | Footer Share Session button, no state drift | ⚠️ PARTIALLY SATISFIED | CR-01 sub-fix automated-verified; CR-02 sub-fix present/wired but untested — new human item recommended |
+| Requirement | Source Plan(s) | Description | Status | Evidence |
+|-------------|-----------------|--------------|--------|----------|
+| FIX-01 | 168-02 (+168-07) | Web-guest plugin-config self-fetch + SSE hot-swap | ✓ SATISFIED | Code + behavioral test + human UAT PASS (Test 1) |
+| FIX-02 | 168-06 (+168-07) | Multi-viewer + owner disconnect | ✓ SATISFIED | Code + Go behavioral tests + human UAT PASS (Test 2) |
+| FIX-03 | 168-03 (+168-07) | Remote session opens in-app tab | ⚠️ SATISFIED (mechanism); live cross-machine check still blocked | Code + tests present; 168-UAT Test 3 blocked (no second Mac) |
+| FIX-04 | 168-01 (+168-07) | Hub viewer count excludes local subscribers | ✓ SATISFIED | Fully automated-verified, unchanged |
+| UX-01 | 168-04 (+168-07) | Stay-on-Hub-after-create toggle | ✓ SATISFIED | Fully automated-verified, unchanged |
+| UX-02 | 168-05, 168-REVIEW-FIX (CR-01/CR-02), **168-08** | Footer Share Session button, no state drift | ⚠️ SATISFIED (mechanism, freshly closed); live end-to-end re-check recommended | CR-01/CR-03 automated-verified (unchanged); footer-pill-drift bug found by live UAT is now fixed by 168-08 with full per-seam test coverage; full-chain live re-check pending |
 
-No orphaned requirements — REQUIREMENTS.md maps exactly FIX-01, FIX-02, FIX-03, FIX-04, UX-01, UX-02 to Phase 168 (all marked "Complete"), matching the union of every plan's `requirements:` frontmatter field exactly.
+No orphaned requirements — REQUIREMENTS.md maps exactly FIX-01, FIX-02, FIX-03, FIX-04, UX-01, UX-02 to Phase 168 (all marked "Complete"), matching the union of every plan's `requirements:` frontmatter field exactly (168-01 through 168-08).
+
+Note: the phase goal statement says "clearing Issues #112, #115, #116, #117, #118, and #121" — these are still OPEN on GitHub as of this verification (checked via `gh issue view`). No plan task in this phase closes GitHub issues via `gh issue close`; issue closure is a separate, manual, post-verification project-management action in this project's established workflow (consistent with prior phases/milestones), not a code-verifiable artifact. Not treated as a gap.
 
 ### Anti-Patterns Found
 
-None. Scanned all files touched by plans 01-07 and the review-fix commits (`internal/relay/hub.go`, `internal/relay/hub_test.go`, `internal/daemon/engine.go`, `internal/daemon/types.go`, `internal/daemon/api.go`, `internal/daemon/client.go`, `app.go`, `frontend/src/components/Hub/WebShareSessionView.tsx`, `frontend/src/App.tsx`, `frontend/src/components/SettingsTab.tsx`, `frontend/src/components/StatusBar.tsx`, `frontend/src/components/Hub/SessionShareModal.tsx`, `frontend/src/components/Hub/HubPanel.tsx`) for `TBD`/`FIXME`/`XXX`/`TODO`/`HACK`/`PLACEHOLDER`/"not yet implemented" markers — none found (one benign pre-existing user-facing error-message string containing the words "Funnel not available" is not a debt marker).
+None. Scanned the 168-08-touched files (`frontend/src/components/Hub/SessionShareModal.tsx`, `frontend/src/App.tsx`, the two extended test files, `TESTING.md`) for `TBD`/`FIXME`/`XXX`/`TODO`/`HACK`/`PLACEHOLDER`/"not yet implemented" markers — none found. All prior-phase files (01-07 scope) re-confirmed clean by the unchanged-diff check above.
 
 ## Human Verification Required
 
-### 1. FIX-01 live browser plugin-config hot-swap + CSP check (TESTING.md M-43)
-
-**Test:** Open the `/app/` share URL in a real (non-Wails) browser; change plugin-config server-side; confirm live hot-swap without page reload; inspect DevTools Console for CSP errors.
-**Expected:** Config applies live; no CSP violations in the Console.
-**Why human:** Real browser CSP enforcement + DevTools Console inspection cannot be exercised in jsdom.
-
-### 2. FIX-02 live two-browser-viewer smoke test (TESTING.md M-42)
-
-**Test:** Two real browser clients open the same share link; confirm neither is kicked; click "Disconnect all viewers"; confirm both drop and the Hub card's viewer count returns to 0 within a poll cycle.
-**Expected:** Both viewers coexist; Disconnect drops both; visible Hub count reaches 0.
-**Why human:** Requires two real browser clients and observation of the live Hub poll cycle.
-
-### 3. FIX-03 live two-Mac remote-open in-app tab check (TESTING.md M-13, reworded)
+### 1. FIX-03 live two-Mac remote-open in-app tab check (TESTING.md M-13) — carried forward, unresolved
 
 **Test:** On a live two-Mac tailnet, open a remote session from the Hub; confirm an in-app tab opens (no external browser window) and streams real PTY output; open a second different remote session; confirm two independent, non-cross-contaminated tabs.
 **Expected:** In-app tab per session; live streaming; correct per-tab isolation.
-**Why human:** Requires two real Macs on the same tailnet — no automated tailnet peer exists in this repo's test environment.
+**Why human:** Requires two real Macs on the same tailnet. 168-UAT.md Test 3 reports "blocked, no second Mac right now" — genuinely untestable in this environment, not a defect finding.
 
-### 4. UX-02 / CR-02 live-sync check for the footer Share button opened from a non-Hub tab (NOT YET in TESTING.md — recommended new manual item)
+### 2. UX-02 / 168-08 footer-pill-drift fix — live end-to-end re-check (recommend new TESTING.md manual item, e.g. M-44)
 
-**Test:** Create a new session (default `stayOnHubAfterCreate=OFF` auto-switches to it, so you land on the session's own tab, not Hub). From that session tab, click the footer "Share Session" button. Enable Funnel and confirm the warm-up UI resolves to "live" via actual server state (not the 30s timeout fallback) once the daemon enables it. Have a second browser join as a viewer and confirm the modal's viewer count and "Disconnect all viewers" button visibility update live while the modal remains open from the session tab (not the Hub tab).
-**Expected:** Funnel warm-up resolves promptly from live poll data; viewer count / Disconnect-button visibility track server truth without needing to close and reopen the modal or visit the Hub tab.
-**Why human:** This is the exact scenario Critical finding CR-02 fixed (a scoped `ListSessions()` poll effect gated on `shareModalSession` being set and the Hub tab not already polling — `frontend/src/App.tsx:1049-1070`). The fix is present, wired, and structurally sound on code inspection, but the executor's own TESTING.md disclosure (line 34) states no dedicated automated test exercises this poll/live-sync behavior — it is only indirectly touched via `SessionShareModal.test.tsx`'s Funnel warm-up suite through prop threading, not a focused interval/timing test. Given this closes a Critical (not Warning) finding about a real user-visible hang (Funnel warm-up appearing stuck for 30s despite Funnel actually being live), a live confirmation is warranted before treating it as durably fixed, and a permanent regression-guard manual item should be added to TESTING.md's Category J/Q area alongside M-42/M-43.
+**Test:** On a live daemon session with a shell CLI, dismiss the one-time shell-web-share warning once. From the Share modal (opened either via the footer "Share Session" button or a Hub card), toggle "Share the session" ON — confirm the footer pill immediately reads "WEB ON" (not stuck on "WEB OFF"). Toggle OFF — confirm it returns to "WEB OFF". Repeat via the other open path (footer vs. Hub card) to cover both.
+**Expected:** Footer pill always matches live server web-share state; no stale label after either toggle direction or either open path.
+**Why human:** This is the exact scenario 168-UAT.md Test 4 found broken in the prior pass. The 168-08 fix is proven correct at every individual seam (modal→callback: real click test; callback→App wiring: source-inspection of the trivial one-line setter; App state→pill label: existing StatusBar render test) — but no test mounts App.tsx end-to-end, so the full click-to-pill-flip chain has not been observed live since the fix landed. Given this precise integration point already produced one live-UAT-only-detectable bug, closing evidence should be a fresh live confirmation rather than trusting per-seam proofs to compose correctly. Recommend making this a permanent TESTING.md manual checklist item (M-44) alongside M-42/M-43 so this regression class has standing coverage going forward — 168-08-PLAN.md's own `<verification>` section deferred this check but did not add a permanent entry.
 
 ## Gaps Summary
 
-No BLOCKER-level gaps. All 6 requirements (FIX-01..04, UX-01, UX-02) have working, wired implementations; all 7 code-review-fix commits landed and were independently re-verified in the current source (not just trusted from 168-REVIEW-FIX.md); the full Go test suite (`-race -short`) and full frontend vitest suite (2320 tests) pass; `tsc --noEmit`, `gofmt -l`, `go vet` (via build), and `check-traceability-paths.sh` are all clean.
+No BLOCKER-level gaps. All 6 requirements (FIX-01..04, UX-01, UX-02) have working, wired, tested implementations. The gap-closure plan 168-08 correctly root-caused and fixed the exact footer-pill-drift bug that live UAT surfaced (168-UAT.md Test 4), with real behavioral regression tests (not just source presence) proving the modal-level callback fires correctly on both ON and OFF transitions, and a source-inspection test proving the trivial App-level wiring exists. The fix is a small, well-scoped diff (17 lines of implementation) that does not touch the CR-02 poll, the seed effects, or `handleShellWebShareConfirm`, matching the plan exactly. `tsc --noEmit`, the full 141-file/2324-test vitest suite, and `check-traceability-paths.sh` are all clean; no regressions were introduced (Go/backend files are untouched by this plan).
 
-The phase is **not** blocked, but 4 of the 6 roadmap success criteria have an observable-truth component that automated tests cannot fully close:
+Two items remain open for human/live confirmation, carried into this phase's closing UAT round:
 
-- 3 of these (SC1/FIX-01, SC2/FIX-02, SC3/FIX-03) were correctly anticipated by the phase's own planning and are already tracked as manual-only items in TESTING.md (M-43, M-42, M-13) — this is expected, not a defect, for live-browser/live-network/live-cross-machine behavior.
-- 1 (SC4/UX-02, specifically the CR-02 code-review-fix sub-behavior) is a genuine coverage gap the executor itself flagged in TESTING.md but did not turn into a manual checklist item. Recommend either (a) adding a TDD fake-timer regression test for the `App.tsx:1049-1070` poll effect in a follow-up phase, or (b) adding a new TESTING.md manual item (Category J or a new Category) covering the live-sync-from-non-Hub-tab scenario, and running it once before this phase is considered fully closed out.
+1. **FIX-03 (SC3)** — blocked purely on hardware availability (no second Mac), unchanged from the prior verification pass. Not a code defect.
+2. **UX-02 footer-pill-drift fix (168-08)** — code is present, correct, and covered by real component-level tests at every seam, but the full end-to-end chain (click on a live daemon session → visible pill flip) has not been re-observed live since the fix landed. Given this exact seam already fooled a prior "looks correct" code-review assessment once (the original CR-02 review marked the modal wiring "structurally sound" while the notify-callback didn't exist at all), a fresh live re-check is the appropriate bar before calling UX-02 durably closed. Recommend adding a permanent TESTING.md manual item (M-44) for this scenario.
+
+Neither item blocks phase progression on its own technical merits (the underlying code changes are sound and tested), but both require a human/live pass before the phase can be marked fully `passed`.
 
 ---
 
-_Verified: 2026-07-01T23:09:58Z_
+_Verified: 2026-07-02T13:00:07Z_
 _Verifier: Claude (gsd-verifier)_
