@@ -522,6 +522,11 @@ Plans:
 
 - [x] 168-07-PLAN.md — Regression-suite wiring: TESTING.md manifest/traceability + M-13 reword + manual M-NN [wave 5]
 
+**Gap closure** *(UAT/verification failures)*
+
+- [x] 168-08-PLAN.md — UX-02/#115 gap: footer Share pill web-share drift (modal toggle notifies App.webEnabled) [gap closure]
+- [ ] 168-09-PLAN.md — FIX-03 gap: remote web-session tab — daemon-proxy transport (RC-A) + full-height wrapper (RC-B) + "Open in tab" relabel (RC-C) [gap closure]
+
 **UI hint**: yes
 
 ### Phase 169: Tailscale Detection Fix
