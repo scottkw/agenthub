@@ -71,6 +71,8 @@ interface ModalOpts {
   onShellWebShareCancel?: () => void
   // Phase 166 FUI-06
   onOpenHelp?: () => void
+  // Phase 168-08 (UX-02 / #115 gap closure)
+  onShareEnabledChange?: (sessionId: string, enabled: boolean) => void
 }
 
 function makeSession(opts: ModalOpts = {}) {
@@ -106,6 +108,7 @@ function renderModal(opts: ModalOpts = {}) {
         onShellWebShareConfirm: opts.onShellWebShareConfirm,
         onShellWebShareCancel: opts.onShellWebShareCancel,
         onOpenHelp: opts.onOpenHelp,
+        onShareEnabledChange: opts.onShareEnabledChange,
       })
     )
   })
@@ -692,5 +695,77 @@ describe('SessionShareModal — FUI-05: warm-up timeout + timer cleanup (fake ti
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Phase 168-08 (gap): onShareEnabledChange notifies App on modal toggle in
+// the already-warned path — closes the UX-02 / #115 footer pill drift.
+// ---------------------------------------------------------------------------
+describe('SessionShareModal — Phase 168-08 (gap): onShareEnabledChange notifies App on modal toggle in the already-warned path', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('warned shell path: toggling ON calls ToggleWebServing(id, true) and onShareEnabledChange(id, true); no banner', async () => {
+    const onShareEnabledChange = vi.fn()
+    const { container: c } = renderModal({
+      cli: '/bin/zsh',
+      shellWebShareWarned: true,
+      shellWebShareWarningEnabled: true,
+      webEnabled: false,
+      onShareEnabledChange,
+    })
+    const shareToggle = c.querySelector('[role="switch"][aria-label*="Share"], input[type="checkbox"]') as HTMLElement | null
+    expect(shareToggle).not.toBeNull()
+    await flushSync(() => { shareToggle!.click() })
+    await new Promise<void>((r) => setTimeout(r, 0))
+
+    expect(mockedToggleWebServing).toHaveBeenCalledWith('sess-1', true)
+    expect(onShareEnabledChange).toHaveBeenCalledWith('sess-1', true)
+    expect(onShareEnabledChange).toHaveBeenCalledTimes(1)
+    // No shell-warning banner — already warned.
+    const text = c.textContent ?? ''
+    expect(text).not.toMatch(/expose.*command execution/i)
+  })
+
+  it('warned shell path: toggling OFF (already shared) calls ToggleWebServing(id, false) and onShareEnabledChange(id, false)', async () => {
+    const onShareEnabledChange = vi.fn()
+    const { container: c } = renderModal({
+      cli: '/bin/zsh',
+      shellWebShareWarned: true,
+      shellWebShareWarningEnabled: true,
+      webEnabled: true, // already shared
+      onShareEnabledChange,
+    })
+    const shareToggle = c.querySelector('[role="switch"][aria-label*="Share"], input[type="checkbox"]') as HTMLElement | null
+    expect(shareToggle).not.toBeNull()
+    await flushSync(() => { shareToggle!.click() })
+    await new Promise<void>((r) => setTimeout(r, 0))
+
+    expect(mockedToggleWebServing).toHaveBeenCalledWith('sess-1', false)
+    expect(onShareEnabledChange).toHaveBeenCalledWith('sess-1', false)
+    expect(onShareEnabledChange).toHaveBeenCalledTimes(1)
+  })
+
+  it('un-warned first-time shell path: toggling ON shows the banner and does NOT call onShareEnabledChange (no double-set with handleShellWebShareConfirm)', async () => {
+    const onShareEnabledChange = vi.fn()
+    const { container: c } = renderModal({
+      cli: '/bin/zsh',
+      shellWebShareWarned: false,
+      shellWebShareWarningEnabled: true,
+      onShellWebShareConfirm: vi.fn().mockResolvedValue(true),
+      onShellWebShareCancel: vi.fn(),
+      onShareEnabledChange,
+    })
+    const shareToggle = c.querySelector('[role="switch"][aria-label*="Share"], input[type="checkbox"]') as HTMLElement | null
+    expect(shareToggle).not.toBeNull()
+    await flushSync(() => { shareToggle!.click() })
+    await new Promise<void>((r) => setTimeout(r, 0))
+
+    const text = c.textContent ?? ''
+    expect(text).toMatch(/web sharing this shell|expose.*command execution/i)
+    expect(mockedToggleWebServing).not.toHaveBeenCalled()
+    expect(onShareEnabledChange).not.toHaveBeenCalled()
   })
 })

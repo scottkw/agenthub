@@ -167,6 +167,21 @@ describe('App.tsx wiring — footer "Share Session" opens the lifted Share modal
     const block = raw.slice(idx, idx + 400)
     expect(block).toContain('session={shareModalSession}')
   })
+
+  // Phase 168-08 (gap): the modal's own toggle must notify App so webEnabled —
+  // and therefore the footer pill — tracks the modal toggle for every path
+  // (footer-opened + Hub-card-opened, warned + un-warned). App.tsx is not
+  // fully mountable in this codebase's test convention (see file header), so
+  // this is a source-inspection proof that the wiring exists at the single
+  // <SessionShareModal> render site, matching the D3 rationale in
+  // 168-05-SUMMARY.md.
+  it('wires onShareEnabledChange on the <SessionShareModal> render to setWebEnabled, closing the UX-02 / #115 footer pill drift', () => {
+    const idx = raw.indexOf('<SessionShareModal')
+    expect(idx).toBeGreaterThan(-1)
+    const block = raw.slice(idx, idx + 600)
+    expect(block).toContain('onShareEnabledChange')
+    expect(block).toContain('setWebEnabled')
+  })
 })
 
 describe('App.tsx tab-type gate — footer Share affordance hidden on non-shareable tabs (D-15, T-168-06)', () => {
