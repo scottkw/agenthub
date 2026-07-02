@@ -388,7 +388,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 166: Funnel Frontend + Help Guide** (5/5 plans) — completed 2026-06-30, verified 8/8 - Risk-acknowledgment dialog, auto-expiry selector, colorblind-safe internet-exposure indicator, Funnel URL display, one-click disable, in-app Sharing Guide Help article
 - [x] **Phase 167: Native Notifications** - beeep cross-platform notification on waiting-state transition, de-dup guard, Settings toggle (default off) (7/7 plans executed 2026-07-01, incl. 167-05/06/07 M-41 crash-hardening + instrumentation + permission-denied hint) — CLOSED complete 2026-07-01; code-verified 11/11, M-41 live on-screen delivery DEFERRED to release-time UAT on signed macOS/Windows/Linux builds (inherently unautomatable)
 - [x] **Phase 168: Bug Fix & Settings Polish** - Fix #112 (web-guest plugin-config SSE), #117 (multi-viewer kick + disconnect UI), #118 (remote-open in-app tab), #115 (Footer Share modal), #116 (Hub auto-switch setting), #121 (phantom viewer count — pairs with #117) (9/9 plans executed 2026-07-02, incl. 168-08 UX-02 footer-pill drift + 168-09 FIX-03 remote-tab RC-A/B/C gap-closures) — CLOSED complete 2026-07-02; verified 6/6 must-haves, all live UAT 4/4 PASS (FIX-01/02/03 + UX-02 confirmed on a two-Mac tailnet production build)
-- [x] **Phase 169: Tailscale Detection Fix** - Fix #120 (Tailscale reports "installed but not Connected" on non-admin macOS accounts where `macsys` `sameuserproof` is unreadable — add a CLI `status` fallback) (completed 2026-07-02)
+- [ ] **Phase 169: Tailscale Detection Fix** - Fix #120 (Tailscale reports "installed but not Connected" on non-admin macOS accounts where `macsys` `sameuserproof` is unreadable) — **HALTED 2026-07-02, needs re-plan.** Original CLI-`status`-fallback approach invalidated (CR-01: same per-user permission gate). Re-scoped to honest permission-aware detection.
 
 ## Phase Details
 
@@ -536,12 +536,15 @@ Plans:
 **Requirements**: FIX-05
 **Success Criteria** (what must be TRUE):
 
-  1. On a non-admin macOS account where the `macsys` `sameuserproof` file is unreadable (root:admin 0640), Tailscale status reports "Connected" via a CLI `status` fallback when the SDK read fails — instead of the current "installed but not connected"
-  2. On accounts where the SDK read succeeds, behavior is unchanged (fallback is only engaged on read failure)
+  1. On a non-admin macOS account where the `macsys` `sameuserproof` file is unreadable (root:admin 0640), Tailscale detection reports an accurate state — "daemon running, status unreadable (permission-limited on non-admin macsys)" — instead of a false "installed but not connected"
+  2. On accounts where the SDK read succeeds, behavior is unchanged
+  3. The UI surfaces actionable guidance (grant admin, or use the Homebrew build) for the permission-limited state
 
-**Plans**: 1/1 plans complete
+> **Re-plan needed (2026-07-02).** Original CLI-`status`-fallback approach invalidated by Phase 169 code review (CR-01): both the SDK read and a spawned non-setuid `tailscale` CLI run as the same OS user and hit the identical `0640 root:admin` `sameuserproof` gate that `tailscaled` sets by design; only the macsys GUI bypasses it via in-process `SetCredentials`. Re-scoped to honest permission-aware detection (EACCES-vs-daemon-down). See 169-REVIEW.md.
 
-- [x] 169-01-PLAN.md — CLI `tailscale status --json` fallback in checkHealth (engages only on SDK read error): full-struct reconstruction + injected-fake tests (SC1/SC2/D-05) + TESTING.md registration
+**Plans**: 0/1 plans complete (169-01 executed but approach invalidated — code to be reverted in re-plan)
+
+- [~] 169-01-PLAN.md — CLI `tailscale status --json` fallback (INVALIDATED by CR-01; to be reverted). Code committed (608af809, c93d0774) but does not fix #120.
 
 **UI hint**: no
 
@@ -553,7 +556,7 @@ Plans:
 | 166. Funnel Frontend + Help Guide | 5/5 | Complete (verified 8/8) | 2026-06-30 |
 | 167. Native Notifications | 7/7 | Complete   | 2026-07-01 |
 | 168. Bug Fix & Settings Polish | 9/9 | Complete   | 2026-07-02 |
-| 169. Tailscale Detection Fix | 1/1 | Complete   | 2026-07-02 |
+| 169. Tailscale Detection Fix | 0/1 | Halted — re-plan (CR-01) | — |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
