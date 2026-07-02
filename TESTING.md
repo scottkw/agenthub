@@ -700,6 +700,14 @@ The alias-set wire contract, client-side validateAlias, alias-control component 
   - _Why not automatable:_ requires a real browser's DevTools Console (headless vitest/Playwright cannot substitute for human visual/console inspection of a live SSE-driven hot-swap plus CSP header behavior on the actually-shared `/app/` route); the `:34115` wails-dev bridge is the desktop app's own webview, not an independent browser client.
   - _Source:_ Phase 168-02 (#112, v4.2) RESEARCH Pitfall 1 (T-168-03 CSP gap, scottkw/agenthub#123) + `WebShareSessionView.plugin-config.test.tsx` traceability row (FIX-01).
 
+- **M-44** Footer web-share pill live-sync check (UX-02, #115): the footer StatusBar pill must track the active session's real web-share state through the Share modal toggle, with no button↔modal↔pill drift — including after the one-time shell-web-share warning has been dismissed (`shellWebShareWarned=true`).
+  1. On the owner's machine, start a session. If the one-time shell-web-share warning banner has never been dismissed, open the Share modal once and dismiss/confirm it so `shellWebShareWarned` is persisted `true` (this is the regression condition — the pre-168-08 bug only manifested AFTER the warning was dismissed).
+  2. Open the Share modal via the **footer "Share Session" button** and toggle "Share the session" ON. Confirm the footer pill flips to **WEB ON** live (no reload) while the modal shows the session actively shared.
+  3. Toggle "Share the session" OFF from the same modal. Confirm the footer pill returns to **WEB OFF** with no stale "WEB ON" left behind.
+  4. Repeat steps 2-3 with the modal opened via the **Hub session card** (not the footer button) to confirm both modal-open paths keep the pill in sync.
+  - _Why not automatable:_ the individual seams (modal→`onShareEnabledChange` callback, callback→`App.setWebEnabled` wiring, `webEnabled`→pill label) each have mounted-component/source regression tests, but no test mounts `App.tsx` end-to-end against a live daemon to observe the full click→`ToggleWebServing`→pill-flip chain through both modal-open paths — and this exact integration point already produced one live-UAT-only-detectable bug (the pre-168-08 drift). Requires a real daemon session and human observation of the footer pill on a production build.
+  - _Source:_ Phase 168-08 (#115, v4.2) gap closure — 168-UAT.md Test 4 (footer pill drift) + `SessionShareModal.test.tsx`/`StatusBar.shareSession.test.tsx` traceability rows (UX-02); 168-VERIFICATION.md (human_needed, live re-check deferred to prod build).
+
 ---
 
 ## 6. Standing Convention
