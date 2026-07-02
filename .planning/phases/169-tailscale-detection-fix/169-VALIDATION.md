@@ -1,8 +1,8 @@
 ---
 phase: 169
 slug: tailscale-detection-fix
-status: draft
-nyquist_compliant: false
+status: approved
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-07-02
 ---
@@ -41,7 +41,8 @@ created: 2026-07-02
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
 | 169-01-01 | 01 | 1 | FIX-05 | — | CLI fallback fully removed; SDK-success path byte-identical | build/regression | `go build ./... && go vet ./... && go test ./internal/webserver/ -run TestCheckHealth -count=1` | ✅ (revert) | ⬜ pending |
 | 169-01-02 | 01 | 1 | FIX-05 | T-169-01 (symlink→int parse) | Permission-limited detected, Connected stays false; daemon-down NOT flagged | unit (`permProbeFunc` fake) | `go test ./internal/webserver/ -run TestCheckHealth_PermissionLimited -count=1` | ❌ W0 (new) | ⬜ pending |
-| 169-01-03 | 01 | 2 | FIX-05 | — | SettingsTab shows distinct guidance row, never "Connected" | unit (vitest) + manual | `cd frontend && pnpm test SettingsTab` | ❌ W0 (new) | ⬜ pending |
+| 169-02-01 | 02 | 2 | FIX-05 | T-169-05 (misleading UI) | SettingsTab shows distinct guidance, never "Connected" | unit (vitest) + manual (M-45) | `cd frontend && pnpm test SettingsTab` | ❌ W0 (new) | ⬜ pending |
+| 169-02-02 | 02 | 2 | FIX-05 | — | TESTING.md manifest/traceability reconciled; M-45 macsys-specific | doc/traceability | `bash tests/check-traceability-paths.sh` | ✅ exists | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -65,11 +66,11 @@ created: 2026-07-02
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter (planner sets when tasks map cleanly)
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-07-02 (plan-checker PASS, 0 blockers)

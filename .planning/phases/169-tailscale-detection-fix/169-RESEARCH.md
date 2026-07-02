@@ -391,17 +391,17 @@ function tailscaleStatusText(h: SettingsTabProps['tailscaleHealth']): string {
 
 **Note:** A1–A3 are all *fail-safe*: every uncertainty degrades to "report today's daemon-down state," never to a false Connected. This aligns with the hard SC.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should `DaemonUp` be true in the permission-limited state?**
+1. **Should `DaemonUp` be true in the permission-limited state?** — **RESOLVED (adopted in 169-01 Task 2): DaemonUp=true (and Installed=true) when liveness is confirmed.**
    - What we know: The restart gate (`Connected && HasCerts && IP`) is unaffected either way; a permission-limited node has Connected=false.
    - What's unclear: Whether the diagnostics cascade reads cleaner with DaemonUp=true (honest: the daemon IS up) or DaemonUp=false (keeps the existing "daemon running" row tied to a *readable* daemon).
-   - Recommendation: Planner's call (D-03 explicitly delegates). Leaning DaemonUp=true when liveness confirmed, since it's honest and the new `permissionLimited` flag drives the distinct UI copy regardless.
+   - Recommendation: Planner's call (D-03 explicitly delegates). Leaning DaemonUp=true when liveness confirmed, since it's honest and the new `permissionLimited` flag drives the distinct UI copy regardless. **→ Adopted: 169-01 Task 2 sets DaemonUp=true/Installed=true in the permission-limited guard.**
 
-2. **Adopt the TCP liveness check, or file-probe only?**
+2. **Adopt the TCP liveness check, or file-probe only?** — **RESOLVED (adopted in 169-01 Task 2): liveness check adopted (`macsysDaemonAlive` via `ipnport`→`net.DialTimeout`).**
    - What we know: File-probe alone meets the letter of the SC; liveness resolves the stale-file edge case.
    - What's unclear: How often a stale `sameuserproof` persists in practice.
-   - Recommendation: Adopt liveness — it's ~10 lines of stdlib, mirrors tailscale's own `checkConn`, and makes "distinct from daemon-down" (D-02) genuinely true rather than approximate.
+   - Recommendation: Adopt liveness — it's ~10 lines of stdlib, mirrors tailscale's own `checkConn`, and makes "distinct from daemon-down" (D-02) genuinely true rather than approximate. **→ Adopted: `macsysDaemonAlive()` gates PermissionLimited on a successful loopback dial to the `ipnport` port.**
 
 ## Environment Availability
 
