@@ -4,17 +4,17 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 169
 current_phase_name: tailscale-detection-fix
-status: ready
+status: verifying
 stopped_at: Phase 169 context gathered
-last_updated: "2026-07-02T17:00:03.899Z"
+last_updated: "2026-07-02T18:34:27.172Z"
 last_activity: 2026-07-02
-last_activity_desc: Phase 168 verified complete (live FIX-03 remote-tab re-test PASS after 168-09; VERIFICATION.md regenerated 6/6 passed), transitioned to Phase 169
+last_activity_desc: Phase 169 execution started
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 26
-  completed_plans: 26
-  percent: 80
+  completed_phases: 5
+  total_plans: 27
+  completed_plans: 27
+  percent: 100
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 ## Current Position
 
-Phase: 169 (tailscale-detection-fix) — READY TO PLAN
-Plan: Not started — run /gsd-plan-phase 169
-Status: Phase 168 complete (UAT 4/4 PASS, verification 6/6). Phase 169 (#120 non-admin macOS Tailscale detection) is the last open v4.2 phase.
-Last activity: 2026-07-02 — Phase 168 verified complete (live FIX-03 remote-tab re-test PASS after 168-09; VERIFICATION.md regenerated 6/6 passed), transitioned to Phase 169
+Phase: 169 (tailscale-detection-fix) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
+Last activity: 2026-07-02 — Phase 169 execution started
 
 ```
 v4.2 Progress: [████████████████░░░░] 80% (4/5 phases — 165 ✅ DONE (live), 166 ✅ DONE (verified 8/8), 167 ✅ DONE (code-verified 11/11; M-41 live deferred), 168 ✅ DONE (verified 6/6, UAT 4/4 live); 169 remains)
@@ -137,7 +137,7 @@ v4.2 Progress: [████████████████░░░░] 80
 
 ## Session Continuity
 
-Last session: 2026-07-02T17:00:03.892Z
+Last session: 2026-07-02T18:33:46.040Z
 Stopped at: Phase 169 context gathered
 Resume file: .planning/phases/169-tailscale-detection-fix/169-CONTEXT.md
 Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 phase — FIX-05: non-admin macOS accounts report Tailscale "installed but not Connected" because `macsys` `sameuserproof` is unreadable; add a CLI `status` fallback. Run `/gsd-plan-phase 169` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
@@ -222,6 +222,7 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 | Phase 168 P05 | 29min | 2 tasks | 7 files |
 | Phase 168 P06 | 9min | 3 tasks | 10 files |
 | Phase 168 P07 | 15min | 2 tasks | 1 files |
+| Phase 169 P01 | 13min | 2 tasks | 3 files |
 
 ## Decisions
 
@@ -266,3 +267,5 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 - [Phase 168-06]: Disconnect drops connections only (D-06) -- never calls ToggleWebServing(false) or revokes the capability
 - [Phase ?]: Phase 168-07: fixed pre-existing Suite Manifest Total off-by-one (524->525)
 - [Phase ?]: Phase 168-07: plans 168-01..06 self-registered TESTING.md changes inline per-plan rather than deferring to this isolated final plan; 168-07 closed remaining gaps (FIX-04 traceability, M-13 reword, M-42/M-43 manual items)
+- [Phase ?]: Phase 169-01: reused tailscale.com/ipn/ipnstate.Status for CLI JSON unmarshal instead of a new local struct — mirrors the SDK-success field-mapping exactly
+- [Phase ?]: Phase 169-01: cliStatusFunc fires on ANY SDK error, on ALL platforms — no error-string classification, no runtime.GOOS gate (D-03/D-04)
