@@ -168,6 +168,9 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
     daemonUp: boolean
     platformHint: string
     acceptDns?: boolean
+    // Phase 169-02 (FIX-05): honest permission-aware macsys detection (169-01) —
+    // daemon confirmed alive but this account can't read its status.
+    permissionLimited?: boolean
   } | null>(null)
   const [daemonError, setDaemonError] = useState<string | null>(null)
   // Plugin settings state (PLUG-03): updated by GetPluginSettings on mount
@@ -633,6 +636,8 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
       daemonUp: boolean
       platformHint: string
       acceptDns?: boolean
+      // Phase 169-02 (FIX-05): honest permission-aware macsys detection (169-01).
+      permissionLimited?: boolean
     }) => {
       setTailscaleHealth(h)
       // If Tailscale just became fully healthy, poll for the backend to upgrade

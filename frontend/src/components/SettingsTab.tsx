@@ -57,6 +57,9 @@ interface SettingsTabProps {
     binaryFound: boolean
     daemonUp: boolean
     platformHint: string
+    // Phase 169-02 (FIX-05): honest permission-aware macsys detection (169-01) —
+    // daemon confirmed alive but this account can't read its status.
+    permissionLimited?: boolean
   } | null
   webServerMode?: 'tailscale' | 'local' | null
   onWebServerStateChange: () => Promise<void>
@@ -295,6 +298,12 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
   function tailscaleStatusClass(h: SettingsTabProps['tailscaleHealth']): string {
     if (!h) return ''
     if (h.connected) return 'ok'
+    // Phase 169-02 (FIX-05): permission-limited is a distinct caution state \u2014
+    // never 'ok' (would falsely imply Connected). Checked before daemonUp/
+    // binaryFound so it pre-empts the generic "Not Connected"/"Daemon Stopped"
+    // classification once the backend has confirmed the daemon is alive but
+    // this account can't read its status.
+    if (h.permissionLimited) return 'warn'
     if (h.daemonUp) return 'warn'
     if (h.binaryFound) return 'warn'
     return 'error'
@@ -303,6 +312,8 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
   function tailscaleStatusText(h: SettingsTabProps['tailscaleHealth']): string {
     if (!h) return 'Checking\u2026'
     if (h.connected) return 'Connected'
+    // Phase 169-02 (FIX-05): distinct label \u2014 must never contain "Connected".
+    if (h.permissionLimited) return 'Permission Limited'
     if (h.daemonUp) return 'Not Connected'
     if (h.binaryFound) return 'Daemon Stopped'
     return 'Not Installed'
@@ -736,17 +747,19 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
             {tailscaleHealth
               ? (tailscaleHealth.connected
                   ? `Connected via ${tailscaleHealth.domain || tailscaleHealth.ip}`
-                  : tailscaleHealth.daemonUp
-                    ? 'Daemon running but not connected to a Tailscale network'
-                    : tailscaleHealth.binaryFound
-                      ? (tailscaleHealth.platformHint === 'darwin'
-                          ? 'Installed but not running \u2014 open Tailscale from Applications or the menu bar'
-                          : tailscaleHealth.platformHint === 'linux'
-                            ? 'Installed but not running \u2014 run: sudo systemctl start tailscaled'
-                            : tailscaleHealth.platformHint === 'windows'
-                              ? 'Installed but not running \u2014 open Tailscale from the Start menu or system tray'
-                              : 'Installed but daemon is not running')
-                      : 'Not detected \u2014 install from tailscale.com')
+                  : tailscaleHealth.permissionLimited
+                    ? "Tailscale is running, but AgentHub can't read its status on this macOS account. Grant this account admin access, or install the Homebrew tailscale build (which uses a different socket path)."
+                    : tailscaleHealth.daemonUp
+                      ? 'Daemon running but not connected to a Tailscale network'
+                      : tailscaleHealth.binaryFound
+                        ? (tailscaleHealth.platformHint === 'darwin'
+                            ? 'Installed but not running \u2014 open Tailscale from Applications or the menu bar'
+                            : tailscaleHealth.platformHint === 'linux'
+                              ? 'Installed but not running \u2014 run: sudo systemctl start tailscaled'
+                              : tailscaleHealth.platformHint === 'windows'
+                                ? 'Installed but not running \u2014 open Tailscale from the Start menu or system tray'
+                                : 'Installed but daemon is not running')
+                        : 'Not detected \u2014 install from tailscale.com')
               : 'Checking\u2026'}
           </p>
           {tailscaleHealth && !tailscaleHealth.connected && (
