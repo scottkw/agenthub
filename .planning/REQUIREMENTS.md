@@ -18,6 +18,8 @@ Requirements for this milestone. Each maps to a roadmap phase.
 - [x] **FNL-05**: Funnel exposure is fully torn down when the user disables it, when web-share is turned off, when the session ends, and on daemon shutdown — no session remains publicly exposed afterward.
 - [x] **FNL-06**: When the tailnet has not enabled Funnel (prerequisite unmet), enabling fails with a clear, explanatory error that links to the in-app Help guide, rather than failing opaquely.
 - [x] **FNL-07**: A Funnel share automatically expires after a user-chosen duration; the daemon tears the Funnel exposure down at expiry (enforced server-side, independent of any connected UI).
+- [ ] **FNL-08** *(Phase 170, added 2026-07-05)*: A Funnel/public share surfaces a **reusable, share-lifetime join code** in the Share UI so a recipient who cannot scan the QR or paste the full capability URL can join **read-only** with a short code; the code is valid only for the funnel share's lifetime, resolves to the read capability only (never write), and supplements (does not replace) the self-contained cap-URL/QR. (Amends FNL-03's "single-use join code" for the public read case.)
+- [ ] **FNL-09** *(Phase 171, added 2026-07-05 — SPEC-FIRST)*: A session owner can opt into **public read-write** Funnel sharing behind a distinct hard consent gate (typed acknowledgment), receiving a full-access public URL + **single-use** write code with unmistakable, colorblind-safe consent; public write is reachable ONLY through this gate (supersedes the accidental write-cap rebasing), uses a shorter default/max expiry than read shares, and is covered by a threat model.
 
 ### Funnel UI / UX (FUI)
 
@@ -87,6 +89,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FNL-05 | Phase 165 | Complete |
 | FNL-06 | Phase 165 | Complete |
 | FNL-07 | Phase 165 | Complete |
+| FNL-08 | Phase 170 | Planned |
+| FNL-09 | Phase 171 | Spec-first |
 | FUI-01 | Phase 166 | Pending |
 | FUI-02 | Phase 166 | Pending |
 | FUI-03 | Phase 166 | Pending |

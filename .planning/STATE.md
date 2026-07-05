@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Funnel Sharing & Polish
-current_phase: 169
-current_phase_name: tailscale-detection-fix
-status: phase_complete
-stopped_at: "Phase 169 COMPLETE — honest permission-aware detection (re-execution) verified; M-45 live macsys acceptance deferred (env-only)"
-last_updated: "2026-07-05T19:51:33.708Z"
+current_phase: 170
+current_phase_name: public-share-access-codes
+status: planning
+stopped_at: "v4.2 REOPENED 2026-07-05 — live UAT of Funnel added 2 phases: 170 public read code (needs /gsd-plan-phase), 171 public full-access (SPEC-FIRST). 165-169 done; 2 Share-modal layout bugs fixed live (commit 27d398e7)."
+last_updated: "2026-07-05T21:30:00.000Z"
 last_activity: 2026-07-05
-last_activity_desc: Phase 169 executed (both waves) + verified — FIX-05 delivered via honest detection
+last_activity_desc: v4.2 reopened — added Phase 170/171 after live Funnel UAT; Share-modal overflow + risk-panel flex-shrink fixed
 progress:
-  total_phases: 5
+  total_phases: 7
   completed_phases: 5
   total_plans: 28
   completed_plans: 28
-  percent: 100
+  percent: 71
 ---
 
 # Project State
@@ -24,17 +24,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v4.2 code-complete (all 5 phases done) — pending live UAT/ship
+**Current focus:** v4.2 REOPENED — Funnel access-method expansion. Next: `/gsd-plan-phase 170` (public read code), then `/gsd-spec-phase 171` (public full-access, spec-first). Live UAT of 165-169 partially done (see below).
 
 ## Current Position
 
-Phase: 169 (tailscale-detection-fix) — COMPLETE (verified 2026-07-05)
-Plan: 2 of 2 done
-Status: Phase 169 complete — honest permission-aware detection re-execution delivered FIX-05. Backend `permProbeFunc`/`PermissionLimited` (darwin/macsys EACCES + liveness confirm, never a false Connected) + Settings "Permission Limited" state with actionable colorblind-safe copy. Gates green (go build/vet, TestCheckHealth 11/11, tsc clean, vitest 2333/2333). NOTE: the original CLI-`status`-fallback (169-01) was invalidated by CR-01 and re-planned; its stale SUMMARY was superseded (→ 169-01-SUMMARY.superseded.md) and 169-01 re-executed. Open: M-45 live non-admin macsys acceptance (env-only, cannot automate). See 169-VERIFICATION.md.
-Last activity: 2026-07-05 — Phase 169 executed + verified
+Phase: 170 (public-share-access-codes) — PLANNED, not yet broken down
+Status: **v4.2 reopened 2026-07-05** after live Funnel UAT on a prod build. Phases 165-169 complete. Two new phases added (Funnel was a v4.2 target; read-only was never the intended sole access method):
+- **170 Public Share Access Codes (read)** — reusable share-lifetime join code for the INTERNET (PUBLIC) link (FNL-08). UAT found the public link shows no join code (unlike RO/Full) → typing the URL dead-ends on a code page with no code. Root cause: join codes are 5-min single-use (`api.go:259`), wrong for a public share → needs per-code TTL + reusable semantics tied to funnel expiry, read-only only. NEXT = `/gsd-plan-phase 170`.
+- **171 Public Full-Access (RW) Sharing** — opt-in public read-write behind a hard consent gate + single-use write code (FNL-09). Supersedes today's ACCIDENTAL public write (issueCapabilitiesForSession rebases both read+write caps to the funnel base by timing; funnel exposes whole mux, no read-only downgrade). **SPEC-FIRST** (internet RCE): `/gsd-spec-phase 171` → discuss → `/gsd-secure-phase` → plan.
+
+**Live UAT of 165-169 (2026-07-05, prod build on real Funnel tailnet):** M-37 PASS (off-tailnet phone QR loads the read-only session; public URL 200 from off-host), M-39 PASS (globe + INTERNET badge on card). **2 Share-modal layout bugs found + fixed live (commit 27d398e7):** (1) `.hub-share-modal` had no height bound → overflowed viewport/clipped; fixed with max-height. (2) that max-height made `__body` a constrained flex column and the risk panel's `overflow:hidden` let flexbox shrink it 202px→39px, clipping the Auto-expire select + Enable CTA → Funnel uncommittable via UI; fixed with `flex-shrink:0`. Both root-caused via dev-browser CSS harness, verified live. STILL PENDING: M-38 (auto-expiry teardown), M-40 (local-fallback toggle disabled), + prior deferrals M-41 (notif delivery win/linux), M-45 (non-admin macsys).
+Last activity: 2026-07-05 — v4.2 reopened + Share-modal fixes
 
 ```
-v4.2 Progress: [████████████████████] 100% (5/5 phases — 165 ✅ DONE (live), 166 ✅ DONE (verified 8/8), 167 ✅ DONE (code-verified 11/11; M-41 live deferred), 168 ✅ DONE (verified 6/6, UAT 4/4 live); 169 ✅ DONE (verified; M-45 live deferred))
+v4.2 Progress: [██████████████░░░░░░] 71% (5/7 phases — 165 ✅, 166 ✅ (+2 modal fixes 2026-07-05), 167 ✅ (M-41 deferred), 168 ✅, 169 ✅ (M-45 deferred); 170 ⬜ plan, 171 ⬜ spec-first)
 ```
 
 ## Live UAT Findings (2026-06-30, real Funnel-granted tailnet)

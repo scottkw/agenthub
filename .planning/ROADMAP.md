@@ -30,7 +30,7 @@
 - ✅ **v3.6 Hub (Session Grid / Control Room)** — Phases 131-135 (shipped 2026-06-19, closes Issue #78)
 - ✅ **v4.0 Hub-First Consolidation & UI/UX Overhaul** — Phases 136-150 (shipped 2026-06-23, closes #51, #65, #68, #69, #96, #97, #98, #100, #101; #99 not-planned; 151 cancelled)
 - ✅ **v4.1 Session Chat** — Phases 151-164 (shipped 2026-06-29, closes #79, #108, #109)
-- **v4.2 Funnel Sharing & Polish** — Phases 165-168 (closes #107, #110, #112, #115, #116, #117, #118, #120, #121)
+- **v4.2 Funnel Sharing & Polish** — Phases 165-171 (closes #107, #110, #112, #115, #116, #117, #118, #120, #121; **reopened 2026-07-05**: 165-169 done, +170 public read code / +171 public full-access sharing added after live UAT — Funnel access methods expanded beyond read-only)
 
 ## Phases
 
@@ -388,7 +388,9 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 166: Funnel Frontend + Help Guide** (5/5 plans) — completed 2026-06-30, verified 8/8 - Risk-acknowledgment dialog, auto-expiry selector, colorblind-safe internet-exposure indicator, Funnel URL display, one-click disable, in-app Sharing Guide Help article
 - [x] **Phase 167: Native Notifications** - beeep cross-platform notification on waiting-state transition, de-dup guard, Settings toggle (default off) (7/7 plans executed 2026-07-01, incl. 167-05/06/07 M-41 crash-hardening + instrumentation + permission-denied hint) — CLOSED complete 2026-07-01; code-verified 11/11, M-41 live on-screen delivery DEFERRED to release-time UAT on signed macOS/Windows/Linux builds (inherently unautomatable)
 - [x] **Phase 168: Bug Fix & Settings Polish** - Fix #112 (web-guest plugin-config SSE), #117 (multi-viewer kick + disconnect UI), #118 (remote-open in-app tab), #115 (Footer Share modal), #116 (Hub auto-switch setting), #121 (phantom viewer count — pairs with #117) (9/9 plans executed 2026-07-02, incl. 168-08 UX-02 footer-pill drift + 168-09 FIX-03 remote-tab RC-A/B/C gap-closures) — CLOSED complete 2026-07-02; verified 6/6 must-haves, all live UAT 4/4 PASS (FIX-01/02/03 + UX-02 confirmed on a two-Mac tailnet production build)
-- [ ] **Phase 169: Tailscale Detection Fix** - Fix #120 (Tailscale reports "installed but not Connected" on non-admin macOS accounts where `macsys` `sameuserproof` is unreadable) — **RE-PLANNED 2026-07-02** (2 plans, honest permission-aware detection; supersedes the CLI-`status`-fallback invalidated by CR-01). Plans PASS plan-checker; ready for `/gsd-execute-phase 169`.
+- [x] **Phase 169: Tailscale Detection Fix** - Fix #120 (Tailscale reports "installed but not Connected" on non-admin macOS accounts where `macsys` `sameuserproof` is unreadable) — honest permission-aware detection (`permProbeFunc` + `PermissionLimited`, never a false Connected) + Settings "Permission Limited" state. Executed + verified 2026-07-05 (2/2 plans); M-45 live non-admin macsys acceptance deferred (env-only).
+- [ ] **Phase 170: Public Share Access Codes (read)** - Reusable, share-lifetime join code for the INTERNET (PUBLIC) link so recipients who can't scan the QR / paste the full URL can join read-only with a short code (FNL-08). Added 2026-07-05 from live UAT. Run `/gsd-plan-phase 170`.
+- [ ] **Phase 171: Public Full-Access (Read-Write) Sharing** - Opt-in public read-write Funnel sharing behind a hard consent gate + single-use write code + shorter expiry; supersedes today's accidental write-cap rebasing (FNL-09). Added 2026-07-05. **SPEC-FIRST**: `/gsd-spec-phase 171` → discuss → secure → plan.
 
 ## Phase Details
 
@@ -563,6 +565,52 @@ Plans:
 | 167. Native Notifications | 7/7 | Complete   | 2026-07-01 |
 | 168. Bug Fix & Settings Polish | 9/9 | Complete   | 2026-07-02 |
 | 169. Tailscale Detection Fix | 2/2 | Complete (verified; M-45 live deferred) | 2026-07-05 |
+| 170. Public Share Access Codes (read) | 0/? | Planned — run /gsd-plan-phase 170 | — |
+| 171. Public Full-Access (RW) Sharing | 0/? | Spec-first — run /gsd-spec-phase 171 | — |
+
+### Phase 170: Public Share Access Codes (read)
+
+**Goal:** Funnel/internet shares surface a reusable, share-lifetime join code in the Share modal's INTERNET (PUBLIC) section, so a recipient who cannot scan the QR or paste the full capability URL can join **read-only** with a short code — closing the UAT dead-end where typing the public URL lands on a code-entry page with no code available.
+
+**Requirements**: FNL-08
+
+**Depends on:** Phase 166 (Funnel frontend), Phase 165 (Funnel backend)
+
+**Design constraints (locked in discussion 2026-07-05):**
+- Add **per-code TTL + reusable (non-single-use)** semantics to `JoinCodeManager` (today all codes are 5-min single-use — wrong for a public share meant to last the auto-expiry window and serve multiple viewers).
+- The public code's lifetime is **tied to the funnel auto-expiry** (dies exactly when the share does).
+- **Read-only scope only** — the reusable code resolves to the funnel *read* cap; it must never map to the write cap.
+- Keep **40-bit crypto/rand** entropy (2⁴⁰ over an ≤8h window is not brute-forceable even without rate-limiting).
+- **Supplement, not replace** the existing self-contained cap-URL + QR flow.
+
+**Plans:** 0 plans — run `/gsd-plan-phase 170`
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 170 to break down)
+
+### Phase 171: Public Full-Access (Read-Write) Sharing
+
+**Goal:** Add opt-in **public read-write** Funnel sharing behind a distinct hard consent gate, surfacing a full-access public URL + write code + QR with unmistakable, colorblind-safe consent — and **supersede today's *accidental* public write**: `issueCapabilitiesForSession` already rebases BOTH read and write caps to the public Funnel base by cap-issue timing, and the Funnel serve config exposes the whole mux with no read-only downgrade, so public write is currently reachable but unintentional/unlabeled. This phase replaces that with a deliberate, gated flow (net security improvement).
+
+**Requirements**: FNL-09
+
+**Depends on:** Phase 170, Phase 166, Phase 165
+
+**⚠ SPEC-FIRST — do NOT go straight to /gsd-plan-phase.** Route: `/gsd-spec-phase 171` (clarify WHAT + the "internet RCE, behind what gates" question) → `/gsd-discuss-phase 171` → `/gsd-secure-phase` (threat model) → plan. Public read-write = internet-reachable command execution on the host; the consequence of a leaked link is RCE, not just observation.
+
+**Design starting point (to be confirmed in spec/discuss):**
+- A **distinct second gate** beyond "enable internet sharing" — a typed acknowledgment ("I understand this grants command execution to anyone with the link"), not a one-click toggle.
+- **Single-use write codes only** (never reusable — a leaked reusable write code is far worse than a leaked read one). Note this diverges from Phase 170's reusable *read* code.
+- **Shorter default/max expiry** for write shares.
+- Distinct, unmissable UI treatment (text + icon + color, colorblind-safe) so a public-write link is never confused with public-read.
+- Threat model must assert: **no public write path except through the new gate** (closes the accidental rebasing).
+
+**Plans:** 0 plans — run `/gsd-spec-phase 171` first
+
+Plans:
+
+- [ ] TBD (spec → discuss → secure → plan)
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
