@@ -27,7 +27,7 @@ func TestCheckHealth_NotRunning(t *testing.T) {
 	stub := stubBinary(t)
 	h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 		return nil, fmt.Errorf("dial unix: connection refused")
-	}, stub, nil)
+	}, stub, nil, nil)
 
 	// Binary found but daemon unreachable
 	if !h.BinaryFound {
@@ -73,7 +73,7 @@ func TestCheckHealth_BackendState(t *testing.T) {
 		t.Run(tc.state, func(t *testing.T) {
 			h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 				return &ipnstate.Status{BackendState: tc.state}, nil
-			}, stub, nil)
+			}, stub, nil, nil)
 
 			if !h.BinaryFound {
 				t.Errorf("state=%s: expected BinaryFound=true", tc.state)
@@ -121,7 +121,7 @@ func TestCheckHealth_CertDomains(t *testing.T) {
 					BackendState: "Running",
 					CertDomains:  tc.domains,
 				}, nil
-			}, stub, nil)
+			}, stub, nil, nil)
 
 			if h.HasCerts != tc.wantHasCerts {
 				t.Errorf("expected HasCerts=%v, got %v", tc.wantHasCerts, h.HasCerts)
@@ -141,7 +141,7 @@ func TestCheckHealth_FullyHealthy(t *testing.T) {
 			TailscaleIPs: []netip.Addr{netip.MustParseAddr("100.64.0.1")},
 			CertDomains:  []string{"myhost.tail46d69a.ts.net"},
 		}, nil
-	}, stub, nil)
+	}, stub, nil, nil)
 
 	if !h.BinaryFound {
 		t.Error("expected BinaryFound=true")
@@ -181,7 +181,7 @@ func TestCheckHealth_BinaryNotFound(t *testing.T) {
 	h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 		fnCalled = true
 		return nil, nil
-	}, "/nonexistent/path/tailscale", nil)
+	}, "/nonexistent/path/tailscale", nil, nil)
 
 	if fnCalled {
 		t.Error("statusFunc should not be called when binary is not found")
@@ -207,7 +207,7 @@ func TestCheckHealth_DaemonStopped(t *testing.T) {
 	stub := stubBinary(t)
 	h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 		return nil, fmt.Errorf("connect: connection refused")
-	}, stub, nil)
+	}, stub, nil, nil)
 
 	if !h.BinaryFound {
 		t.Error("expected BinaryFound=true")
@@ -235,7 +235,7 @@ func TestCheckHealth_CustomPathPrecedence(t *testing.T) {
 	// Pass customPath — health check should succeed because binary exists at custom path
 	h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 		return &ipnstate.Status{BackendState: "Running"}, nil
-	}, customPath, nil)
+	}, customPath, nil, nil)
 
 	if !h.BinaryFound {
 		t.Error("expected BinaryFound=true with custom path")
@@ -334,10 +334,73 @@ func TestCheckHealth_AcceptDNS(t *testing.T) {
 			}
 			// NOTE: checkHealth does not yet accept a prefsFunc — this will not compile
 			// until Plan 03 adds the parameter. That compile failure IS the RED signal.
-			h := checkHealth(context.Background(), statusFn, stub, prefsFn)
+			h := checkHealth(context.Background(), statusFn, stub, prefsFn, nil)
 			if h.AcceptDNS != tc.wantAcceptDNS {
 				t.Errorf("AcceptDNS = %v; want %v", h.AcceptDNS, tc.wantAcceptDNS)
 			}
 		})
+	}
+}
+
+// TestCheckHealth_PermissionLimited covers SC1 (FIX-05, Issue #120): when the
+// SDK statusFunc fails (as it does when the macsys sameuserproof file is
+// root:admin 0640 and unreadable by a non-admin account) AND the injected
+// perm probe reports the macsys-permission-limited condition, checkHealth
+// must report PermissionLimited=true while NEVER setting Connected=true
+// (hard SC — no false Connected). HasCerts and IP must also stay at their
+// zero values since the underlying status is genuinely unknown.
+func TestCheckHealth_PermissionLimited(t *testing.T) {
+	stub := stubBinary(t)
+
+	statusFn := func(ctx context.Context) (*ipnstate.Status, error) {
+		return nil, fmt.Errorf("dial unix: connection refused")
+	}
+	permFn := func(ctx context.Context) bool {
+		return true
+	}
+
+	h := checkHealth(context.Background(), statusFn, stub, nil, permFn)
+
+	if !h.BinaryFound {
+		t.Error("expected BinaryFound=true")
+	}
+	if !h.PermissionLimited {
+		t.Error("expected PermissionLimited=true when the perm probe reports macsys permission limitation")
+	}
+	if h.Connected {
+		t.Error("SC violation: expected Connected=false even when PermissionLimited=true (no false Connected)")
+	}
+	if h.HasCerts {
+		t.Error("expected HasCerts=false in the permission-limited state")
+	}
+	if h.IP != "" {
+		t.Errorf("expected IP=\"\" in the permission-limited state, got %q", h.IP)
+	}
+}
+
+// TestCheckHealth_DaemonDown_NotPermissionLimited covers D-02: a genuinely-down
+// daemon (no macsys signature / dead liveness dial) must NOT be flagged
+// permission-limited — the injected perm probe returning false preserves
+// today's not-connected behavior.
+func TestCheckHealth_DaemonDown_NotPermissionLimited(t *testing.T) {
+	stub := stubBinary(t)
+
+	statusFn := func(ctx context.Context) (*ipnstate.Status, error) {
+		return nil, fmt.Errorf("connect: connection refused")
+	}
+	permFn := func(ctx context.Context) bool {
+		return false
+	}
+
+	h := checkHealth(context.Background(), statusFn, stub, nil, permFn)
+
+	if h.PermissionLimited {
+		t.Error("expected PermissionLimited=false when the perm probe reports no macsys permission limitation")
+	}
+	if h.DaemonUp {
+		t.Error("expected DaemonUp=false when daemon is genuinely down")
+	}
+	if h.Connected {
+		t.Error("expected Connected=false when daemon is genuinely down")
 	}
 }
