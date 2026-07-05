@@ -546,11 +546,11 @@ Plans:
 
 **Wave 1**
 
-- [ ] 169-01-PLAN.md — Backend: revert the invalidated CLI-status fallback (D-01) + add `permProbeFunc` file-probe seam, `PermissionLimited` field, and honest darwin/macsys EACCES detection with liveness confirm + unit tests (FIX-05)
+- [x] 169-01-PLAN.md — Backend: revert the invalidated CLI-status fallback (D-01) + add `permProbeFunc` file-probe seam, `PermissionLimited` field, and honest darwin/macsys EACCES detection with liveness confirm + unit tests (FIX-05)
 
 **Wave 2** *(blocked on Wave 1 — frontend reads the new field)*
 
-- [ ] 169-02-PLAN.md — Frontend guidance + docs: SettingsTab distinct "Permission Limited" state + actionable copy (D-05) + vitest, and TESTING.md reconcile (Suite Manifest, traceability, Category W / M-45 macsys-Standalone rewording per IN-02) (FIX-05)
+- [x] 169-02-PLAN.md — Frontend guidance + docs: SettingsTab distinct "Permission Limited" state + actionable copy (D-05) + vitest, and TESTING.md reconcile (Suite Manifest, traceability, Category W / M-45 macsys-Standalone rewording per IN-02) (FIX-05)
 
 **UI hint**: no
 
@@ -562,7 +562,7 @@ Plans:
 | 166. Funnel Frontend + Help Guide | 5/5 | Complete (verified 8/8) | 2026-06-30 |
 | 167. Native Notifications | 7/7 | Complete   | 2026-07-01 |
 | 168. Bug Fix & Settings Polish | 9/9 | Complete   | 2026-07-02 |
-| 169. Tailscale Detection Fix | 0/2 | Planned (re-plan) — honest detection | — |
+| 169. Tailscale Detection Fix | 2/2 | Complete (verified; M-45 live deferred) | 2026-07-05 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

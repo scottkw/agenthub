@@ -4,17 +4,17 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 169
 current_phase_name: tailscale-detection-fix
-status: executing
-stopped_at: "Phase 169 HALTED — CR-01: CLI-fallback approach cannot fix #120 (per-user macsys permission gate); re-approach needed"
+status: phase_complete
+stopped_at: "Phase 169 COMPLETE — honest permission-aware detection (re-execution) verified; M-45 live macsys acceptance deferred (env-only)"
 last_updated: "2026-07-05T19:51:33.708Z"
 last_activity: 2026-07-05
-last_activity_desc: Phase 169 execution started
+last_activity_desc: Phase 169 executed (both waves) + verified — FIX-05 delivered via honest detection
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 28
-  completed_plans: 26
-  percent: 80
+  completed_plans: 28
+  percent: 100
 ---
 
 # Project State
@@ -24,17 +24,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 169 — tailscale-detection-fix
+**Current focus:** v4.2 code-complete (all 5 phases done) — pending live UAT/ship
 
 ## Current Position
 
-Phase: 169 (tailscale-detection-fix) — EXECUTING
-Plan: 1 of 2
-Status: Executing Phase 169
-Last activity: 2026-07-05 — Phase 169 execution started
+Phase: 169 (tailscale-detection-fix) — COMPLETE (verified 2026-07-05)
+Plan: 2 of 2 done
+Status: Phase 169 complete — honest permission-aware detection re-execution delivered FIX-05. Backend `permProbeFunc`/`PermissionLimited` (darwin/macsys EACCES + liveness confirm, never a false Connected) + Settings "Permission Limited" state with actionable colorblind-safe copy. Gates green (go build/vet, TestCheckHealth 11/11, tsc clean, vitest 2333/2333). NOTE: the original CLI-`status`-fallback (169-01) was invalidated by CR-01 and re-planned; its stale SUMMARY was superseded (→ 169-01-SUMMARY.superseded.md) and 169-01 re-executed. Open: M-45 live non-admin macsys acceptance (env-only, cannot automate). See 169-VERIFICATION.md.
+Last activity: 2026-07-05 — Phase 169 executed + verified
 
 ```
-v4.2 Progress: [████████████████░░░░] 80% (4/5 phases — 165 ✅ DONE (live), 166 ✅ DONE (verified 8/8), 167 ✅ DONE (code-verified 11/11; M-41 live deferred), 168 ✅ DONE (verified 6/6, UAT 4/4 live); 169 remains)
+v4.2 Progress: [████████████████████] 100% (5/5 phases — 165 ✅ DONE (live), 166 ✅ DONE (verified 8/8), 167 ✅ DONE (code-verified 11/11; M-41 live deferred), 168 ✅ DONE (verified 6/6, UAT 4/4 live); 169 ✅ DONE (verified; M-45 live deferred))
 ```
 
 ## Live UAT Findings (2026-06-30, real Funnel-granted tailnet)
