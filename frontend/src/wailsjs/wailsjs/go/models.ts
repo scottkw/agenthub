@@ -292,6 +292,7 @@ export namespace webserver {
 	    daemonUp: boolean;
 	    platformHint: string;
 	    acceptDns: boolean;
+	    permissionLimited: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new TailscaleHealth(source);
@@ -308,6 +309,7 @@ export namespace webserver {
 	        this.daemonUp = source["daemonUp"];
 	        this.platformHint = source["platformHint"];
 	        this.acceptDns = source["acceptDns"];
+	        this.permissionLimited = source["permissionLimited"];
 	    }
 	}
 
