@@ -6305,6 +6305,13 @@ textarea {
 .hub-share-modal {
   position: relative;
   width: min(480px, calc(100vw - 48px));
+  /* Bound the card height so tall content (home-dir warning + RO/RW links +
+     the Funnel INTERNET-PUBLIC section + QR) scrolls inside __body instead of
+     overflowing the viewport and clipping the header/QR. Mirrors .hub-modal's
+     `height: min(750px, calc(100vh - 64px))`; max-height (not height) keeps a
+     short, Funnel-off modal compact. Without this the flex:1/overflow-y:auto on
+     __body has no bounded parent to scroll within (Phase 169 live-UAT fix). */
+  max-height: calc(100vh - 64px);
   background: var(--hub-surface-elevated);
   border: 1px solid var(--hub-border);
   border-radius: var(--hub-radius-lg);
@@ -7206,6 +7213,13 @@ textarea {
   border: 1px solid var(--hub-border);
   border-radius: var(--hub-radius-sm);
   overflow: hidden;
+  /* The parent .hub-share-modal__body is a height-constrained flex column
+     (since the card gained max-height). This panel's `overflow: hidden` makes
+     its flex min-height resolve to 0, so the default flex-shrink:1 would crush
+     it below its content when the body overflows — clipping the expiry select
+     and the Enable/Cancel CTAs (the whole two-step commit gesture). Pin it so
+     the body scrolls instead. Confirmed: shrinks 202px→39px without this. */
+  flex-shrink: 0;
   /* Collapsed state: zero the vertical padding + top/bottom border so the panel
      fully disappears. With box-sizing: border-box, max-height:0 alone still
      leaves a padding+border strip (16+16+1+1 = 34px) showing the clipped warning
