@@ -30,11 +30,12 @@ flagged "requires human verification"** — confirm behaviour with the suggested
 regression tests before the phase proceeds.
 
 > **Update 2026-07-05 (follow-up):** Regression tests were subsequently added
-> for **CR-01 and WR-02** (commit `23d273e5`) and mutation-verified (each fails
-> on the pre-fix code, passes after the fix). See the
-> "Regression Coverage Added" section at the end of this report. CR-01 and WR-02
-> are now covered at the automated level; **WR-01 and WR-03 still have no
-> dedicated regression test** and remain human-verification-only.
+> for **all four findings** and mutation-verified (each fails on the pre-fix
+> code, passes after the fix): CR-01 + WR-02 in commit `23d273e5`, and
+> WR-01 + WR-03 in commit `c1c006e2`. See the "Regression Coverage Added"
+> section at the end of this report. All four fixes now have automated
+> regression coverage; live UAT on a prod build is still recommended (esp.
+> CR-01/WR-02/WR-03 user-visible behaviour).
 
 ## Fixed Issues
 
@@ -63,7 +64,7 @@ public code, toggle browse **after** mint, then drive the real
 
 **Files modified:** `internal/daemon/api.go`
 **Commit:** 78964901
-**Status:** fixed: requires human verification
+**Status:** fixed + regression-tested (commit `c1c006e2`); live UAT still recommended
 **Applied fix:** The mint block re-reads `a.funnelSessions[sessionID]` INSIDE the
 same `a.mu.Lock()` that guards the mint, and only mints/rebinds when it is still
 `true`. A `disableFunnelForSession` that interleaves between the earlier RLock
@@ -99,7 +100,7 @@ refresh timer (the review's alternative) would be needed.
 
 **Files modified:** `frontend/src/components/Hub/SessionShareModal.tsx`
 **Commit:** b088c1e8
-**Status:** fixed: requires human verification
+**Status:** fixed + regression-tested (commit `c1c006e2`); live UAT still recommended
 **Applied fix:** Deduplicated issuance for Funnel-active sessions. The
 server-truth seeding effect now bails out early when `session.funnelActive` is
 true, ceding issuance to the warm-up completion effect, which was extended to
@@ -123,18 +124,20 @@ Out of scope (Info tier, not addressed per `fix_scope: critical_warning`):
 
 ## Regression Coverage Added
 
-Added 2026-07-05 in commit `23d273e5`, after the fix pass, to close the
-"no regression tests" gap the review flagged. No new test files were created
-(tests were appended to the existing, already-registered suites), so TESTING.md
-needs no new rows. Each test was **mutation-verified**: it fails on the pre-fix
-code and passes after the fix.
+Added 2026-07-05 after the fix pass, to close the "no regression tests" gap the
+review flagged — CR-01 + WR-02 in commit `23d273e5`, WR-01 + WR-03 in commit
+`c1c006e2`. No new test files were created (tests were appended to the existing,
+already-registered suites), so TESTING.md needs no new rows. Each test was
+**mutation-verified**: it fails on the pre-fix code and passes after the fix.
 
 | Finding | Test | File | Mutation proof |
 |---------|------|------|----------------|
 | CR-01 | `TestJoinCodeManager_Rebind` | `internal/capability/joincode_test.go` | Rebind swaps token; preserves code string, reusable class, and expiry (not extended) |
 | CR-01 | `TestJoinCodeManager_Rebind_UnknownCode` | `internal/capability/joincode_test.go` | Absent code → `ErrCodeNotFound` |
 | CR-01 | `TestIssueCapabilities_BrowseToggleRebindsPublicCode` | `internal/daemon/funnel_test.go` | Removing the Rebind branch → test fails (public code resolves to a revoked grant → viewers 403) |
+| WR-01 | `TestIssueCapabilities_TeardownDuringMint_NoOrphanCode` | `internal/daemon/funnel_test.go` | Reverting the under-lock membership re-check to an unconditional mint → test fails (orphan code minted for a torn-down session) |
 | WR-02 | `TestIssueCapabilities_ExpiredPublicCodeRemints` | `internal/daemon/funnel_test.go` | Reverting the gate to `if !ok` (drop expiry check) → test fails (stale code returned instead of re-mint) |
+| WR-03 | `SessionShareModal — WR-03: single issuance for Funnel sessions` (2 cases) | `frontend/src/components/__tests__/SessionShareModal.test.tsx` | Removing the seeding effect's `funnelActive` guard → funnel case fails (IssueCapabilities called twice); non-Funnel case guards against over-suppression |
 
 The daemon-layer tests reuse the existing `funnel_test` harness
 (`testDaemon` + `makeFunnelTestWebServer` + `probeGrant`). CR-01's daemon test
@@ -145,9 +148,18 @@ be advanced from the `daemon` package (`SetClockForTest` is `capability`
 -internal), so the manager-level TTL sweep is covered separately by the
 pre-existing `TestJoinCodeManager_ReusableExpiresAfterTTL`.
 
-**Still human-verification-only:** WR-01 (deterministic concurrency/interleaving
-test is hard without a race harness) and WR-03 (frontend single-issuance dedupe,
-best confirmed in the running app's network panel).
+WR-01 is a TOCTOU *logic* race (both membership reads are correctly locked, just
+at different times), so `-race` cannot flag it and a goroutine stress loop would
+be flaky. The test instead drives the interleave deterministically through a new
+test-only seam, `API.mintRaceHookForTest` — nil in production, invoked only
+inside the `isFunnelSession` branch immediately before the mint lock, so a test
+can run `disableFunnelForSession` in exactly the window the fix closes. This is
+the sole production-code addition for the regression suite and mirrors the
+codebase's existing `*ForTest` seams.
+
+**All four findings now have automated regression coverage.** Live UAT on a prod
+build remains recommended for the user-visible behaviours (CR-01 browse-toggle,
+WR-02 8h re-mint, WR-03 single issuance in the network panel).
 
 ---
 
