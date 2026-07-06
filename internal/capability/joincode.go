@@ -14,22 +14,34 @@ var joinCodeEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
 
 // joinEntry is an in-memory record of an issued join code. The token field
 // holds the already-signed capability that Exchange returns on success.
+// reusable distinguishes the two code classes: false (default, zero value)
+// is the original single-use code minted by Issue; true is a code minted by
+// IssueReusable that survives repeated Exchange calls until its own expiry
+// or an explicit Revoke.
 type joinEntry struct {
-	token  string
-	expiry time.Time
+	token    string
+	expiry   time.Time
+	reusable bool
 }
 
-// JoinCodeManager maps short-lived join codes to capability tokens. A code is
-// single-use (D-11) — the first successful Exchange deletes the entry before
-// returning the token. Expired entries are removed lazily on the next
-// Exchange attempt rather than by a background sweeper; the map stays small
-// because the TTL (5 minutes) is short and codes are transient artefacts.
+// JoinCodeManager maps short-lived join codes to capability tokens. There are
+// two code classes:
+//   - Single-use (default, minted by Issue, D-11): the first successful
+//     Exchange deletes the entry before returning the token.
+//   - Reusable (minted by IssueReusable, FNL-08): the entry survives repeated
+//     successful Exchange calls until its own per-code TTL elapses or Revoke
+//     is called explicitly. This supports a public share link that must serve
+//     an unbounded number of anonymous viewers for the lifetime of the share.
 //
-// mu is a plain sync.Mutex because Exchange must read and delete atomically
-// to prevent the TOCTOU race described in RESEARCH Pitfall 4. A reader-writer
-// mutex is the wrong primitive here: its read lock would allow two goroutines
-// to observe the entry before either deletes it, producing two successful
-// exchanges from one code.
+// Expired entries (of either class) are removed lazily on the next Exchange
+// attempt rather than by a background sweeper; the map stays small because
+// TTLs are short-to-moderate and codes are transient artefacts.
+//
+// mu is a plain sync.Mutex because Exchange must read and (conditionally)
+// delete atomically to prevent the TOCTOU race described in RESEARCH Pitfall
+// 4. A reader-writer mutex is the wrong primitive here: its read lock would
+// allow two goroutines to observe the entry before either deletes it,
+// producing two successful exchanges from one single-use code.
 type JoinCodeManager struct {
 	mu    sync.Mutex
 	codes map[string]joinEntry
@@ -66,16 +78,63 @@ func (m *JoinCodeManager) Issue(token string) (string, error) {
 	return code, nil
 }
 
-// Exchange atomically looks up, deletes, and returns the token for a join
-// code. Returns ErrCodeNotFound when the code was never issued, was already
-// exchanged, or was garbage-collected after expiry. Returns ErrCodeExpired
-// when the code is known but past its TTL (and deletes the entry as a side
-// effect so the next Exchange gets ErrCodeNotFound).
+// IssueReusable generates a new 8-character base32 join code in XXXX-XXXX
+// form, exactly like Issue (same crypto/rand + joinCodeEncoding path — no
+// second RNG or alphabet is introduced, preserving the ~40 bits of entropy),
+// but marks the entry reusable so it survives repeated Exchange calls for
+// the supplied ttl instead of being deleted on first use. This is the
+// primitive behind a public share link (FNL-08): the code must resolve for
+// every anonymous viewer for the lifetime of the share, not just the first.
 //
-// The lookup+delete is performed under a single mutex hold to prevent the
-// TOCTOU race where two goroutines both observe the entry as valid and both
-// perform the delete — only one of them would report a successful exchange
-// in a race-free design, and this method is that design.
+// The code is still bounded by ttl — once it elapses, Exchange returns
+// ErrCodeExpired and deletes the entry, same as any single-use code. Revoke
+// provides the explicit early-termination path (e.g. the user disables the
+// share before ttl elapses).
+func (m *JoinCodeManager) IssueReusable(token string, ttl time.Duration) (string, error) {
+	var raw [5]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return "", err
+	}
+	encoded := joinCodeEncoding.EncodeToString(raw[:])
+	code := encoded[:4] + "-" + encoded[4:8]
+
+	m.mu.Lock()
+	m.codes[code] = joinEntry{token: token, expiry: m.now().Add(ttl), reusable: true}
+	m.mu.Unlock()
+	return code, nil
+}
+
+// Revoke removes code from the manager immediately, regardless of class or
+// remaining TTL. The next Exchange(code) will return ErrCodeNotFound.
+// Revoking an unknown or already-removed code is a no-op — deleting an
+// absent key from a Go map does not panic or error, so no existence check
+// or return value is needed.
+func (m *JoinCodeManager) Revoke(code string) {
+	m.mu.Lock()
+	delete(m.codes, code)
+	m.mu.Unlock()
+}
+
+// Exchange atomically looks up, conditionally deletes, and returns the token
+// for a join code. Returns ErrCodeNotFound when the code was never issued,
+// was already exchanged (single-use), was revoked, or was garbage-collected
+// after expiry. Returns ErrCodeExpired when the code is known but past its
+// TTL (and deletes the entry — for BOTH single-use and reusable codes — as a
+// side effect so the next Exchange gets ErrCodeNotFound).
+//
+// On a successful (unexpired) exchange, the entry is deleted UNLESS it is
+// marked reusable — that conditional is the entire single-use vs reusable
+// distinction; a reusable entry is left in place so a later Exchange call
+// can resolve the same code again.
+//
+// The lookup+expiry-check+delete is performed under a single mutex hold to
+// prevent the TOCTOU race where two goroutines both observe the entry as
+// valid and both perform the delete — only one of them would report a
+// successful exchange of a single-use code in a race-free design, and this
+// method is that design. Reusable codes are intentionally exempt from that
+// single-success guarantee (that is the whole point of reusable), but the
+// lookup+expiry-check still happens under the same lock for both classes so
+// expiry is evaluated consistently.
 func (m *JoinCodeManager) Exchange(code string) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -88,6 +147,8 @@ func (m *JoinCodeManager) Exchange(code string) (string, error) {
 		delete(m.codes, code)
 		return "", ErrCodeExpired
 	}
-	delete(m.codes, code)
+	if !entry.reusable {
+		delete(m.codes, code)
+	}
 	return entry.token, nil
 }
