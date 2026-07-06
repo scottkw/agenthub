@@ -78,7 +78,34 @@ type API struct {
 	// Early teardown calls t.Stop() + delete to prevent double-fire (T-165-13).
 	// Lazy-initialised on first timer registration. Guarded by a.mu.
 	funnelExpiry map[string]*time.Timer
+
+	// --- Phase 170-02 Funnel public read code state (FNL-08) ----------------
+	// funnelReadCode caches the single reusable public-share join code minted
+	// per Funnel session. Keyed by sessionID. Minted lazily inside
+	// issueCapabilitiesForSession from the read-only rTok ONLY (never wTok,
+	// T-170-01) on first capability issuance for a Funnel session, then reused
+	// on every subsequent call so a code already handed to a viewer never
+	// rotates (T-170-04). Revoked + deleted in disableFunnelForSession
+	// (T-170-02) — the single teardown chokepoint all in-process triggers
+	// route through. Lazy-initialised on first mint. Guarded by a.mu.
+	funnelReadCode map[string]string
+	// funnelReadCodeTTL holds the per-session TTL chosen at Funnel-enable time
+	// (handleSetSessionFunnel), consumed by issueCapabilitiesForSession when
+	// it mints the code. Value is min(ExpiresIn, funnelReadCodeMaxTTL); when
+	// ExpiresIn==0 ("Until I disable") it is funnelReadCodeMaxTTL — the
+	// entropy-safety backstop for the ~40-bit code (T-170-05). Lazy-initialised
+	// on first enable. Guarded by a.mu.
+	funnelReadCodeTTL map[string]time.Duration
 }
+
+// funnelReadCodeMaxTTL bounds the per-code TTL of the reusable public-share
+// join code (FNL-08) to 8 hours regardless of the Funnel session's own
+// ExpiresIn — including the unbounded ExpiresIn==0 ("Until I disable") case.
+// This preserves the ~40-bit code entropy brute-force-safety argument
+// (T-170-03): 2^40 possibilities over a bounded window, never an unbounded
+// one. Explicit Revoke in disableFunnelForSession is the PRIMARY "dies with
+// the share" mechanism; this TTL is defense-in-depth only (T-170-05).
+const funnelReadCodeMaxTTL = 8 * time.Hour
 
 // NewAPI creates an API wired to the given SessionEngine and registers all routes.
 func NewAPI(engine *SessionEngine) *API {
@@ -1333,31 +1360,31 @@ func (a *API) handleDisconnectViewers(w http.ResponseWriter, r *http.Request) {
 // This is the atomic "Share" operation from the user's perspective (D-07):
 // one call produces both a read-only and a read-write link, each with its
 // own grant_id for future revocation granularity.
-func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, readCode, writeCode string, err error) {
+func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, readCode, writeCode, publicReadCode string, err error) {
 	a.signingKeyMu.RLock()
 	key := a.signingKey
 	a.signingKeyMu.RUnlock()
 	if key == nil {
-		return "", "", "", "", errors.New("capability: signing key not bootstrapped")
+		return "", "", "", "", "", errors.New("capability: signing key not bootstrapped")
 	}
 
 	a.mu.RLock()
 	ws := a.webServer
 	a.mu.RUnlock()
 	if ws == nil {
-		return "", "", "", "", errors.New("web server not running")
+		return "", "", "", "", "", errors.New("web server not running")
 	}
 	if a.joinCodes == nil {
-		return "", "", "", "", errors.New("capability: join-code manager not bootstrapped")
+		return "", "", "", "", "", errors.New("capability: join-code manager not bootstrapped")
 	}
 
 	// Generate two 128-bit grant IDs (hex-encoded to 32 chars).
 	var rgid, wgid [16]byte
 	if _, err := rand.Read(rgid[:]); err != nil {
-		return "", "", "", "", err
+		return "", "", "", "", "", err
 	}
 	if _, err := rand.Read(wgid[:]); err != nil {
-		return "", "", "", "", err
+		return "", "", "", "", "", err
 	}
 
 	now := time.Now().Unix()
@@ -1390,11 +1417,11 @@ func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, 
 
 	rTok, err := capability.Sign(rClaims, key)
 	if err != nil {
-		return "", "", "", "", err
+		return "", "", "", "", "", err
 	}
 	wTok, err := capability.Sign(wClaims, key)
 	if err != nil {
-		return "", "", "", "", err
+		return "", "", "", "", "", err
 	}
 
 	// Register both grants BEFORE returning URLs so the caller's first
@@ -1420,13 +1447,46 @@ func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, 
 
 	readCode, err = a.joinCodes.Issue(rTok)
 	if err != nil {
-		return "", "", "", "", err
+		return "", "", "", "", "", err
 	}
 	writeCode, err = a.joinCodes.Issue(wTok)
 	if err != nil {
-		return "", "", "", "", err
+		return "", "", "", "", "", err
 	}
-	return readURL, writeURL, readCode, writeCode, nil
+
+	// FNL-08: mint (or reuse) the reusable public-share join code for a
+	// Funnel session, bound to rTok (the read-only token) ONLY — never wTok
+	// (T-170-01). Cached per session under a.mu so a repeat IssueCapabilities
+	// call (browse toggle, warm-up re-issue, modal reopen) returns the SAME
+	// code instead of rotating it (T-170-04) — a code already handed to a
+	// viewer must not silently break. Non-Funnel sessions leave
+	// publicReadCode "". a.mu is held across IssueReusable (crypto/rand +
+	// joinCodes' own mutex only, no blocking I/O) to close the TOCTOU window
+	// where two concurrent callers could each mint a distinct code.
+	if isFunnelSession {
+		a.mu.Lock()
+		cached, ok := a.funnelReadCode[sessionID]
+		if !ok {
+			ttl := a.funnelReadCodeTTL[sessionID]
+			if ttl <= 0 {
+				ttl = funnelReadCodeMaxTTL
+			}
+			code, mintErr := a.joinCodes.IssueReusable(rTok, ttl)
+			if mintErr != nil {
+				a.mu.Unlock()
+				return "", "", "", "", "", mintErr
+			}
+			if a.funnelReadCode == nil {
+				a.funnelReadCode = make(map[string]string)
+			}
+			a.funnelReadCode[sessionID] = code
+			cached = code
+		}
+		a.mu.Unlock()
+		publicReadCode = cached
+	}
+
+	return readURL, writeURL, readCode, writeCode, publicReadCode, nil
 }
 
 // handleIssueCapabilities issues two capabilities for a web-enabled session
@@ -1446,17 +1506,18 @@ func (a *API) handleIssueCapabilities(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "session not web-enabled", http.StatusBadRequest)
 		return
 	}
-	readURL, writeURL, readCode, writeCode, err := a.issueCapabilitiesForSession(id)
+	readURL, writeURL, readCode, writeCode, publicReadCode, err := a.issueCapabilitiesForSession(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	writeJSON(w, http.StatusOK, IssueCapabilitiesResponse{
-		ReadURL:   readURL,
-		WriteURL:  writeURL,
-		ReadCode:  readCode,
-		WriteCode: writeCode,
-		HomeDir:   a.engine.sessionCwdIsHome(id), // Phase 124 / CAP-06: EvalSymlinks-normalized home-dir signal for the GUI warning banner
+		ReadURL:        readURL,
+		WriteURL:       writeURL,
+		ReadCode:       readCode,
+		WriteCode:      writeCode,
+		HomeDir:        a.engine.sessionCwdIsHome(id), // Phase 124 / CAP-06: EvalSymlinks-normalized home-dir signal for the GUI warning banner
+		PublicReadCode: publicReadCode,                // Phase 170-02 / FNL-08: "" for non-Funnel sessions
 	})
 }
 
@@ -1613,6 +1674,24 @@ func (a *API) handleSetSessionFunnel(w http.ResponseWriter, r *http.Request) {
 	}
 	a.funnelSessions[id] = true
 
+	// FNL-08 / T-170-05: capture the per-code TTL for the reusable public-share
+	// join code that issueCapabilitiesForSession will mint on first capability
+	// issuance for this Funnel session (no rTok is available here, so minting
+	// itself is deferred to that call site). Capped at funnelReadCodeMaxTTL
+	// (8h) — this bound holds even when ExpiresIn==0 ("Until I disable"),
+	// preserving the ~40-bit code entropy brute-force-safety argument for a
+	// code that must resolve for an unbounded number of anonymous viewers.
+	if a.funnelReadCodeTTL == nil {
+		a.funnelReadCodeTTL = make(map[string]time.Duration)
+	}
+	readCodeTTL := funnelReadCodeMaxTTL
+	if req.ExpiresIn > 0 {
+		if d := time.Duration(req.ExpiresIn) * time.Second; d < readCodeTTL {
+			readCodeTTL = d
+		}
+	}
+	a.funnelReadCodeTTL[id] = readCodeTTL
+
 	// FNL-07: register auto-expiry timer if expiresIn > 0.
 	if req.ExpiresIn > 0 {
 		if a.funnelExpiry == nil {
@@ -1640,6 +1719,12 @@ func (a *API) handleSetSessionFunnel(w http.ResponseWriter, r *http.Request) {
 // timer (site 5). Site 4 (daemon stop) is covered by ws.Stop()→DisableFunnel
 // in Phase 165-01 — do NOT add a second call there (would double-fire).
 //
+// This is also the single teardown chokepoint for the FNL-08 reusable public
+// read code (T-170-02): every one of the triggers above routes through here,
+// so revoking the cached code in ONE place covers every path — not just the
+// funnelReadCodeMaxTTL backstop timer. A manually-disabled share must leave
+// no live public entry point.
+//
 // Locking contract: acquires a.mu.Lock, then releases before calling ws.DisableFunnel
 // (blocking call must not hold the mutex — mirrors the pattern in runSessionExitCleanup).
 func (a *API) disableFunnelForSession(ctx context.Context, sessionID string) {
@@ -1649,6 +1734,15 @@ func (a *API) disableFunnelForSession(ctx context.Context, sessionID string) {
 		t.Stop()
 		delete(a.funnelExpiry, sessionID)
 	}
+	// FNL-08 / T-170-02: revoke the cached reusable public-share join code, if
+	// one was ever minted, BEFORE the funnelSessions delete below — a viewer
+	// holding the code must never be able to resolve it again once teardown
+	// starts. Revoke is a no-op for a never-minted/absent code.
+	if code, ok := a.funnelReadCode[sessionID]; ok {
+		a.joinCodes.Revoke(code)
+		delete(a.funnelReadCode, sessionID)
+	}
+	delete(a.funnelReadCodeTTL, sessionID)
 	delete(a.funnelSessions, sessionID)
 	remaining := len(a.funnelSessions)
 	ws := a.webServer

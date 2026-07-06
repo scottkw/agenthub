@@ -2049,7 +2049,7 @@ func TestIssueCapabilities_BrowseOff_NoFilesPerms(t *testing.T) {
 	t.Cleanup(func() { _ = api.engine.KillSession(sid) })
 
 	// browse is OFF by default (D-06: absent from map = OFF)
-	readURL, writeURL, _, _, err := api.issueCapabilitiesForSession(sid)
+	readURL, writeURL, _, _, _, err := api.issueCapabilitiesForSession(sid)
 	if err != nil {
 		t.Fatalf("issueCapabilitiesForSession: %v", err)
 	}
@@ -2079,7 +2079,7 @@ func TestIssueCapabilities_BrowseOn_ROPermsExact(t *testing.T) {
 
 	api.engine.SetSessionBrowse(sid, true)
 
-	readURL, _, _, _, err := api.issueCapabilitiesForSession(sid)
+	readURL, _, _, _, _, err := api.issueCapabilitiesForSession(sid)
 	if err != nil {
 		t.Fatalf("issueCapabilitiesForSession: %v", err)
 	}
@@ -2109,7 +2109,7 @@ func TestIssueCapabilities_BrowseOn_RWPermsExact(t *testing.T) {
 
 	api.engine.SetSessionBrowse(sid, true)
 
-	_, writeURL, _, _, err := api.issueCapabilitiesForSession(sid)
+	_, writeURL, _, _, _, err := api.issueCapabilitiesForSession(sid)
 	if err != nil {
 		t.Fatalf("issueCapabilitiesForSession: %v", err)
 	}

@@ -175,12 +175,20 @@ type SetSessionFunnelResponse struct {
 // HomeDir (Phase 124 / CAP-06): true when the session's cwd equals
 // EvalSymlinks($HOME). The frontend reads this field to decide whether to show
 // the home-write warning banner. Populated from engine.sessionCwdIsHome.
+//
+// PublicReadCode (Phase 170-02 / FNL-08): populated ONLY for Funnel (public
+// internet) sessions. Unlike ReadCode/WriteCode (single-use, 5-minute), this
+// is a reusable join code minted once from the read-only token and cached
+// per session — it resolves for every anonymous viewer for the lifetime of
+// the share (bounded by min(ExpiresIn, 8h)) and is revoked the moment the
+// share is torn down. Empty "" for non-Funnel (tailnet/local) sessions.
 type IssueCapabilitiesResponse struct {
-	ReadURL   string `json:"readUrl"`
-	WriteURL  string `json:"writeUrl"`
-	ReadCode  string `json:"readCode"`
-	WriteCode string `json:"writeCode"`
-	HomeDir   bool   `json:"homeDir"` // Phase 124 / CAP-06: true when session cwd == EvalSymlinks($HOME)
+	ReadURL        string `json:"readUrl"`
+	WriteURL       string `json:"writeUrl"`
+	ReadCode       string `json:"readCode"`
+	WriteCode      string `json:"writeCode"`
+	HomeDir        bool   `json:"homeDir"`        // Phase 124 / CAP-06: true when session cwd == EvalSymlinks($HOME)
+	PublicReadCode string `json:"publicReadCode"` // Phase 170-02 / FNL-08: reusable share-lifetime read code; "" when not a Funnel session
 }
 
 // ExchangeJoinCodeRequest is the body for POST /join/exchange.

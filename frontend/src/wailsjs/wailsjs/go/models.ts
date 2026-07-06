@@ -36,6 +36,7 @@ export namespace daemon {
 	    readCode: string;
 	    writeCode: string;
 	    homeDir: boolean;
+	    publicReadCode: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new IssueCapabilitiesResponse(source);
@@ -48,6 +49,7 @@ export namespace daemon {
 	        this.readCode = source["readCode"];
 	        this.writeCode = source["writeCode"];
 	        this.homeDir = source["homeDir"];
+	        this.publicReadCode = source["publicReadCode"];
 	    }
 	}
 	export class WebLinksConfig {
