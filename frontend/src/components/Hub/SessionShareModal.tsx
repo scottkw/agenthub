@@ -207,6 +207,13 @@ export function SessionShareModal({
   useEffect(() => {
     if (!shareEnabled) return
     if (cachedShareRef.current !== null) return
+    // WR-03: for a Funnel-active session the warm-up completion effect below
+    // ALSO issues capabilities on the same render pass. Two IssueCapabilities
+    // calls each mint two fresh tokens + AddGrant two grant IDs server-side,
+    // so the grant set grows by four per modal open. Let the warm-up effect be
+    // the single issuer for Funnel sessions (it now seeds cachedShare too); the
+    // seeding effect stays the issuer only for plain (non-Funnel) shares.
+    if (session.funnelActive) return
     let cancelled = false
     void (async () => {
       try {
@@ -381,6 +388,14 @@ export function SessionShareModal({
         if (cancelled) return
         setFunnelUrl(resp.readUrl)
         setPublicReadCode(resp.publicReadCode ?? null)
+        // WR-03: seed cachedShare from this SAME response so the seeding effect
+        // above can bow out for Funnel sessions — one issuance, not two.
+        setCachedShare({
+          readURL: resp.readUrl,
+          writeURL: resp.writeUrl,
+          readCode: resp.readCode,
+          writeCode: resp.writeCode,
+        })
         setWarmingUp(false)
         setWarmupTimedOut(false)
         if (warmupTimeoutRef.current) {
