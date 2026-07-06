@@ -96,6 +96,15 @@ type API struct {
 	// entropy-safety backstop for the ~40-bit code (T-170-05). Lazy-initialised
 	// on first enable. Guarded by a.mu.
 	funnelReadCodeTTL map[string]time.Duration
+	// funnelReadCodeExpiry holds the absolute wall-clock expiry of the cached
+	// reusable public-share code, so issueCapabilitiesForSession can detect a
+	// lapsed code at the mint gate and re-mint (WR-02). Without it, an
+	// "Until I disable" (ExpiresIn==0) share whose code hit the 8h backstop
+	// would keep returning the now-dead string forever (viewers get 410→404),
+	// because the presence of the stale string in funnelReadCode suppresses any
+	// re-mint. Keyed by sessionID; set on every fresh mint and deleted in
+	// disableFunnelForSession alongside funnelReadCode. Guarded by a.mu.
+	funnelReadCodeExpiry map[string]time.Time
 }
 
 // funnelReadCodeMaxTTL bounds the per-code TTL of the reusable public-share
@@ -1473,7 +1482,16 @@ func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, 
 		// orphaning a live public code past "dies with the share" (T-170-02).
 		if a.funnelSessions[sessionID] {
 			cached, ok := a.funnelReadCode[sessionID]
-			if !ok {
+			// WR-02: treat an expired cached code as absent. An "Until I
+			// disable" (ExpiresIn==0) share keeps its public URL up
+			// indefinitely, but the code itself is TTL-capped at
+			// funnelReadCodeMaxTTL (8h, T-170-03 entropy backstop). Past that
+			// the code is dead (Exchange → 410/404) yet still cached; without
+			// this re-mint gate it would never recover short of a Funnel
+			// off→on cycle.
+			expiry, hasExpiry := a.funnelReadCodeExpiry[sessionID]
+			expired := ok && hasExpiry && time.Now().After(expiry)
+			if !ok || expired {
 				code, mintErr := a.mintFunnelReadCodeLocked(sessionID, rTok)
 				if mintErr != nil {
 					a.mu.Unlock()
@@ -1516,7 +1534,13 @@ func (a *API) mintFunnelReadCodeLocked(sessionID, rTok string) (string, error) {
 	if a.funnelReadCode == nil {
 		a.funnelReadCode = make(map[string]string)
 	}
+	if a.funnelReadCodeExpiry == nil {
+		a.funnelReadCodeExpiry = make(map[string]time.Time)
+	}
 	a.funnelReadCode[sessionID] = code
+	// WR-02: record the absolute expiry so a later issuance can detect a lapsed
+	// code and re-mint instead of returning the dead string.
+	a.funnelReadCodeExpiry[sessionID] = time.Now().Add(ttl)
 	return code, nil
 }
 
@@ -1773,6 +1797,7 @@ func (a *API) disableFunnelForSession(ctx context.Context, sessionID string) {
 		a.joinCodes.Revoke(code)
 		delete(a.funnelReadCode, sessionID)
 	}
+	delete(a.funnelReadCodeExpiry, sessionID)
 	delete(a.funnelReadCodeTTL, sessionID)
 	delete(a.funnelSessions, sessionID)
 	remaining := len(a.funnelSessions)
