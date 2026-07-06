@@ -565,7 +565,7 @@ Plans:
 | 167. Native Notifications | 7/7 | Complete   | 2026-07-01 |
 | 168. Bug Fix & Settings Polish | 9/9 | Complete   | 2026-07-02 |
 | 169. Tailscale Detection Fix | 2/2 | Complete (verified; M-45 live deferred) | 2026-07-05 |
-| 170. Public Share Access Codes (read) | 0/4 | Planned — run /gsd-execute-phase 170 | — |
+| 170. Public Share Access Codes (read) | 1/4 | In Progress|  |
 | 171. Public Full-Access (RW) Sharing | 0/? | Spec-first — run /gsd-spec-phase 171 | — |
 
 ### Phase 170: Public Share Access Codes (read)
@@ -584,13 +584,13 @@ Plans:
 - Keep **40-bit crypto/rand** entropy (2⁴⁰ over an ≤8h window is not brute-forceable even without rate-limiting).
 - **Supplement, not replace** the existing self-contained cap-URL + QR flow.
 
-**Plans:** 4 plans (4 waves — serial dependency stack: joincode primitive → daemon wiring → frontend → regression docs)
+**Plans:** 1/4 plans executed
 
 Plans:
 
 **Wave 1**
 
-- [ ] 170-01-PLAN.md — Reusable join-code primitive: `IssueReusable`/`Revoke`/`reusable` flag on `JoinCodeManager` + conditional-delete `Exchange` + new `internal/webserver/join_test.go` public double-exchange proof (FNL-08)
+- [x] 170-01-PLAN.md — Reusable join-code primitive: `IssueReusable`/`Revoke`/`reusable` flag on `JoinCodeManager` + conditional-delete `Exchange` + new `internal/webserver/join_test.go` public double-exchange proof (FNL-08)
 
 **Wave 2** *(blocked on Wave 1)*
 

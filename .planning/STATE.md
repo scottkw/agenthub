@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 170
-current_phase_name: public-share-access-codes
-status: planning
+current_phase_name: public-share-access-codes-reusable-share-lifetime-join-code-
+status: executing
 stopped_at: "v4.2 REOPENED 2026-07-05 — live UAT of Funnel added 2 phases: 170 public read code (needs /gsd-plan-phase), 171 public full-access (SPEC-FIRST). 165-169 done; 2 Share-modal layout bugs fixed live (commit 27d398e7)."
-last_updated: "2026-07-05T21:30:00.000Z"
-last_activity: 2026-07-05
-last_activity_desc: v4.2 reopened — added Phase 170/171 after live Funnel UAT; Share-modal overflow + risk-panel flex-shrink fixed
+last_updated: "2026-07-06T00:37:19.035Z"
+last_activity: 2026-07-06
+last_activity_desc: Phase 170 execution started
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 5
-  total_plans: 28
-  completed_plans: 28
-  percent: 71
+  total_plans: 32
+  completed_plans: 29
+  percent: 63
 ---
 
 # Project State
@@ -24,17 +24,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v4.2 REOPENED — Funnel access-method expansion. Next: `/gsd-plan-phase 170` (public read code), then `/gsd-spec-phase 171` (public full-access, spec-first). Live UAT of 165-169 partially done (see below).
+**Current focus:** Phase 170 — public-share-access-codes-reusable-share-lifetime-join-code-
 
 ## Current Position
 
-Phase: 170 (public-share-access-codes) — PLANNED, not yet broken down
-Status: **v4.2 reopened 2026-07-05** after live Funnel UAT on a prod build. Phases 165-169 complete. Two new phases added (Funnel was a v4.2 target; read-only was never the intended sole access method):
-- **170 Public Share Access Codes (read)** — reusable share-lifetime join code for the INTERNET (PUBLIC) link (FNL-08). UAT found the public link shows no join code (unlike RO/Full) → typing the URL dead-ends on a code page with no code. Root cause: join codes are 5-min single-use (`api.go:259`), wrong for a public share → needs per-code TTL + reusable semantics tied to funnel expiry, read-only only. NEXT = `/gsd-plan-phase 170`.
+Phase: 170 (public-share-access-codes-reusable-share-lifetime-join-code-) — EXECUTING
+Plan: 1 of 4 in current phase
+Status: Executing Phase 170
+
+- **170 Public Share Access Codes (read)** — reusable share-lifetime join code for the INTERNET (PUBLIC) link (FNL-08). UAT found the public link shows no join code (unlike RO/Full) → typing the URL dead-ends on a code page with no code. Root cause: join codes are 5-min single-use (`api.go:259`), wrong for a public share → needs per-code TTL + reusable semantics tied to funnel expiry, read-only only. **170-01 EXECUTED 2026-07-05** (commits 70f2f8ad/fa35b928/1618255b/cc864779/eb119e4c): `JoinCodeManager.IssueReusable`/`Revoke` + reusable-conditional `Exchange` delete, proven at unit layer (4 new tests, 6 pre-existing untouched) AND at the public `/join/exchange` HTTP boundary (new `internal/webserver/join_test.go` — reusable read code resolves twice, single-use code still fails on 2nd try). NEXT = 170-02 (daemon-side minting tied to Funnel enable/expiry, read-only enforcement at mint site per T-170-01).
 - **171 Public Full-Access (RW) Sharing** — opt-in public read-write behind a hard consent gate + single-use write code (FNL-09). Supersedes today's ACCIDENTAL public write (issueCapabilitiesForSession rebases both read+write caps to the funnel base by timing; funnel exposes whole mux, no read-only downgrade). **SPEC-FIRST** (internet RCE): `/gsd-spec-phase 171` → discuss → `/gsd-secure-phase` → plan.
 
-**Live UAT of 165-169 (2026-07-05, prod build on real Funnel tailnet) — Phase 166 Funnel UAT NOW COMPLETE, all 4 PASS (166-UAT.md status→passed):** M-37 (off-tailnet phone QR loads read-only session; public URL 200 off-host), M-38 (daemon 60s auto-expiry → torn down, URL HTTP 000, badge cleared, no manual disable), M-39 (globe + INTERNET badge appears/clears), M-40 (stop tailscale + restart daemon → local mode → toggle greyed + "requires Tailscale" + backend 400 fail-closed; reconnect auto-upgrades → toggle re-enables). **2 Share-modal layout bugs found + fixed live (commit 27d398e7):** (1) `.hub-share-modal` had no height bound → overflowed viewport/clipped; fixed with max-height. (2) that max-height made `__body` a constrained flex column and the risk panel's `overflow:hidden` let flexbox shrink it 202px→39px, clipping the Auto-expire select + Enable CTA → Funnel uncommittable via UI; fixed with `flex-shrink:0`. Both root-caused via dev-browser CSS harness, verified live. OBSERVATION (not blocking, maybe file): daemon does NOT live-downgrade to local mode on a mid-session tailscale drop (stays tailscale-mode w/ stale IP) — local fallback is startup-only; auto-upgrade on reconnect works. REMAINING deferrals: M-41 (notif delivery win/linux, needs those platforms), M-45 (non-admin macsys, env-only). **OPEN — NEXT ACTION after user /clears: create a new phase (Phase 172) for Hub-card layout/badge refinement** (user requested 2026-07-05). Design critique captured: the Hub session card (image ref) uses THREE inconsistent metadata treatments — `Running`/`Local` = icon+plain-text, `/bin/zsh` = outlined pill, `INTERNET` = filled green pill on its own row — loosely stacked with no grouping. Direction: consolidate into ONE consistent chip row (agent · origin · exposure) with tighter vertical rhythm, while KEEPING the INTERNET chip the one deliberately-prominent colored/filled chip (it's a security-exposure signal that must stay unmissable + colorblind-safe per [[user_colorblind]]; making others quieter/outlined makes INTERNET pop MORE by contrast). Frontend-only (Hub card component + style.css); no backend. User wants 2-3 throwaway HTML mockups (frontend-design skill) BEFORE touching code. This is a v4.2 phase (milestone reopened). To add: `/gsd-phase add ...` (will become 172).
-Last activity: 2026-07-05 — v4.2 reopened + Share-modal fixes
+**Live UAT of 165-169 (2026-07-05, prod build on real Funnel tailnet) — Phase 166 Funnel UAT NOW COMPLETE, all 4 PASS (166-UAT.md status→passed):** M-37 (off-tailnet phone QR loads read-only session; public URL 200 off-host), M-38 (daemon 60s auto-expiry → torn down, URL HTTP 000, badge cleared, no manual disable), M-39 (globe + INTERNET badge appears/clears), M-40 (stop tailscale + restart daemon → local mode → toggle greyed + "requires Tailscale" + backend 400 fail-closed; reconnect auto-upgrades → toggle re-enables). **2 Share-modal layout bugs found + fixed live (commit 27d398e7):** (1) `.hub-share-modal` had no height bound → overflowed viewport/clipped; fixed with max-height. (2) that max-height made `__body` a constrained flex column and the risk panel's `overflow:hidden` let flexbox shrink it 202px→39px, clipping the Auto-expire select + Enable CTA → Funnel uncommittable via UI; fixed with `flex-shrink:0`. Both root-caused via dev-browser CSS harness, verified live. OBSERVATION (not blocking, maybe file): daemon does NOT live-downgrade to local mode on a mid-session tailscale drop (stays tailscale-mode w/ stale IP) — local fallback is startup-only; auto-upgrade on reconnect works. REMAINING deferrals: M-41 (notif delivery win/linux, needs those platforms), M-45 (non-admin macsys, env-only). **Phase 172 (Hub-card layout & badge refinement) CREATED 2026-07-05** (`/gsd-phase add`; frontend-only, Depends on: None — independent of Funnel 170/171). NEXT = user wants 2-3 throwaway HTML mockups (frontend-design / /gsd-sketch) BEFORE `/gsd-plan-phase 172`. Design critique captured: the Hub session card (image ref) uses THREE inconsistent metadata treatments — `Running`/`Local` = icon+plain-text, `/bin/zsh` = outlined pill, `INTERNET` = filled green pill on its own row — loosely stacked with no grouping. Direction: consolidate into ONE consistent chip row (agent · origin · exposure) with tighter vertical rhythm, while KEEPING the INTERNET chip the one deliberately-prominent colored/filled chip (it's a security-exposure signal that must stay unmissable + colorblind-safe per [[user_colorblind]]; making others quieter/outlined makes INTERNET pop MORE by contrast). Frontend-only (Hub card component + style.css); no backend. User wants 2-3 throwaway HTML mockups (frontend-design skill) BEFORE touching code. This is a v4.2 phase (milestone reopened). To add: `/gsd-phase add ...` (will become 172).
+Last activity: 2026-07-06 — Phase 170 execution started
 
 ```
 v4.2 Progress: [██████████████░░░░░░] 71% (5/7 phases — 165 ✅, 166 ✅ (+2 modal fixes 2026-07-05), 167 ✅ (M-41 deferred), 168 ✅, 169 ✅ (M-45 deferred); 170 ⬜ plan, 171 ⬜ spec-first)
@@ -78,6 +80,9 @@ v4.2 Progress: [██████████████░░░░░░] 71
 | 167 | Native Notifications | NTF-01, NTF-02, NTF-03, NTF-04 | ✅ DONE — 7/7 plans, code-verified 11/11; **M-41 live delivery DEFERRED** to release-time UAT (signed builds, unautomatable) |
 | 168 | Bug Fix & Settings Polish | FIX-01, FIX-02, FIX-03, FIX-04, UX-01, UX-02 | ✅ DONE — 9/9 plans (incl. 168-08/09 gap-closures); verified 6/6, live UAT 4/4 PASS (#112/#115/#116/#117/#118/#121 code-fixed) |
 | 169 | Tailscale Detection Fix | FIX-05 | ⬜ Not started — next: /gsd-plan-phase 169 (#120; orthogonal, non-admin macOS test env) |
+| 170 | Public Share Access Codes (read) | FNL-08 | ⬜ Not started — reopen phase; next: /gsd-plan-phase 170 |
+| 171 | Public Full-Access (RW) Sharing | FNL-09 | ⬜ Not started — reopen phase; SPEC-FIRST: /gsd-spec-phase 171 |
+| 172 | Hub-card Layout & Badge Refinement | TBD (design polish) | ⬜ Not started — frontend-only; mockups first, then /gsd-plan-phase 172 |
 
 **Total:** 26 requirements mapped across 5 phases (100% coverage). *(2026-07-01: +FIX-04 #121 phantom viewer count into Phase 168; +FIX-05 #120 Tailscale detection split into new Phase 169.)*
 
@@ -140,7 +145,7 @@ v4.2 Progress: [██████████████░░░░░░] 71
 
 ## Session Continuity
 
-Last session: 2026-07-02T18:33:46.040Z
+Last session: 2026-07-06T00:37:06.944Z
 Stopped at: Phase 169 context gathered
 Resume file: .planning/phases/169-tailscale-detection-fix/169-CONTEXT.md
 Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 phase — FIX-05: non-admin macOS accounts report Tailscale "installed but not Connected" because `macsys` `sameuserproof` is unreadable; add a CLI `status` fallback. Run `/gsd-plan-phase 169` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
@@ -226,6 +231,7 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 | Phase 168 P06 | 9min | 3 tasks | 10 files |
 | Phase 168 P07 | 15min | 2 tasks | 1 files |
 | Phase 169 P01 | 13min | 2 tasks | 3 files |
+| Phase 170 P01 | 5min | 3 tasks | 3 files |
 
 ## Decisions
 
@@ -272,3 +278,4 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 - [Phase ?]: Phase 168-07: plans 168-01..06 self-registered TESTING.md changes inline per-plan rather than deferring to this isolated final plan; 168-07 closed remaining gaps (FIX-04 traceability, M-13 reword, M-42/M-43 manual items)
 - [Phase ?]: Phase 169-01: reused tailscale.com/ipn/ipnstate.Status for CLI JSON unmarshal instead of a new local struct — mirrors the SDK-success field-mapping exactly
 - [Phase ?]: Phase 169-01: cliStatusFunc fires on ANY SDK error, on ALL platforms — no error-string classification, no runtime.GOOS gate (D-03/D-04)
+- [Phase 170-01]: IssueReusable reuses Issue's exact crypto/rand + joinCodeEncoding path (no new RNG surface); Exchange's success-path delete gated on entry.reusable while expiry-path delete stays unconditional for both classes
