@@ -1,20 +1,21 @@
 ---
 phase: 170-public-share-access-codes-reusable-share-lifetime-join-code-
-reviewed: 2026-07-05T00:00:00Z
+reviewed: 2026-07-06T01:45:41Z
 depth: standard
-files_reviewed: 11
+files_reviewed: 12
 files_reviewed_list:
+  - frontend/src/components/Hub/SessionShareModal.tsx
+  - frontend/src/components/SessionSharePanel.tsx
+  - frontend/src/components/__tests__/SessionSharePanel.test.tsx
+  - frontend/src/wailsjs/go/main/App.d.ts
+  - frontend/src/wailsjs/wailsjs/go/models.ts
   - internal/capability/joincode.go
   - internal/capability/joincode_test.go
   - internal/daemon/api.go
-  - internal/daemon/types.go
   - internal/daemon/api_test.go
   - internal/daemon/funnel_test.go
+  - internal/daemon/types.go
   - internal/webserver/join_test.go
-  - frontend/src/components/SessionSharePanel.tsx
-  - frontend/src/components/Hub/SessionShareModal.tsx
-  - frontend/src/components/__tests__/SessionSharePanel.test.tsx
-  - frontend/src/wailsjs/go/main/App.d.ts
 findings:
   critical: 1
   warning: 3
@@ -25,145 +26,200 @@ status: issues_found
 
 # Phase 170: Code Review Report
 
-**Reviewed:** 2026-07-05
+**Reviewed:** 2026-07-06T01:45:41Z
 **Depth:** standard
-**Files Reviewed:** 11
+**Files Reviewed:** 12
 **Status:** issues_found
 
 ## Summary
 
-FNL-08 adds a reusable, read-only, share-lifetime public join code for Tailscale-Funnel (internet-exposed) shares. The core security invariants the phase set out to hold — `rTok`-only binding (never `wTok`), single teardown chokepoint through `disableFunnelForSession`, TTL capped at `min(ExpiresIn, 8h)`, mutex discipline, no code leakage into logs — are correctly implemented at the mint site (`issueCapabilitiesForSession`) and teardown site, and are well covered by `funnel_test.go` and `join_test.go`. `IssueReusable`/`Revoke`/`Exchange` in `joincode.go` are sound: the single-mutex lookup+expiry+conditional-delete is TOCTOU-safe, and the reusable exemption is correctly scoped.
+Phase 170 adds reusable, share-lifetime public join codes (FNL-08) on top of the
+single-use join-code machinery. The `JoinCodeManager` reusable/TTL/revoke work
+(`joincode.go`) is clean, correct, and well-tested: the mutex-under-Exchange
+TOCTOU argument holds, single-use vs reusable is a single conditional delete, and
+expiry deletes for both classes. The webserver-boundary reusable contract
+(`join_test.go`) and the funnel teardown revocation suite (`funnel_test.go`) are
+thorough.
 
-However, the idempotent-caching requirement (T-170-04, "a code already handed to a viewer must not silently rotate") collides with the existing grant-clearing behavior of the browse toggle. Toggling **remote file browsing** on a live Funnel share calls `ws.ClearGrants(id)`, which permanently invalidates the exact grant the cached public code (and public URL) depend on — while the idempotent cache refuses to re-mint. The result is a public share that silently dies mid-session with no UI recovery. That is the blocker below. Two supporting security/robustness warnings (a mint-after-teardown leak window, and `files.read` reaching anonymous internet viewers) and two info items round out the review.
+The defects live at the **integration boundary between the reusable public code
+and the D-15 grant-revocation system**. The reusable code is deliberately pinned
+to the *first* read token and never rotated (T-170-04), but the token it points
+to depends on a grant that a normal owner gesture — toggling "Enable remote file
+browsing" — wipes via `ws.ClearGrants`. The result is a silent, unrecoverable
+lockout of every existing public viewer. Two further issues concern the code
+outliving or under-living its share: a TOCTOU window that can orphan a code past
+teardown, and the 8h backstop TTL killing the code with no re-mint path for
+"Until I disable" shares.
 
-No secret or join code is written to any log statement in the reviewed code — that requirement is satisfied.
+No `<structural_findings>` block was provided, so this report is entirely
+narrative findings.
 
 ## Narrative Findings (AI reviewer)
 
 ## Critical Issues
 
-### CR-01: Toggling remote file browsing permanently breaks the public read code and public URL of a live Funnel share
+### CR-01: Toggling "remote file browsing" permanently breaks the live reusable public code
 
-**File:** `internal/daemon/api.go:1766` (`handleSetSessionBrowse`) in conjunction with `internal/daemon/api.go:1457-1487` (`issueCapabilitiesForSession` idempotent cache)
+**File:** `internal/daemon/api.go:1466-1487` (mint/cache), `internal/daemon/api.go:1773-1782` (`handleSetSessionBrowse` → `ClearGrants`), `frontend/src/components/Hub/SessionShareModal.tsx:264-288` (`handleBrowseToggle` re-issue)
 
 **Issue:**
-The public read code is minted once and cached idempotently, bound to the *first* read token `rTok1` (grant id `rgid1`), which was registered via `ws.AddGrant(sessionID, rgid1)`. The public URL shown in the UI (`funnelUrl`) also embeds `rTok1`.
+The reusable public read code is minted once from the read token `rTok` of the
+*first* `issueCapabilitiesForSession` call for a Funnel session and cached in
+`a.funnelReadCode[sessionID]`. By design (T-170-04) it is never rotated on
+subsequent calls — every later call returns the cached code, which still resolves
+(via `Exchange`) to that original `rTok` and therefore that original grant ID
+(`G1`).
 
-When the owner toggles "Enable remote file browsing" on a session that is already Funnel-shared, `handleSetSessionBrowse` runs:
+The browse toggle destroys the grant that code depends on:
 
-```go
-a.engine.SetSessionBrowse(id, req.Enabled)
-...
-if ws != nil {
-    ws.ClearGrants(id) // clears ALL grants for the session, including rgid1
-}
-```
+1. Funnel enabled, caps issued → public code `P` minted, bound to `rTok_1`
+   (grant `G1`); `ws.AddGrant(sid, G1)`. Owner shares `P` out-of-band.
+2. Owner flips "Enable remote file browsing". Frontend `handleBrowseToggle` →
+   `SetSessionBrowse` → daemon `handleSetSessionBrowse` calls
+   `ws.ClearGrants(id)` (api.go:1781), deleting the entire grant set for the
+   session — including `G1`.
+3. `handleBrowseToggle` then re-issues caps → `issueCapabilitiesForSession`
+   mints a *new* `rTok_2` with a *new* grant `G2` and `AddGrant(G2)`, but the
+   cached public code `P` is **not** rotated (still bound to `rTok_1`/`G1`), and
+   because `a.funnelReadCode[sid]` is already set there is **no re-mint path**.
+4. Any public viewer now redeeming `P` is sent to `/sessions/{sid}?cap=rTok_1`.
+   `requireCapability` (`internal/webserver/capability_mw.go:61`) calls
+   `isGrantActive(sid, G1)` → false → **403 "capability has been revoked."**
 
-`ClearGrants` permanently invalidates every previously-issued capability for the session — this is proven by `TestHandleWebServe_ToggleOffClearsGrants` (api_test.go:944), where a live HTTPS `probeGrant` returns `false` after `ClearGrants`. The frontend then re-issues caps (`handleBrowseToggle`, SessionShareModal.tsx:264), minting a fresh `rTok2`/`rgid2` — but:
+The reusable code is silently and permanently dead for every holder, which is
+the exact failure mode T-170-04 exists to prevent ("a code already handed to a
+viewer must not silently break"). The frontend compounds it: `handleBrowseToggle`
+refreshes `cachedShare` but never updates `publicReadCode` state, so the UI keeps
+displaying the now-broken code with no error. Recovery requires a full Funnel
+off→on cycle.
 
-1. Daemon side: the idempotent cache (`api.go:1466-1487`) sees `funnelReadCode[sessionID]` already set and returns the **same** `code1 -> rTok1`. `rgid1` is now cleared, so `Exchange(code1)` yields `rTok1`, which the webserver's grant check rejects. The distributed public join code is dead.
-2. Frontend side: `handleBrowseToggle` updates `cachedShare` but never updates `funnelUrl` or `publicReadCode` (SessionShareModal.tsx:270-279). The warm-up effect that sets them is gated `if (funnelUrl) return` (SessionShareModal.tsx:375-376), so it never re-fires. The displayed public URL still embeds the now-dead `rTok1`.
+This only bites the browse path because it is the only re-issue trigger that
+calls `ClearGrants`; a plain re-issue (modal reopen, warm-up) accumulates grants
+and leaves `G1` intact. That is why the existing idempotency test
+(`funnel_test.go:388` `TestIssueCapabilities_FunnelPublicCode_Idempotent`, and the
+`browse_on` case of `TestFunnelPublicCode_ReadOnlyScope`, which sets browse
+*before* the first issue) does not catch it — no test toggles browse *after* the
+public code is minted.
 
-Net effect: a normal, reachable owner action (enable/disable file browsing) silently and permanently breaks a public share link that may already be in the hands of remote viewers, with no error and no UI recovery path. This defeats the central deliverable of the phase.
+**Fix:** The reusable public code must survive a grant clear. Options, in
+preference order:
 
-**Fix:**
-Treat the browse toggle as a rotation point for the public code on the daemon side — revoke and drop the cached entry so the next `issueCapabilitiesForSession` re-mints a fresh reusable code bound to the new `rTok`, then have the frontend adopt the re-issued values. In `handleSetSessionBrowse`, before/after `ClearGrants`:
+1. Preserve the public code's grant across `ClearGrants` — track the public
+   code's grant ID separately and re-`AddGrant` it after the clear (or have
+   `handleSetSessionBrowse` re-add it) so `rTok_1`/`G1` stays active for the
+   code's lifetime.
+2. Re-bind the cached code to the new token without changing the code string.
+   The `JoinCodeManager` map is keyed by code, so a `Rebind(code, newToken)`
+   method can swap the stored token while keeping the string stable; call it from
+   `issueCapabilitiesForSession` whenever a Funnel public code already exists and
+   a fresh `rTok` was just minted.
 
-```go
-a.mu.Lock()
-if code, ok := a.funnelReadCode[id]; ok {
-    a.joinCodes.Revoke(code)
-    delete(a.funnelReadCode, id)
-    // keep funnelReadCodeTTL[id] so the re-mint reuses the same capped TTL
-}
-a.mu.Unlock()
-```
-
-and in `SessionShareModal.handleBrowseToggle`, after the re-issue, also refresh the Funnel-scoped state from the same response:
-
-```ts
-setFunnelUrl(resp.readUrl)
-setPublicReadCode(resp.publicReadCode ?? null)
-```
-
-(Add a regression test: enable Funnel, mint public code, toggle browse on, assert `Exchange(publicReadCode)` still resolves to a read-only token whose grant is live — the current suite only asserts idempotency and revoke-on-teardown, never the browse-toggle interaction.)
+Add a regression test that mints the public code, toggles browse **after** mint,
+then drives the real `/join/exchange` → `/sessions/{id}?cap=...` path and asserts
+the request is NOT 403 (grant still active).
 
 ## Warnings
 
-### WR-01: Public read code can be minted *after* teardown already ran, leaking a live public code for up to 8h
+### WR-01: TOCTOU — a public code can be minted after Funnel teardown and outlive the share
 
-**File:** `internal/daemon/api.go:1437-1487` (`issueCapabilitiesForSession`)
-
-**Issue:**
-`isFunnelSession` is read under `a.mu.RLock` at line 1437-1439 and the lock is released. The mint block re-acquires `a.mu.Lock` at line 1467. If `disableFunnelForSession` runs in that gap (auto-expiry timer fire, toggle-off, web-share-off, session exit — all call it), it revokes the code and deletes `funnelReadCode[sessionID]`, `funnelReadCodeTTL[sessionID]`, and `funnelSessions[sessionID]`. The mint block then observes `funnelReadCode[sessionID]` absent, defaults `ttl` to `funnelReadCodeMaxTTL` (8h, since `funnelReadCodeTTL` was also deleted), mints a fresh reusable code, and stores it into `funnelReadCode[sessionID]` — *after* the single teardown chokepoint has already run. That code is now orphaned: `funnelSessions` no longer marks the session as Funnel, but a live, internet-resolvable reusable public code persists until its 8h TTL. This violates the "a manually-disabled share must leave no live public entry point" contract in the `disableFunnelForSession` doc comment.
-
-**Fix:**
-Re-check funnel liveness *inside* the mint lock before minting, so a teardown that won the race wins definitively:
-
-```go
-if isFunnelSession {
-    a.mu.Lock()
-    if !a.funnelSessions[sessionID] { // teardown raced us — do not mint
-        a.mu.Unlock()
-    } else {
-        cached, ok := a.funnelReadCode[sessionID]
-        if !ok { /* mint + store as today */ }
-        a.mu.Unlock()
-        publicReadCode = cached
-    }
-}
-```
-
-### WR-02: Reusable public read code grants `files.read` to anonymous internet viewers when browse is ON at mint time
-
-**File:** `internal/daemon/api.go:1409-1415`, `1466-1487`
+**File:** `internal/daemon/api.go:1436-1487`
 
 **Issue:**
-The public code is bound to `rTok`, whose perms are `read` (browse OFF) or `read,files.read` (browse ON, api.go:1411-1414). When browse is ON at first mint, the reusable public code — reachable by any anonymous viewer on the public internet who has the ~40-bit code — resolves to a token carrying `files.read`, i.e. read access to the session's working-directory sandbox. The phase's own scope test `TestFunnelPublicCode_ReadOnlyScope` (funnel_test.go:339) only asserts the token does **not** contain `write`/`files.write`; it explicitly tolerates `files.read` in both browse states. So "read-only" here means "no write," not "no filesystem exposure." For a tailnet share this matches D-05; for a *public internet* share it is a materially larger blast radius (directory contents exposed to the world, not just terminal output) and deserves an explicit decision rather than falling out of the browse toggle by default.
+`issueCapabilitiesForSession` reads `isFunnelSession` under one `a.mu.RLock`
+(lines 1437-1439), releases it, then re-acquires `a.mu.Lock` for the mint block
+(lines 1466-1485). The doc comment claims the lock is held "across `IssueReusable`
+... to close the TOCTOU window," but the funnel-membership check and the mint are
+under **separate** lock acquisitions. Interleaving:
 
-**Fix:**
-Decide deliberately whether public Funnel codes may ever carry `files.read`. Safest option: strip `files.read` from the token used for the *public* reusable code regardless of the per-session browse toggle (mint the public code from a `read`-only claim set, independent of `browseEnabledFor`), and add a positive test asserting the public code's perms are exactly `read` even when browse is ON. If the exposure is intended, document it in the risk panel copy so the owner is warned that enabling browse also exposes files to the public link.
+1. Thread A reads `isFunnelSession = true`, releases RLock.
+2. Thread B (`disableFunnelForSession`, e.g. expiry timer or user disable) takes
+   the lock, revokes any cached code, deletes `funnelReadCode[sid]`,
+   `funnelSessions[sid]`, unlocks. Share is torn down.
+3. Thread A takes the lock, sees `funnelReadCode[sid]` absent, mints a **new**
+   reusable code (TTL up to 8h), stores it in `funnelReadCode[sid]`, unlocks.
 
-### WR-03: `handleBrowseToggle` refreshes `cachedShare` but not `funnelUrl`/`publicReadCode`, leaving the Internet section showing stale values
+The session is now Funnel-disabled but holds a live reusable public code that no
+future teardown will revoke (teardown already ran). Because
+`disableFunnelForSession` does not `ClearGrants`, the token behind that code stays
+valid too — so a code that was supposed to "die with the share" resolves for up to
+8h after teardown. This defeats the T-170-02 "dies with the share" invariant.
 
-**File:** `frontend/src/components/Hub/SessionShareModal.tsx:264-288`
+**Fix:** Perform the funnel-membership check and the mint under a single
+uninterrupted `a.mu.Lock`. Re-read `a.funnelSessions[sessionID]` inside the mint
+critical section and only mint when it is still `true`; otherwise return
+`publicReadCode == ""`.
+
+### WR-02: "Until I disable" shares lose the reusable code at the 8h backstop with no re-mint
+
+**File:** `internal/daemon/api.go:1466-1484` (mint gate), `internal/daemon/api.go:108` + `api.go:1687-1693` (TTL selection)
 
 **Issue:**
-Independent of the daemon grant issue in CR-01, the browse-toggle handler re-issues capabilities and updates only `cachedShare` (readURL/writeURL/readCode/writeCode). The Funnel-scoped `funnelUrl` and `publicReadCode` state are never updated here, and the warm-up effect that would refresh them is gated on `!funnelUrl` (line 375-376) so it will not re-run. The Internet (public) section therefore continues to render the pre-toggle URL and code even though the daemon has re-minted the underlying tokens. This is the frontend half of the CR-01 defect and needs its own fix even after the daemon side is corrected.
+When `ExpiresIn == 0` ("Until I disable"), no funnel expiry timer is armed
+(api.go:1696 gates on `req.ExpiresIn > 0`), but the reusable code TTL is set to
+`funnelReadCodeMaxTTL` (8h). After 8h the code expires and `Exchange` deletes it —
+yet the share (and its cap-bearing public URL) stays up indefinitely. Crucially,
+`a.funnelReadCode[sid]` still holds the now-dead code string, so the mint gate
+`cached, ok := a.funnelReadCode[sessionID]` sees `ok == true` and
+`issueCapabilitiesForSession` **never re-mints**. The flagship long-lived public
+share therefore loses its reusable join code permanently at the 8h mark, returning
+the dead string to the UI (viewers get 410-then-404) with no recovery short of a
+Funnel off→on cycle.
 
-**Fix:**
-In `handleBrowseToggle`, after a successful `IssueCapabilities`, also propagate the Funnel-scoped fields when the session is Funnel-active:
+**Fix:** Treat an expired cached code as absent at the mint gate — track its expiry
+(or probe resolvability) and re-mint into `a.funnelReadCode[sid]` if it has lapsed.
+Alternatively, for `ExpiresIn == 0`, arm a refresh that rotates the code before the
+8h backstop. Add a clock-injected test covering an `ExpiresIn==0` session past 8h
+asserting a fresh, resolvable code is returned.
 
-```ts
-setCachedShare({ readURL: resp.readUrl, ... })
-if (session.funnelActive) {
-  setFunnelUrl(resp.readUrl)
-  setPublicReadCode(resp.publicReadCode ?? null)
-}
-```
+### WR-03: Redundant double cap-issuance re-adds grants on every Funnel modal open
+
+**File:** `frontend/src/components/Hub/SessionShareModal.tsx:207-227` (seeding effect) and `:374-396` (warm-up completion effect)
+
+**Issue:**
+For a session already `funnelActive` when the modal opens, both the server-truth
+seeding effect (fires because `shareEnabled` is true) and the warm-up completion
+effect (fires because `session.funnelActive && !funnelUrl`) call
+`IssueCapabilities(session.id)` on the same render pass. Each runs
+`issueCapabilitiesForSession`, which mints two fresh tokens and `AddGrant`s two new
+grant IDs server-side. The grant set therefore grows by two on every modal open
+(and again on every browse toggle), and only `ClearGrants`/session-end prunes it —
+a slow unbounded accumulation of stale grants in `ws.grants[sid]`, plus a redundant
+round-trip. Not a correctness bug on its own, but it widens the CR-01/WR-01 surface
+(more live tokens per session than the UI reflects).
+
+**Fix:** Deduplicate issuance — gate the seeding effect out when the session is
+Funnel-active (let the warm-up effect own issuance for Funnel sessions), or share a
+single in-flight issuance promise between the two effects.
 
 ## Info
 
-### IN-01: Re-enabling Funnel with a new `expiresIn` does not extend the already-minted public code's TTL
+### IN-01: Doc comment overstates the TOCTOU guarantee
 
-**File:** `internal/daemon/api.go:1671-1712` (`handleSetSessionFunnel` enable path)
+**File:** `internal/daemon/api.go:1457-1465`
 
-**Issue:**
-On a re-enable, `funnelReadCodeTTL[id]` is recomputed and stored (line 1684-1693), but the public code is minted lazily and cached idempotently, so `funnelReadCodeTTL` is only consumed on the *first* mint. A re-enable with a longer `expiresIn` updates the stored TTL but has no effect on the existing code, whose per-code TTL was fixed at first mint. This is a benign edge (the code still lives at least as long as its original TTL, and the Funnel session's own expiry timer is refreshed), but the stored-TTL update is effectively dead on the re-enable path and could mislead a future maintainer.
+**Issue:** The mint-block comment states "a.mu is held across IssueReusable ... to
+close the TOCTOU window where two concurrent callers could each mint a distinct
+code." It closes the *two-concurrent-minters* window, but not the
+*funnel-disabled-mid-issue* window (see WR-01). The comment reads as a broader
+guarantee than the code provides.
 
-**Fix:** Either document that `funnelReadCodeTTL` is authoritative only at first mint, or on re-enable revoke+drop `funnelReadCode[id]` (as CR-01's fix would) so the next issuance re-mints with the updated TTL.
+**Fix:** Narrow the comment to the concurrency it actually covers, or implement the
+single-critical-section fix in WR-01 so the comment becomes true.
 
-### IN-02: No rate limiting on the public `/join/exchange` endpoint; ~40-bit entropy + 8h window is the sole brute-force barrier
+### IN-02: `IssueReusable` duplicates the code-generation body of `Issue`
 
-**File:** `internal/capability/joincode.go:81-105` (`IssueReusable`), consumed publicly via the webserver join handler (`internal/webserver/join_test.go`)
+**File:** `internal/capability/joincode.go:66-105`
 
-**Issue:**
-The reusable code carries ~40 bits of entropy and is resolvable by unauthenticated callers from the public internet for up to 8h. The 8h `funnelReadCodeMaxTTL` cap keeps the expected-brute-force cost impractical for a home-bandwidth attacker, so this is not a blocker — but there is no visible per-IP/global rate limit on the public exchange endpoint, meaning the entropy and the TTL cap are the only defenses. Worth noting for the threat model.
+**Issue:** `Issue` and `IssueReusable` share the identical 8-char base32
+code-generation body (`rand.Read` → `EncodeToString` → dashed split); only the
+stored `joinEntry` differs. The duplication is small and each is individually
+correct, but two copies of the entropy/format logic can drift.
 
-**Fix:** Consider a modest rate limit (or exponential backoff) on the public `/join/exchange` handler as defense-in-depth for the internet-reachable reusable-code path.
+**Fix:** Extract a private `newCode() (string, error)` helper and have both call
+it, keeping the entry construction in each caller.
 
 ---
 
-_Reviewed: 2026-07-05_
+_Reviewed: 2026-07-06T01:45:41Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
