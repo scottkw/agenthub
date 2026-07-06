@@ -29,13 +29,20 @@ regression tests for each; those were not added here. **Each fix below is
 flagged "requires human verification"** — confirm behaviour with the suggested
 regression tests before the phase proceeds.
 
+> **Update 2026-07-05 (follow-up):** Regression tests were subsequently added
+> for **CR-01 and WR-02** (commit `23d273e5`) and mutation-verified (each fails
+> on the pre-fix code, passes after the fix). See the
+> "Regression Coverage Added" section at the end of this report. CR-01 and WR-02
+> are now covered at the automated level; **WR-01 and WR-03 still have no
+> dedicated regression test** and remain human-verification-only.
+
 ## Fixed Issues
 
 ### CR-01: Toggling "remote file browsing" permanently breaks the live reusable public code
 
 **Files modified:** `internal/capability/joincode.go`, `internal/daemon/api.go`
 **Commit:** b2649327
-**Status:** fixed: requires human verification
+**Status:** fixed + regression-tested (commit `23d273e5`); live UAT still recommended
 **Applied fix:** Chose review option 2 (rebind, the lower-blast-radius option).
 Added `JoinCodeManager.Rebind(code, token)` which swaps the stored token for an
 existing reusable code while keeping the **code string, expiry, and reusable
@@ -73,7 +80,7 @@ the membership entry is removed," which is the invariant WR-01 asks for.
 
 **Files modified:** `internal/daemon/api.go`
 **Commit:** 2d38e06b
-**Status:** fixed: requires human verification
+**Status:** fixed + regression-tested (commit `23d273e5`); live UAT still recommended
 **Applied fix:** Added `funnelReadCodeExpiry map[string]time.Time`, populated on
 every fresh mint in `mintFunnelReadCodeLocked` (`now + ttl`) and cleaned up in
 `disableFunnelForSession`. At the mint gate the cached code is now treated as
@@ -113,6 +120,34 @@ Out of scope (Info tier, not addressed per `fix_scope: critical_warning`):
   addresses the underlying gap; the comment at api.go ~1457 may now warrant a
   follow-up wording tweak.)
 - IN-02: `IssueReusable` duplicates the code-generation body of `Issue`.
+
+## Regression Coverage Added
+
+Added 2026-07-05 in commit `23d273e5`, after the fix pass, to close the
+"no regression tests" gap the review flagged. No new test files were created
+(tests were appended to the existing, already-registered suites), so TESTING.md
+needs no new rows. Each test was **mutation-verified**: it fails on the pre-fix
+code and passes after the fix.
+
+| Finding | Test | File | Mutation proof |
+|---------|------|------|----------------|
+| CR-01 | `TestJoinCodeManager_Rebind` | `internal/capability/joincode_test.go` | Rebind swaps token; preserves code string, reusable class, and expiry (not extended) |
+| CR-01 | `TestJoinCodeManager_Rebind_UnknownCode` | `internal/capability/joincode_test.go` | Absent code → `ErrCodeNotFound` |
+| CR-01 | `TestIssueCapabilities_BrowseToggleRebindsPublicCode` | `internal/daemon/funnel_test.go` | Removing the Rebind branch → test fails (public code resolves to a revoked grant → viewers 403) |
+| WR-02 | `TestIssueCapabilities_ExpiredPublicCodeRemints` | `internal/daemon/funnel_test.go` | Reverting the gate to `if !ok` (drop expiry check) → test fails (stale code returned instead of re-mint) |
+
+The daemon-layer tests reuse the existing `funnel_test` harness
+(`testDaemon` + `makeFunnelTestWebServer` + `probeGrant`). CR-01's daemon test
+asserts grant liveness via a live `/api/sessions/{id}/info` request (200 = grant
+active, 403 = revoked). WR-02's test drives the daemon re-mint gate by forcing
+`funnelReadCodeExpiry` into the past — the join-code manager's own clock cannot
+be advanced from the `daemon` package (`SetClockForTest` is `capability`
+-internal), so the manager-level TTL sweep is covered separately by the
+pre-existing `TestJoinCodeManager_ReusableExpiresAfterTTL`.
+
+**Still human-verification-only:** WR-01 (deterministic concurrency/interleaving
+test is hard without a race harness) and WR-03 (frontend single-issuance dedupe,
+best confirmed in the running app's network panel).
 
 ---
 
