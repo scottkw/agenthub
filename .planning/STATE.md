@@ -4,17 +4,17 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 170
 current_phase_name: public-share-access-codes-reusable-share-lifetime-join-code-
-status: verifying
-stopped_at: Phase 170 executed (4/4) + code-verified 14/14; pending live UAT M-46
-last_updated: "2026-07-06T01:25:03.000Z"
+status: phase-complete
+stopped_at: Phase 170 COMPLETE — M-46 live UAT PASSED 2026-07-06 (fix 5a92ddae); verification passed
+last_updated: "2026-07-06T16:10:00.000Z"
 last_activity: 2026-07-06
-last_activity_desc: Phase 170 executed + code-verified; awaiting live UAT M-46 (/gsd-verify-work 170)
+last_activity_desc: Phase 170 M-46 live UAT PASSED (fix 5a92ddae wired public URL to /join?code=); phase complete. Next = 171 (spec-first) or 172.
 progress:
   total_phases: 8
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 32
   completed_plans: 32
-  percent: 75
+  percent: 88
 ---
 
 # Project State
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 ## Current Position
 
-Phase: 170 (public-share-access-codes-reusable-share-lifetime-join-code-) — EXECUTED, PENDING LIVE UAT (M-46)
-Plan: 4 of 4 done in current phase
-Status: All 4 plans committed + verifier code-verified 14/14 (170-VERIFICATION.md, status human_needed). Awaiting live UAT M-46 → run `/gsd-verify-work 170` to record the live pass and complete the phase.
+Phase: 170 (public-share-access-codes-reusable-share-lifetime-join-code-) — ✅ COMPLETE (M-46 live UAT PASSED 2026-07-06)
+Plan: 4 of 4 done + M-46 live UAT passed
+Status: Phase complete. 4 plans committed + code-verified 14/14 + M-46 live off-tailnet UAT PASSED (170-UAT.md status→complete, 170-VERIFICATION.md status→passed). **Live UAT surfaced + fixed a blocker (commit 5a92ddae):** the public share URL/Copy/Open/QR pointed at the ephemeral `/sessions/{id}?cap=<rTok>` cap link (grant-bound → 401 "capability required" once the grant rotates on warm-up re-issue or the daemon restarts), while the reusable `publicReadCode` was orphaned text with no openable URL. Fix rewired the public section to derive `https://host/join?code=<publicReadCode>` from funnelUrl's origin (mirrors `joinURLFor()` used for RO/Full QR); RED→GREEN TDD (3 assertions), tsc + 2337 vitest green, live re-test PASS on all 3 conditions (phone read-only join; 2nd off-tailnet device same-code read-only join = reusability; no connect after Disable = share-lifetime teardown). NEXT = Phase 171 (spec-first) or 172 (Hub-card mockups).
 
 - **170 Public Share Access Codes (read)** — reusable share-lifetime join code for the INTERNET (PUBLIC) link (FNL-08). UAT found the public link shows no join code (unlike RO/Full) → typing the URL dead-ends on a code page with no code. Root cause: join codes are 5-min single-use (`api.go:259`), wrong for a public share → needs per-code TTL + reusable semantics tied to funnel expiry, read-only only. **170-01 EXECUTED 2026-07-05** (commits 70f2f8ad/fa35b928/1618255b/cc864779/eb119e4c): `JoinCodeManager.IssueReusable`/`Revoke` + reusable-conditional `Exchange` delete, proven at unit layer (4 new tests, 6 pre-existing untouched) AND at the public `/join/exchange` HTTP boundary (new `internal/webserver/join_test.go` — reusable read code resolves twice, single-use code still fails on 2nd try). **170-02 EXECUTED 2026-07-05** (commits 3cb05dea/5f0bb981/d38a9689/835bbaa4, RED/GREEN TDD): `issueCapabilitiesForSession` mints the reusable public read code from the read-only `rTok` ONLY (never `wTok`), caches it per session (idempotent — no rotation on re-issue), and surfaces it on `IssueCapabilitiesResponse.PublicReadCode` (`""` for non-Funnel sessions); `handleSetSessionFunnel` captures `min(ExpiresIn, 8h)` as the per-code TTL; `disableFunnelForSession` (the single teardown chokepoint) revokes the cached code on all 4 in-process triggers (toggle-off, web-share-off, session-exit, auto-expiry timer — daemon-stop intentionally excluded, bypasses this chokepoint by design). Wails TS binding (`models.ts`) regenerated for Wave 3. **170-03 EXECUTED 2026-07-06** (commits b05e22ce/3c93ec57/e10b6067/2ec5c1c5/7b5cfa54): Share modal INTERNET (PUBLIC) section renders `<CodeDisplay label="Public join code (reusable):" code={publicReadCode} />`; `SessionShareModal` threads `resp.publicReadCode` from the existing warm-up round-trip and clears it on disable. Deviation: the type field went into the *actually-imported* hand-authored stub `frontend/src/wailsjs/go/main/App.d.ts` (not just the unused generated `models.ts`) — required for `tsc --noEmit` to pass. Frontend gate: `tsc --noEmit` clean + `vite build` OK + 2335 vitest pass. **170-04 EXECUTED 2026-07-06** (commits 805dbf87/d1c8ddda): TESTING.md reconciled — counts already correct (528 total: 375 Go/142 vitest/9 PW/2 build), added Section-5 category with **M-46** live off-tailnet reusable-code-join + teardown item; `check-traceability-paths.sh` exits 0. **PHASE VERIFIED (code) 2026-07-06** — gsd-verifier: 14/14 must-haves VERIFIED including the security-critical read-only-only mint (`IssueReusable(rTok, …)`, never `wTok`); status `human_needed`, sole open item = M-46 (needs real Funnel tailnet + 2 off-tailnet devices). ROADMAP/REQUIREMENTS completion markers reverted to pending per user (keep-pending-UAT). NEXT = `/gsd-verify-work 170` (record live M-46 pass → phase complete).
 - **171 Public Full-Access (RW) Sharing** — opt-in public read-write behind a hard consent gate + single-use write code (FNL-09). Supersedes today's ACCIDENTAL public write (issueCapabilitiesForSession rebases both read+write caps to the funnel base by timing; funnel exposes whole mux, no read-only downgrade). **SPEC-FIRST** (internet RCE): `/gsd-spec-phase 171` → discuss → `/gsd-secure-phase` → plan.
@@ -39,7 +39,7 @@ Status: All 4 plans committed + verifier code-verified 14/14 (170-VERIFICATION.m
 Last activity: 2026-07-06 — Phase 170 execution started
 
 ```
-v4.2 Progress: [██████████████░░░░░░] 71% (5/7 phases — 165 ✅, 166 ✅ (+2 modal fixes 2026-07-05), 167 ✅ (M-41 deferred), 168 ✅, 169 ✅ (M-45 deferred); 170 🔄 executed + code-verified 14/14, pending live UAT M-46, 171 ⬜ spec-first)
+v4.2 Progress: [█████████████████░░░] 86% (6/7 phases — 165 ✅, 166 ✅ (+2 modal fixes 2026-07-05), 167 ✅ (M-41 deferred), 168 ✅, 169 ✅ (M-45 deferred), 170 ✅ (M-46 live UAT PASSED 2026-07-06, fix 5a92ddae); 171 ⬜ spec-first)
 ```
 
 ## Live UAT Findings (2026-06-30, real Funnel-granted tailnet)
@@ -80,7 +80,7 @@ v4.2 Progress: [██████████████░░░░░░] 71
 | 167 | Native Notifications | NTF-01, NTF-02, NTF-03, NTF-04 | ✅ DONE — 7/7 plans, code-verified 11/11; **M-41 live delivery DEFERRED** to release-time UAT (signed builds, unautomatable) |
 | 168 | Bug Fix & Settings Polish | FIX-01, FIX-02, FIX-03, FIX-04, UX-01, UX-02 | ✅ DONE — 9/9 plans (incl. 168-08/09 gap-closures); verified 6/6, live UAT 4/4 PASS (#112/#115/#116/#117/#118/#121 code-fixed) |
 | 169 | Tailscale Detection Fix | FIX-05 | ⬜ Not started — next: /gsd-plan-phase 169 (#120; orthogonal, non-admin macOS test env) |
-| 170 | Public Share Access Codes (read) | FNL-08 | 🔄 Executed 4/4 + code-verified 14/14; pending live UAT M-46 — next: /gsd-verify-work 170 |
+| 170 | Public Share Access Codes (read) | FNL-08 | ✅ DONE — 4/4 + code-verified 14/14 + M-46 live UAT PASSED (2026-07-06); live blocker fixed (5a92ddae: public URL → /join?code=) |
 | 171 | Public Full-Access (RW) Sharing | FNL-09 | ⬜ Not started — reopen phase; SPEC-FIRST: /gsd-spec-phase 171 |
 | 172 | Hub-card Layout & Badge Refinement | TBD (design polish) | ⬜ Not started — frontend-only; mockups first, then /gsd-plan-phase 172 |
 

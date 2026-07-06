@@ -1,11 +1,12 @@
 ---
 phase: 170-public-share-access-codes-reusable-share-lifetime-join-code
 verified: 2026-07-05T20:25:00Z
-status: human_needed
+status: passed
 score: 9/9 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:
+
   - test: "M-46 live off-tailnet reusable-code join + share-lifetime teardown"
     expected: "On a real Tailscale-Funnel-granted machine, enable Funnel for a session, copy the 'Public join code (reusable):' value from the Share modal INTERNET (PUBLIC) section. From an off-tailnet device, open the public URL, land on /join, enter the code, confirm a read-only join. From a SECOND off-tailnet device, enter the SAME code and confirm it ALSO joins read-only (proving reusability). Then disable the internet share and confirm the code no longer resolves (proving share-lifetime teardown)."
     why_human: "Requires a real Funnel-granted tailnet plus at least one (ideally two) off-tailnet devices — cannot be exercised by the automated test suite, which the codebase itself acknowledges (TESTING.md M-46, 170-VALIDATION.md Manual-Only Verifications). This is the actual live UAT the phase goal describes ('a recipient who cannot scan the QR ... can join read-only with a short code') and has not yet been executed live in this session."
@@ -16,8 +17,10 @@ human_verification:
 **Phase Goal:** Funnel/internet shares surface a reusable, share-lifetime join code in the Share modal's INTERNET (PUBLIC) section, so a recipient who cannot scan the QR or paste the full capability URL can join **read-only** with a short code — closing the UAT dead-end where typing the public URL lands on a code-entry page with no code available.
 
 **Verified:** 2026-07-05T20:25:00Z
-**Status:** human_needed
+**Status:** passed
 **Re-verification:** No — initial verification (fresh retry after a prior verifier attempt died on a transient API error before writing any report; no prior VERIFICATION.md existed)
+
+> **M-46 CLOSED LIVE 2026-07-06.** The one item routed to human verification — the live off-tailnet reusable-code join + share-lifetime teardown — was executed live on a real Funnel tailnet and PASSED all 3 conditions (read-only join on two off-tailnet devices with the same reusable code; no connection after Disable internet share). Live UAT surfaced a blocker the code-verification could not (the public URL pointed at the ephemeral `/sessions/{id}?cap=` cap link, not the reusable `/join?code=<publicReadCode>` entry point) → fixed in commit 5a92ddae (frontend-only, RED→GREEN TDD, full gate green). See 170-UAT.md. Status advanced human_needed → passed.
 
 ## Goal Achievement
 
