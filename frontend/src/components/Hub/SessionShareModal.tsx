@@ -318,6 +318,9 @@ export function SessionShareModal({
   const [warmingUp, setWarmingUp] = useState(false)
   const [warmupTimedOut, setWarmupTimedOut] = useState(false)
   const [funnelUrl, setFunnelUrl] = useState<string | null>(null)
+  // Phase 170 / FNL-08: reusable, read-only, share-lifetime public join code —
+  // Funnel-scoped state, distinct from the single-use RO/Full-Access cachedShare.
+  const [publicReadCode, setPublicReadCode] = useState<string | null>(null)
   const warmupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // D-15: fail closed — Funnel requires the web server to be in Tailscale mode.
@@ -377,6 +380,7 @@ export function SessionShareModal({
         const resp = await IssueCapabilities(session.id)
         if (cancelled) return
         setFunnelUrl(resp.readUrl)
+        setPublicReadCode(resp.publicReadCode ?? null)
         setWarmingUp(false)
         setWarmupTimedOut(false)
         if (warmupTimeoutRef.current) {
@@ -411,6 +415,7 @@ export function SessionShareModal({
     }
     setFunnelOn(false)
     setFunnelUrl(null)
+    setPublicReadCode(null)
     setWarmingUp(false)
     setWarmupTimedOut(false)
   }
@@ -638,6 +643,7 @@ export function SessionShareModal({
               warmingUp={warmingUp}
               warmupTimedOut={warmupTimedOut}
               onDisableFunnel={() => void handleDisableFunnel()}
+              publicReadCode={publicReadCode}
             />
           )}
         </div>

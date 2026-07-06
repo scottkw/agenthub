@@ -209,6 +209,7 @@ export interface IssueCapabilitiesResponse {
   readCode: string
   writeCode: string
   homeDir: boolean  // Phase 124 / CAP-06: true when session cwd == EvalSymlinks($HOME)
+  publicReadCode: string  // Phase 170 / FNL-08: reusable public read join code; "" when not a Funnel session
 }
 export function IssueCapabilities(sessionID: string): Promise<IssueCapabilitiesResponse>
 export function ExchangeJoinCode(code: string): Promise<string>
