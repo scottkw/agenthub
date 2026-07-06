@@ -994,3 +994,152 @@ func TestFunnelTeardown_KillPath(t *testing.T) {
 		}
 	})
 }
+
+// grantIDBehindPublicCode Exchanges a REUSABLE public-share code (a
+// non-destructive read, since reusable codes survive Exchange) and returns the
+// GrantID embedded in the token it resolves to. Used to assert, via probeGrant,
+// whether the grant the public code currently points at is still live.
+func grantIDBehindPublicCode(t *testing.T, api *API, key []byte, code string) string {
+	t.Helper()
+	tok, err := api.joinCodes.Exchange(code)
+	if err != nil {
+		t.Fatalf("Exchange(%q): %v", code, err)
+	}
+	claims, err := capability.Verify(tok, key)
+	if err != nil {
+		t.Fatalf("Verify token behind %q: %v", code, err)
+	}
+	return claims.GrantID
+}
+
+// TestIssueCapabilities_BrowseToggleRebindsPublicCode is the CR-01 regression:
+// a reusable public-share code already handed to viewers must keep resolving to
+// a LIVE grant after the owner toggles "Enable remote file browsing" — which
+// calls ws.ClearGrants and then re-issues a NEW underlying read token. Before
+// the fix the code stayed pinned to the first token, whose grant ClearGrants
+// wiped, so every public viewer hit 403 ("capability has been revoked") while
+// the UI still displayed the (dead) code. After the fix
+// issueCapabilitiesForSession rebinds the stable code onto the freshly-granted
+// token (T-170-04 keeps the code string; CR-01 keeps it live).
+func TestIssueCapabilities_BrowseToggleRebindsPublicCode(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+	api, _, socketPath := testDaemon(t)
+	ws, _ := makeFunnelTestWebServer(t, api, "test.ts.net")
+	key := configureCapabilityStateForTest(t, api, api.webServer)
+	// probeGrant hits /api/sessions/{id}/info, which 404s (not 200) when no
+	// session resolver is set even for a live grant — supply one so a 200
+	// unambiguously means "grant active".
+	ws.SetSessionResolver(func(string) (string, string, string, string) {
+		return "browse-toggle-rebind", "cat", "running", "localhost"
+	})
+
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"browse-toggle-rebind","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create: %v", err)
+	}
+	rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":true}`)
+	enableFunnelViaHTTP(t, socketPath, cr.ID)
+
+	// First issuance mints the reusable public code; the grant behind it is live.
+	_, _, _, _, code1, err := api.issueCapabilitiesForSession(cr.ID)
+	if err != nil {
+		t.Fatalf("issueCapabilitiesForSession (1st): %v", err)
+	}
+	if code1 == "" {
+		t.Fatal("precondition: PublicReadCode must be non-empty for a Funnel session")
+	}
+	grant1 := grantIDBehindPublicCode(t, api, key, code1)
+	if !probeGrant(t, ws, key, cr.ID, grant1) {
+		t.Fatal("precondition: grant behind the fresh public code is not active")
+	}
+
+	// Browse toggle: the real handleSetSessionBrowse clears the session's grants
+	// before the frontend re-issues capabilities. Drive that clear directly.
+	ws.ClearGrants(cr.ID)
+	if probeGrant(t, ws, key, cr.ID, grant1) {
+		t.Fatal("precondition: ClearGrants did not revoke the original grant")
+	}
+
+	// Re-issue (what the frontend does immediately after the toggle). The public
+	// code must NOT rotate (T-170-04) AND must now resolve to a LIVE grant.
+	_, _, _, _, code2, err := api.issueCapabilitiesForSession(cr.ID)
+	if err != nil {
+		t.Fatalf("issueCapabilitiesForSession (2nd): %v", err)
+	}
+	if code2 != code1 {
+		t.Errorf("T-170-04: public code rotated across browse-toggle re-issue: %q != %q", code1, code2)
+	}
+	grant2 := grantIDBehindPublicCode(t, api, key, code2)
+	if !probeGrant(t, ws, key, cr.ID, grant2) {
+		t.Error("CR-01: after browse toggle + re-issue the public code still resolves to a revoked grant — " +
+			"public viewers would 403; issueCapabilitiesForSession must Rebind it onto the fresh token")
+	}
+}
+
+// TestIssueCapabilities_ExpiredPublicCodeRemints is the WR-02 regression: an
+// "Until I disable" (ExpiresIn==0) share keeps its public URL up indefinitely,
+// but the reusable code itself is TTL-capped at funnelReadCodeMaxTTL (8h). Once
+// that backstop elapses the cached code is dead, yet its stale string stays
+// cached — before the fix the mint gate keyed only on presence, so a re-issue
+// handed back the dead code forever (no recovery short of a Funnel off→on
+// cycle). After the fix the gate treats an expired cache as absent and re-mints
+// a fresh, working code.
+//
+// The join-code manager's own clock cannot be advanced from this package
+// (SetClockForTest is capability-internal), so the test drives the daemon's
+// re-mint gate directly by forcing the cached expiry into the past — which is
+// exactly the wall-clock condition WR-02 keys on.
+func TestIssueCapabilities_ExpiredPublicCodeRemints(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+	api, _, socketPath := testDaemon(t)
+	_, _ = makeFunnelTestWebServer(t, api, "test.ts.net")
+	configureCapabilityStateForTest(t, api, api.webServer)
+
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"expired-code-remint","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create: %v", err)
+	}
+	rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":true}`)
+	// expiresIn omitted == 0 ("Until I disable"): no auto-expiry timer; the code
+	// TTL is backstopped at funnelReadCodeMaxTTL.
+	enableFunnelViaHTTP(t, socketPath, cr.ID)
+
+	_, _, _, _, code1, err := api.issueCapabilitiesForSession(cr.ID)
+	if err != nil {
+		t.Fatalf("issueCapabilitiesForSession (1st): %v", err)
+	}
+	if code1 == "" {
+		t.Fatal("precondition: PublicReadCode must be non-empty for a Funnel session")
+	}
+	if _, err := api.joinCodes.Exchange(code1); err != nil {
+		t.Fatalf("precondition: fresh public code must Exchange: %v", err)
+	}
+
+	// Simulate the 8h backstop having elapsed: force the cached expiry into the
+	// past so the re-mint gate sees the cache as stale.
+	api.mu.Lock()
+	api.funnelReadCodeExpiry[cr.ID] = time.Now().Add(-time.Minute)
+	api.mu.Unlock()
+
+	// Re-issue: the expired cache must be treated as absent and re-minted.
+	_, _, _, _, code2, err := api.issueCapabilitiesForSession(cr.ID)
+	if err != nil {
+		t.Fatalf("issueCapabilitiesForSession (2nd): %v", err)
+	}
+	if code2 == "" {
+		t.Fatal("WR-02: re-issue after backstop must yield a non-empty code")
+	}
+	if code2 == code1 {
+		t.Errorf("WR-02: re-issue after the cached code expired returned the stale code %q; "+
+			"the gate must treat an expired cache as absent and re-mint", code1)
+	}
+	if _, err := api.joinCodes.Exchange(code2); err != nil {
+		t.Errorf("WR-02: the re-minted public code must Exchange (be live), got %v", err)
+	}
+}

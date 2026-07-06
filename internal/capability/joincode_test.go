@@ -222,3 +222,61 @@ func TestJoinCodeManager_ReusableExpiresAfterTTL(t *testing.T) {
 		t.Errorf("Exchange after expiry cleanup: expected ErrCodeNotFound, got %v", err)
 	}
 }
+
+// TestJoinCodeManager_Rebind is the CR-01 regression at the primitive layer:
+// Rebind must swap the token behind an existing code WITHOUT changing the code
+// string, its reusable class, or its expiry. This is the seam that keeps a
+// reusable public share code resolving after the owner clears+re-issues the
+// session's grant set (browse toggle → ClearGrants mints a new underlying
+// token); Rebind points the stable code at the new token instead of stranding
+// it on the revoked one.
+func TestJoinCodeManager_Rebind(t *testing.T) {
+	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	clock := start
+	mgr := capability.NewJoinCodeManager(5 * time.Minute)
+	mgr.SetClockForTest(func() time.Time { return clock })
+
+	code, err := mgr.IssueReusable("tok-old", time.Hour)
+	if err != nil {
+		t.Fatalf("IssueReusable: %v", err)
+	}
+
+	// Rebind swaps the stored token; the returned code string is unchanged.
+	if err := mgr.Rebind(code, "tok-new"); err != nil {
+		t.Fatalf("Rebind: %v", err)
+	}
+
+	// Exchange now resolves to the NEW token — and, because the entry is still
+	// reusable, a second Exchange returns it again (class preserved).
+	got1, err := mgr.Exchange(code)
+	if err != nil {
+		t.Fatalf("Exchange after Rebind: %v", err)
+	}
+	if got1 != "tok-new" {
+		t.Errorf("Exchange after Rebind returned %q, want %q", got1, "tok-new")
+	}
+	got2, err := mgr.Exchange(code)
+	if err != nil {
+		t.Fatalf("second Exchange after Rebind (reusable class must survive): %v", err)
+	}
+	if got2 != "tok-new" {
+		t.Errorf("second Exchange after Rebind returned %q, want %q", got2, "tok-new")
+	}
+
+	// Expiry is preserved, NOT extended: the original 1-hour TTL still governs.
+	// At +2h the code is expired even though Rebind happened at t=start.
+	clock = start.Add(2 * time.Hour)
+	if _, err := mgr.Exchange(code); !errors.Is(err, capability.ErrCodeExpired) {
+		t.Errorf("Rebind must not extend expiry: Exchange at +2h = %v, want ErrCodeExpired", err)
+	}
+}
+
+// TestJoinCodeManager_Rebind_UnknownCode asserts Rebind on a code that was
+// never issued (or already expired-and-swept / revoked) returns ErrCodeNotFound
+// so the caller can decide to mint a fresh code instead of silently no-op'ing.
+func TestJoinCodeManager_Rebind_UnknownCode(t *testing.T) {
+	mgr := capability.NewJoinCodeManager(5 * time.Minute)
+	if err := mgr.Rebind("ZZZZ-ZZZZ", "tok"); !errors.Is(err, capability.ErrCodeNotFound) {
+		t.Errorf("Rebind of unknown code: expected ErrCodeNotFound, got %v", err)
+	}
+}
