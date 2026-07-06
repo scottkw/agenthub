@@ -740,6 +740,17 @@ The alias-set wire contract, client-side validateAlias, alias-control component 
   - _Why not automatable:_ requires a real macsys (Standalone signed-installer) Tailscale install — distinct from both the App Store distribution (uses a per-user `IPNExtension` container, never `/Library/Tailscale`) and the Homebrew cask — and a genuine non-admin macOS user account to reproduce the `sameuserproof` permission failure that triggers the SDK read error. This exact failure mode cannot be reproduced in a headless Go test (`go test` runs as the invoking user, and CI runners don't have a macsys install with a locked-down non-admin account fixture), nor in a jsdom vitest render (the frontend copy/branch logic is unit-proven, but not the real EACCES routing that produces `permissionLimited: true` in the first place). `human_judgment: true` — cannot be exercised on an admin dev box or in CI.
   - _Source:_ Phase 169-01 (#120, v4.2, backend) + Phase 169-02 (#120, v4.2, frontend) — Issue #120, memory `reference_tailscale_connection_detection`; unit coverage in `internal/webserver/tailscale_test.go` (`TestCheckHealth_PermissionLimited`/`TestCheckHealth_DaemonDown_NotPermissionLimited`) and `frontend/src/components/__tests__/SettingsTab.tailscale-status.test.tsx` (FIX-05 traceability rows) prove the branch logic in isolation via injected fakes/props but cannot exercise the real macsys permission failure end-to-end.
 
+### Category X — Public Share Access Codes (FNL-08)
+
+- **M-46** Live off-tailnet reusable-code join + share-lifetime teardown (FNL-08):
+  1. In a **PRODUCTION build** (`wails build -tags wailsassets` — see M-34) on a Tailscale-connected machine with Funnel granted, open the Share modal for a session and enable Funnel (Internet sharing).
+  2. Once the Internet (public) section shows the live public URL, copy the "Public join code (reusable):" value from that same section.
+  3. From a device NOT on the tailnet, open the public URL (`https://<hostname>.ts.net/sessions/<id>`), land on the `/join` code-entry page (no `cap=` in the URL), enter the copied code, and confirm the join redirects to a READ-ONLY session view (no write affordances).
+  4. From a SECOND off-tailnet device, open the same public URL and enter the SAME code again. Confirm it ALSO joins read-only — proving the code is reusable (it does not single-use-consume on the first exchange, per 170-01's `IssueReusable`/conditional-delete `Exchange` behavior).
+  5. On the owner's machine, disable the internet share (Funnel off, or web-share off). From either off-tailnet device, attempt to re-enter the SAME code at `/join`. Confirm it now fails (`/join?error=` — the code no longer resolves) — proving the code's lifetime is tied to the Funnel/share lifecycle, not immortal (170-02's `disableFunnelForSession` revoke-on-teardown).
+  - _Why not automatable:_ requires a real Funnel-granted tailnet plus at least one (ideally two) off-tailnet devices to exercise the actual public join-code entry flow end-to-end; the automated suite proves the primitive (`IssueReusable`/`Revoke`), the public `/join/exchange` HTTP double-exchange, the daemon mint/cache/revoke wiring, and the Share-modal render — but not the live off-tailnet UX + share-lifetime teardown together.
+  - _Source:_ Phase 170 (FNL-08, v4.2) — 170-VALIDATION.md Manual-Only Verifications; 170-01-SUMMARY.md/170-02-SUMMARY.md/170-03-SUMMARY.md traceability rows (FNL-08).
+
 ---
 
 ## 6. Standing Convention
