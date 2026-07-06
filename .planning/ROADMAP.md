@@ -389,7 +389,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 167: Native Notifications** - beeep cross-platform notification on waiting-state transition, de-dup guard, Settings toggle (default off) (7/7 plans executed 2026-07-01, incl. 167-05/06/07 M-41 crash-hardening + instrumentation + permission-denied hint) — CLOSED complete 2026-07-01; code-verified 11/11, M-41 live on-screen delivery DEFERRED to release-time UAT on signed macOS/Windows/Linux builds (inherently unautomatable)
 - [x] **Phase 168: Bug Fix & Settings Polish** - Fix #112 (web-guest plugin-config SSE), #117 (multi-viewer kick + disconnect UI), #118 (remote-open in-app tab), #115 (Footer Share modal), #116 (Hub auto-switch setting), #121 (phantom viewer count — pairs with #117) (9/9 plans executed 2026-07-02, incl. 168-08 UX-02 footer-pill drift + 168-09 FIX-03 remote-tab RC-A/B/C gap-closures) — CLOSED complete 2026-07-02; verified 6/6 must-haves, all live UAT 4/4 PASS (FIX-01/02/03 + UX-02 confirmed on a two-Mac tailnet production build)
 - [x] **Phase 169: Tailscale Detection Fix** - Fix #120 (Tailscale reports "installed but not Connected" on non-admin macOS accounts where `macsys` `sameuserproof` is unreadable) — honest permission-aware detection (`permProbeFunc` + `PermissionLimited`, never a false Connected) + Settings "Permission Limited" state. Executed + verified 2026-07-05 (2/2 plans); M-45 live non-admin macsys acceptance deferred (env-only).
-- [ ] **Phase 170: Public Share Access Codes (read)** - Reusable, share-lifetime join code for the INTERNET (PUBLIC) link so recipients who can't scan the QR / paste the full URL can join read-only with a short code (FNL-08). Added 2026-07-05 from live UAT. Run `/gsd-plan-phase 170`.
+- [ ] **Phase 170: Public Share Access Codes (read)** - Reusable, share-lifetime join code for the INTERNET (PUBLIC) link so recipients who can't scan the QR / paste the full URL can join read-only with a short code (FNL-08). Added 2026-07-05 from live UAT. Planned 2026-07-05 (4 plans / 4 waves) — run `/gsd-execute-phase 170`.
 - [ ] **Phase 171: Public Full-Access (Read-Write) Sharing** - Opt-in public read-write Funnel sharing behind a hard consent gate + single-use write code + shorter expiry; supersedes today's accidental write-cap rebasing (FNL-09). Added 2026-07-05. **SPEC-FIRST**: `/gsd-spec-phase 171` → discuss → secure → plan.
 
 ## Phase Details
@@ -565,7 +565,7 @@ Plans:
 | 167. Native Notifications | 7/7 | Complete   | 2026-07-01 |
 | 168. Bug Fix & Settings Polish | 9/9 | Complete   | 2026-07-02 |
 | 169. Tailscale Detection Fix | 2/2 | Complete (verified; M-45 live deferred) | 2026-07-05 |
-| 170. Public Share Access Codes (read) | 0/? | Planned — run /gsd-plan-phase 170 | — |
+| 170. Public Share Access Codes (read) | 0/4 | Planned — run /gsd-execute-phase 170 | — |
 | 171. Public Full-Access (RW) Sharing | 0/? | Spec-first — run /gsd-spec-phase 171 | — |
 
 ### Phase 170: Public Share Access Codes (read)
@@ -577,17 +577,32 @@ Plans:
 **Depends on:** Phase 166 (Funnel frontend), Phase 165 (Funnel backend)
 
 **Design constraints (locked in discussion 2026-07-05):**
+
 - Add **per-code TTL + reusable (non-single-use)** semantics to `JoinCodeManager` (today all codes are 5-min single-use — wrong for a public share meant to last the auto-expiry window and serve multiple viewers).
 - The public code's lifetime is **tied to the funnel auto-expiry** (dies exactly when the share does).
 - **Read-only scope only** — the reusable code resolves to the funnel *read* cap; it must never map to the write cap.
 - Keep **40-bit crypto/rand** entropy (2⁴⁰ over an ≤8h window is not brute-forceable even without rate-limiting).
 - **Supplement, not replace** the existing self-contained cap-URL + QR flow.
 
-**Plans:** 0 plans — run `/gsd-plan-phase 170`
+**Plans:** 4 plans (4 waves — serial dependency stack: joincode primitive → daemon wiring → frontend → regression docs)
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 170 to break down)
+**Wave 1**
+
+- [ ] 170-01-PLAN.md — Reusable join-code primitive: `IssueReusable`/`Revoke`/`reusable` flag on `JoinCodeManager` + conditional-delete `Exchange` + new `internal/webserver/join_test.go` public double-exchange proof (FNL-08)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 170-02-PLAN.md — Daemon Funnel public read-code: mint-once-cached read-only code in `issueCapabilitiesForSession`, 8h-capped TTL from `handleSetSessionFunnel`, `Revoke` in `disableFunnelForSession`, `PublicReadCode` on `IssueCapabilitiesResponse` + funnel_test.go scope/idempotent/teardown tests (FNL-08)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 170-03-PLAN.md — Frontend: models.ts sync + reusable `<CodeDisplay>` row in the INTERNET (PUBLIC) section + `publicReadCode` threaded through the modal warm-up/disable + component test (FNL-08)
+
+**Wave 4** *(blocked on Waves 1-3)*
+
+- [ ] 170-04-PLAN.md — TESTING.md reconcile: Suite Manifest counts + FNL-08 traceability rows + M-46 live off-tailnet manual item + `check-traceability-paths.sh` (FNL-08)
 
 ### Phase 171: Public Full-Access (Read-Write) Sharing
 
@@ -600,6 +615,7 @@ Plans:
 **⚠ SPEC-FIRST — do NOT go straight to /gsd-plan-phase.** Route: `/gsd-spec-phase 171` (clarify WHAT + the "internet RCE, behind what gates" question) → `/gsd-discuss-phase 171` → `/gsd-secure-phase` (threat model) → plan. Public read-write = internet-reachable command execution on the host; the consequence of a leaked link is RCE, not just observation.
 
 **Design starting point (to be confirmed in spec/discuss):**
+
 - A **distinct second gate** beyond "enable internet sharing" — a typed acknowledgment ("I understand this grants command execution to anyone with the link"), not a one-click toggle.
 - **Single-use write codes only** (never reusable — a leaked reusable write code is far worse than a leaked read one). Note this diverges from Phase 170's reusable *read* code.
 - **Shorter default/max expiry** for write shares.
@@ -611,6 +627,19 @@ Plans:
 Plans:
 
 - [ ] TBD (spec → discuss → secure → plan)
+
+### Phase 172: Hub-card layout & badge refinement
+
+**Goal:** Consolidate the Hub session card's three inconsistent metadata treatments (`Running`/`Local` icon+text, `/bin/zsh` outlined pill, `INTERNET` filled green pill on its own row) into ONE consistent chip row (agent · origin · exposure) with tighter vertical rhythm — while deliberately KEEPING the INTERNET chip the one prominent colored/filled chip (security-exposure signal that must stay unmissable + colorblind-safe per user_colorblind). Making the other chips quieter/outlined makes INTERNET pop MORE by contrast. Frontend-only (Hub card component + style.css); no backend.
+**Requirements**: TBD (design-polish phase; user flagged 2026-07-05, critique captured in commit 4402b44e)
+**Depends on:** None (frontend-only, independent of Funnel phases 170/171)
+**Plans:** 0 plans
+
+**Approach note:** User wants 2-3 throwaway HTML mockups (frontend-design skill / /gsd-sketch) to compare chip-row treatments BEFORE touching code.
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 172 to break down)
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
