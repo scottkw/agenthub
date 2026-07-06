@@ -115,6 +115,30 @@ func (m *JoinCodeManager) Revoke(code string) {
 	m.mu.Unlock()
 }
 
+// Rebind swaps the token stored for an existing code WITHOUT changing the code
+// string, its expiry, or its reusable class. Returns ErrCodeNotFound when the
+// code is absent (never issued, expired-and-swept, or revoked) so the caller
+// can decide whether to mint a fresh code instead.
+//
+// This is the FNL-08 CR-01 primitive: a reusable public code already handed to
+// viewers must keep resolving after the owner clears+re-issues the session's
+// grant set (the "Enable remote file browsing" toggle calls ClearGrants and
+// mints a NEW underlying token). Rebind points the stable code string at that
+// new token so the code the viewer holds never silently 403s. Expiry is
+// preserved so the ~40-bit brute-force window (T-170-03) is not extended.
+func (m *JoinCodeManager) Rebind(code, token string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	entry, ok := m.codes[code]
+	if !ok {
+		return ErrCodeNotFound
+	}
+	entry.token = token
+	m.codes[code] = entry
+	return nil
+}
+
 // Exchange atomically looks up, conditionally deletes, and returns the token
 // for a join code. Returns ErrCodeNotFound when the code was never issued,
 // was already exchanged (single-use), was revoked, or was garbage-collected

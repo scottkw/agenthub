@@ -1467,19 +1467,21 @@ func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, 
 		a.mu.Lock()
 		cached, ok := a.funnelReadCode[sessionID]
 		if !ok {
-			ttl := a.funnelReadCodeTTL[sessionID]
-			if ttl <= 0 {
-				ttl = funnelReadCodeMaxTTL
-			}
-			code, mintErr := a.joinCodes.IssueReusable(rTok, ttl)
+			code, mintErr := a.mintFunnelReadCodeLocked(sessionID, rTok)
 			if mintErr != nil {
 				a.mu.Unlock()
 				return "", "", "", "", "", mintErr
 			}
-			if a.funnelReadCode == nil {
-				a.funnelReadCode = make(map[string]string)
+			cached = code
+		} else if rebindErr := a.joinCodes.Rebind(cached, rTok); rebindErr != nil {
+			// CR-01: the cached public code exists but its stored token no
+			// longer resolves (expired-and-swept or revoked out from under us)
+			// — mint a fresh one so the UI never surfaces a dead code.
+			code, mintErr := a.mintFunnelReadCodeLocked(sessionID, rTok)
+			if mintErr != nil {
+				a.mu.Unlock()
+				return "", "", "", "", "", mintErr
 			}
-			a.funnelReadCode[sessionID] = code
 			cached = code
 		}
 		a.mu.Unlock()
@@ -1487,6 +1489,27 @@ func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, 
 	}
 
 	return readURL, writeURL, readCode, writeCode, publicReadCode, nil
+}
+
+// mintFunnelReadCodeLocked mints a fresh reusable public-share join code
+// (FNL-08) bound to rTok, stores it in the per-session cache, and returns it.
+// The caller MUST hold a.mu. TTL selection mirrors the enable-time choice
+// (funnelReadCodeTTL, min(ExpiresIn, funnelReadCodeMaxTTL)); it falls back to
+// the 8h backstop when no per-session TTL was recorded.
+func (a *API) mintFunnelReadCodeLocked(sessionID, rTok string) (string, error) {
+	ttl := a.funnelReadCodeTTL[sessionID]
+	if ttl <= 0 {
+		ttl = funnelReadCodeMaxTTL
+	}
+	code, err := a.joinCodes.IssueReusable(rTok, ttl)
+	if err != nil {
+		return "", err
+	}
+	if a.funnelReadCode == nil {
+		a.funnelReadCode = make(map[string]string)
+	}
+	a.funnelReadCode[sessionID] = code
+	return code, nil
 }
 
 // handleIssueCapabilities issues two capabilities for a web-enabled session
