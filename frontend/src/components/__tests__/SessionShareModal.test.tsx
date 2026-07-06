@@ -769,3 +769,42 @@ describe('SessionShareModal — Phase 168-08 (gap): onShareEnabledChange notifie
     expect(onShareEnabledChange).not.toHaveBeenCalled()
   })
 })
+
+describe('SessionShareModal — WR-03: single issuance for Funnel sessions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  // WR-03 regression: opening the Share modal for a session that is already
+  // web-enabled AND Funnel-active must issue capabilities EXACTLY ONCE. Before
+  // the fix both the server-truth seeding effect and the warm-up completion
+  // effect fired IssueCapabilities on the same open — two calls, each minting
+  // two tokens + AddGrant'ing two grants, so the grant set grew by four per
+  // modal open. The fix makes the warm-up effect the single issuer for Funnel
+  // sessions (it now also seeds cachedShare); the seeding effect bows out when
+  // session.funnelActive is true.
+  it('opening a webEnabled + funnelActive session calls IssueCapabilities exactly once', async () => {
+    renderModal({
+      webEnabled: true,
+      funnelActive: true,
+      webServerMode: 'tailscale',
+      webServerRunning: true,
+    })
+    // Let both effects' async IIFEs run.
+    await new Promise<void>((r) => setTimeout(r, 0))
+    expect(mockedIssueCapabilities).toHaveBeenCalledTimes(1)
+  })
+
+  // Guard against a regression in the OTHER direction: a plain (non-Funnel)
+  // web-enabled session must still issue exactly once via the seeding effect —
+  // the WR-03 funnel guard must not suppress issuance for non-Funnel shares.
+  it('opening a webEnabled non-Funnel session still calls IssueCapabilities exactly once', async () => {
+    renderModal({
+      webEnabled: true,
+      funnelActive: false,
+      webServerRunning: true,
+    })
+    await new Promise<void>((r) => setTimeout(r, 0))
+    expect(mockedIssueCapabilities).toHaveBeenCalledTimes(1)
+  })
+})

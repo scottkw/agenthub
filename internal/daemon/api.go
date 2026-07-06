@@ -105,6 +105,15 @@ type API struct {
 	// re-mint. Keyed by sessionID; set on every fresh mint and deleted in
 	// disableFunnelForSession alongside funnelReadCode. Guarded by a.mu.
 	funnelReadCodeExpiry map[string]time.Time
+
+	// mintRaceHookForTest, when non-nil, is invoked by issueCapabilitiesForSession
+	// AFTER the base-URL Funnel-membership read but BEFORE the mint critical
+	// section takes a.mu — the exact TOCTOU window WR-01 closes. A test sets it to
+	// a teardown (disableFunnelForSession) so the mint gate's under-lock re-check
+	// of funnelSessions is exercised deterministically instead of via a flaky
+	// goroutine race. Production leaves it nil. Written once before the call under
+	// test and read without a lock, mirroring the other *ForTest seams.
+	mintRaceHookForTest func()
 }
 
 // funnelReadCodeMaxTTL bounds the per-code TTL of the reusable public-share
@@ -1473,6 +1482,12 @@ func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, 
 	// joinCodes' own mutex only, no blocking I/O) to close the TOCTOU window
 	// where two concurrent callers could each mint a distinct code.
 	if isFunnelSession {
+		// Test seam (WR-01): simulate a teardown landing in the TOCTOU window
+		// between the base-URL membership read above and the mint lock below.
+		// nil in production.
+		if a.mintRaceHookForTest != nil {
+			a.mintRaceHookForTest()
+		}
 		a.mu.Lock()
 		// WR-01: re-verify Funnel membership INSIDE the same critical section as
 		// the mint. isFunnelSession was read above under a separate RLock; a

@@ -1143,3 +1143,62 @@ func TestIssueCapabilities_ExpiredPublicCodeRemints(t *testing.T) {
 		t.Errorf("WR-02: the re-minted public code must Exchange (be live), got %v", err)
 	}
 }
+
+// TestIssueCapabilities_TeardownDuringMint_NoOrphanCode is the WR-01 regression:
+// the reusable public code must NOT be minted for a Funnel session that was torn
+// down in the TOCTOU window between issueCapabilitiesForSession's base-URL
+// membership read and its mint critical section. Before the fix the mint keyed
+// only on the stale isFunnelSession read, so a disableFunnelForSession that
+// interleaved there left an orphaned, resolvable public code that teardown had
+// already run past and would never revoke — violating "the code dies with the
+// share" (T-170-02). After the fix the mint gate re-checks funnelSessions
+// membership under the same lock and skips the mint (publicReadCode == "").
+//
+// The interleave is driven deterministically via mintRaceHookForTest (set to the
+// teardown), NOT a goroutine race: this is a TOCTOU logic race (both reads are
+// correctly locked, just at different times), so -race would not flag it and a
+// stress loop would be flaky.
+func TestIssueCapabilities_TeardownDuringMint_NoOrphanCode(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+	api, _, socketPath := testDaemon(t)
+	_, _ = makeFunnelTestWebServer(t, api, "test.ts.net")
+	configureCapabilityStateForTest(t, api, api.webServer)
+
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"teardown-during-mint","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create: %v", err)
+	}
+	rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":true}`)
+	enableFunnelViaHTTP(t, socketPath, cr.ID)
+
+	// Arrange the teardown to fire in the mint window on the next issuance: the
+	// base-URL read will observe funnelSessions[cr.ID]==true, then the hook tears
+	// the session down before the mint lock re-checks membership.
+	hookFired := false
+	api.mintRaceHookForTest = func() {
+		hookFired = true
+		api.disableFunnelForSession(context.Background(), cr.ID)
+	}
+
+	_, _, _, _, publicReadCode, err := api.issueCapabilitiesForSession(cr.ID)
+	if err != nil {
+		t.Fatalf("issueCapabilitiesForSession: %v", err)
+	}
+	if !hookFired {
+		t.Fatal("precondition: mint-race hook never fired — the isFunnelSession branch was not entered")
+	}
+	if publicReadCode != "" {
+		t.Errorf("WR-01: minted an orphan public code %q for a session torn down in the TOCTOU window; "+
+			"the under-lock funnelSessions re-check must skip the mint", publicReadCode)
+	}
+	// Defense in depth: no cached code entry survived the teardown-during-mint.
+	api.mu.Lock()
+	_, cachedExists := api.funnelReadCode[cr.ID]
+	api.mu.Unlock()
+	if cachedExists {
+		t.Error("WR-01: a cached public code entry survived teardown-during-mint")
+	}
+}
