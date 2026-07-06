@@ -1,8 +1,8 @@
 ---
 phase: 170
 slug: public-share-access-codes-reusable-share-lifetime-join-code
-status: draft
-nyquist_compliant: false
+status: approved
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-07-05
 ---
@@ -36,13 +36,23 @@ created: 2026-07-05
 
 ## Per-Task Verification Map
 
-*Populated by the planner — one row per task, mapping each to its automated verification and (where relevant) threat reference. Invariants that MUST be property/held-out tested: reusable code does NOT self-delete on Exchange; reusable read code resolves ONLY to the read cap (never write); public code lifetime dies on `disableFunnelForSession` (explicit revoke, not TTL-only); public code minted once and cached (idempotent across re-issue).*
+*Backfilled from the final plans after plan-check passed. Invariants that MUST be property/held-out tested: reusable code does NOT self-delete on Exchange; reusable read code resolves ONLY to the read cap (never write, browse ON and OFF); public code lifetime dies on `disableFunnelForSession` (explicit revoke, not TTL-only); public code minted once and cached (idempotent across re-issue).*
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| TBD | TBD | TBD | FNL-08 | TBD | reusable read code never resolves to write cap | unit/property | `go test ./internal/capability/...` | ❌ W0 | ⬜ pending |
+| 170-01-T1 | 01 | 1 | FNL-08 | — | reusable Exchange does not delete; single-use path unchanged | impl | `go test -race -short ./internal/capability/... ./internal/webserver/...` | ❌ W0 | ⬜ pending |
+| 170-01-T2 | 01 | 1 | FNL-08 | T-170-04 | reusable double-exchange + per-code TTL expiry | unit/property | `go test ./internal/capability/... -run JoinCode -v` | ❌ W0 | ⬜ pending |
+| 170-01-T3 | 01 | 1 | FNL-08 | T-170-02 | public `/join/exchange` reusable double-exchange at HTTP boundary | unit | `go test ./internal/webserver/... -run TestJoinExchange -v` | ❌ W0 | ⬜ pending |
+| 170-02-T1 | 02 | 2 | FNL-08 | T-170-01 / T-170-05 | mint-once-cached read-only code; TTL=min(ExpiresIn,8h); revoke in `disableFunnelForSession` | impl | `go test -race -short ./internal/daemon/...` | ❌ W0 | ⬜ pending |
+| 170-02-T2 | 02 | 2 | FNL-08 | T-170-01 | read-only scope (browse ON/OFF), idempotent mint, teardown revocation | unit/property | `go test ./internal/daemon/... -run 'Funnel\|IssueCapabilities' -v` | ❌ W0 | ⬜ pending |
+| 170-03-T1 | 03 | 3 | FNL-08 | — | models.ts sync + `<CodeDisplay>` public code row (supplement, not replace URL/QR) | impl | `tsc --noEmit` | ❌ W0 | ⬜ pending |
+| 170-03-T2 | 03 | 3 | FNL-08 | — | publicReadCode threaded through modal warm-up + disable | impl | `tsc --noEmit` | ❌ W0 | ⬜ pending |
+| 170-03-T3 | 03 | 3 | FNL-08 | — | PUBLIC section renders the reusable code row | unit | `pnpm vitest run SessionSharePanel` | ❌ W0 | ⬜ pending |
+| 170-04-T1 | 04 | 4 | FNL-08 | — | Suite Manifest note + FNL-08 traceability rows | docs | `bash tests/check-traceability-paths.sh && grep -c "FNL-08" TESTING.md` | ✅ | ⬜ pending |
+| 170-04-T2 | 04 | 4 | FNL-08 | — | M-46 live off-tailnet reusable-code join manual item | docs | `bash tests/check-traceability-paths.sh` | ✅ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+*Threat refs: T-170-01 read-only-scope (critical) · T-170-02 explicit-revoke-teardown (high) · T-170-04 idempotent-mint (high) · T-170-05 8h-TTL-cap (medium) — full definitions in the per-plan `<threat_model>` blocks.*
 
 ---
 
@@ -69,11 +79,11 @@ created: 2026-07-05
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 60s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 60s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-07-05
