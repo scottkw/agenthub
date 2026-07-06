@@ -145,8 +145,28 @@ export function SessionSharePanel({
   // or live). Kept out of the DOM entirely when Funnel is off to avoid an empty section.
   const funnelEngaged = warmingUp || warmupTimedOut || funnelActive
 
+  // FNL-08 fix (M-46): the public URL a guest opens must be the reusable,
+  // share-lifetime /join entry point (https://host/join?code=<publicReadCode>),
+  // NOT funnelUrl. funnelUrl = readUrl = https://host/sessions/{id}?cap=<rTok>,
+  // an ephemeral, grant-bound capability link that 401s "capability required"
+  // once the grant rotates on a warm-up re-issue or the daemon restarts (grants
+  // are in-memory). Derive the join URL from funnelUrl's origin — mirrors the
+  // joinURLFor() pattern already used for the RO/Full QR path. When no reusable
+  // code is present (degenerate non-Funnel path) fall back to the bare /join
+  // page (State B, guest enters a code) rather than the broken cap link.
+  const publicEntryUrl = ((): string | null => {
+    if (!funnelUrl) return null
+    try {
+      const u = new URL(funnelUrl)
+      const base = `${u.protocol}//${u.host}/join`
+      return publicReadCode ? `${base}?code=${publicReadCode}` : base
+    } catch {
+      return funnelUrl
+    }
+  })()
+
   async function handleToggleFunnelQR(): Promise<void> {
-    if (!funnelUrl) return
+    if (!publicEntryUrl) return
     if (showFunnelQR) {
       setShowFunnelQR(false)
       return
@@ -154,8 +174,9 @@ export function SessionSharePanel({
     setFunnelQRError(null)
     if (!funnelQRb64) {
       try {
-        // The public URL is itself the join-gated entry point — encode it directly (D-12).
-        const b64 = await GetCapabilityQRCode(funnelUrl)
+        // Encode the reusable /join entry URL (D-12) — a photographed QR keeps
+        // working for the share lifetime, which is the intended public UX.
+        const b64 = await GetCapabilityQRCode(publicEntryUrl)
         setFunnelQRb64(b64)
       } catch {
         setFunnelQRError('QR unavailable — tap to retry')
@@ -334,16 +355,16 @@ export function SessionSharePanel({
             </p>
           )}
 
-          {funnelActive && funnelUrl && !warmingUp && (
+          {funnelActive && publicEntryUrl && !warmingUp && (
             <>
               <div className="hub-share-internet-section__url-row">
                 <span className="session-share-panel__label">Public URL (read-only):</span>
-                <span className="session-share-panel__url" title={funnelUrl}>{funnelUrl}</span>
+                <span className="session-share-panel__url" title={publicEntryUrl}>{publicEntryUrl}</span>
                 <div className="session-share-panel__actions">
                   <button
                     type="button"
                     className="daemon-panel__btn"
-                    onClick={() => void handleCopy(funnelUrl, setFunnelCopied)}
+                    onClick={() => void handleCopy(publicEntryUrl, setFunnelCopied)}
                     aria-label="Copy public internet URL to clipboard"
                   >
                     {funnelCopied ? 'Copied!' : 'Copy URL'}
@@ -351,7 +372,7 @@ export function SessionSharePanel({
                   <button
                     type="button"
                     className="daemon-panel__btn"
-                    onClick={() => BrowserOpenURL(funnelUrl)}
+                    onClick={() => BrowserOpenURL(publicEntryUrl)}
                     aria-label="Open public internet URL in browser"
                   >
                     Open

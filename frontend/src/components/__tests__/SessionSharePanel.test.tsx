@@ -233,40 +233,53 @@ describe('SessionSharePanel — FUI-05 Internet (public) section', () => {
     expect(copyUrl).toBeUndefined()
   })
 
-  it('funnelActive + funnelUrl renders the read-only URL with Copy URL / Open / QR actions', () => {
+  // FNL-08 fix (M-46): the public URL a guest opens must be the reusable,
+  // share-lifetime /join entry point (https://host/join?code=<publicReadCode>),
+  // NOT the ephemeral per-session capability link (funnelUrl = readUrl =
+  // https://host/sessions/{id}?cap=<rTok>). A cap link is grant-bound and 401s
+  // "capability required" once the grant rotates on a warm-up re-issue or the
+  // daemon restarts — see 170-UAT.md gap.
+  it('funnelActive renders the reusable /join entry URL (not the raw cap link) with Copy URL / Open / QR actions', () => {
     ;({ container, root } = renderPanel({
       funnelActive: true,
-      funnelUrl: 'https://sess.tail-scale.ts.net/',
+      funnelUrl: 'https://sess.tail-scale.ts.net/sessions/abc123?cap=RO_TOKEN',
+      publicReadCode: 'PUB1234',
     }))
     expect(container!.textContent).toMatch(/Public URL \(read-only\)/)
-    expect(container!.innerHTML).toContain('https://sess.tail-scale.ts.net/')
+    expect(container!.innerHTML).toContain('https://sess.tail-scale.ts.net/join?code=PUB1234')
+    // The raw capability token and the /sessions/{id} viewer path must NEVER be
+    // handed to the public guest — that is exactly what dead-ends on 401.
+    expect(container!.innerHTML).not.toContain('RO_TOKEN')
+    expect(container!.innerHTML).not.toContain('/sessions/abc123')
     const labels = Array.from(container!.querySelectorAll('button')).map((b) => b.textContent?.trim())
     expect(labels).toContain('Copy URL')
     expect(labels.some((l) => l === 'Open')).toBe(true)
   })
 
-  it('Copy URL uses ClipboardSetText (not navigator.clipboard)', async () => {
+  it('Copy URL copies the reusable /join entry URL (ClipboardSetText, not the cap link)', async () => {
     ;({ container, root } = renderPanel({
       funnelActive: true,
-      funnelUrl: 'https://sess.tail-scale.ts.net/',
+      funnelUrl: 'https://sess.tail-scale.ts.net/sessions/abc123?cap=RO_TOKEN',
+      publicReadCode: 'PUB1234',
     }))
     const copyBtn = Array.from(container!.querySelectorAll('button')).find(
       (b) => b.textContent?.trim() === 'Copy URL',
     ) as HTMLElement
     await flushSync(() => copyBtn.click())
-    expect(mockedClipboardSetText).toHaveBeenCalledWith('https://sess.tail-scale.ts.net/')
+    expect(mockedClipboardSetText).toHaveBeenCalledWith('https://sess.tail-scale.ts.net/join?code=PUB1234')
   })
 
-  it('Open uses BrowserOpenURL with the funnel URL', async () => {
+  it('Open opens the reusable /join entry URL (BrowserOpenURL, not the cap link)', async () => {
     ;({ container, root } = renderPanel({
       funnelActive: true,
-      funnelUrl: 'https://sess.tail-scale.ts.net/',
+      funnelUrl: 'https://sess.tail-scale.ts.net/sessions/abc123?cap=RO_TOKEN',
+      publicReadCode: 'PUB1234',
     }))
     const openBtn = Array.from(container!.querySelectorAll('button')).find(
       (b) => b.textContent?.trim() === 'Open' && b.getAttribute('aria-label')?.includes('public'),
     ) as HTMLElement
     await flushSync(() => openBtn.click())
-    expect(mockedBrowserOpenURL).toHaveBeenCalledWith('https://sess.tail-scale.ts.net/')
+    expect(mockedBrowserOpenURL).toHaveBeenCalledWith('https://sess.tail-scale.ts.net/join?code=PUB1234')
   })
 
   it('does NOT render a public write link in the Internet section (D-12)', () => {
