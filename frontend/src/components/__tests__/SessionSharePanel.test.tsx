@@ -40,6 +40,8 @@ interface RenderOpts {
   warmingUp?: boolean
   warmupTimedOut?: boolean
   onDisableFunnel?: () => void
+  // Phase 170 / FNL-08 — reusable public read join code
+  publicReadCode?: string | null
 }
 
 function renderPanel(opts: RenderOpts = {}) {
@@ -60,6 +62,7 @@ function renderPanel(opts: RenderOpts = {}) {
         warmingUp: opts.warmingUp,
         warmupTimedOut: opts.warmupTimedOut,
         onDisableFunnel: opts.onDisableFunnel,
+        publicReadCode: opts.publicReadCode,
       })
     )
   })
@@ -296,5 +299,47 @@ describe('SessionSharePanel — FUI-05 Internet (public) section', () => {
     ;({ container, root } = renderPanel({ warmupTimedOut: true }))
     expect(container!.querySelector('.hub-share-internet-section__error')).not.toBeNull()
     expect(container!.textContent).toMatch(/Connection timed out\. Try disabling and re-enabling\./)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Phase 170 / FNL-08 — reusable public join code row
+// ---------------------------------------------------------------------------
+describe('SessionSharePanel — FNL-08 reusable public join code', () => {
+  let container: HTMLElement | undefined
+  let root: Root | undefined
+
+  afterEach(() => {
+    if (root) {
+      flushSync(() => root!.unmount())
+      root = undefined
+    }
+    if (container) {
+      container.remove()
+      container = undefined
+    }
+    vi.clearAllMocks()
+  })
+
+  it('renders the reusable public join code row with its reusability label when publicReadCode is present', () => {
+    ;({ container, root } = renderPanel({
+      funnelActive: true,
+      funnelUrl: 'https://sess.tail-scale.ts.net/',
+      publicReadCode: 'PUB1234',
+    }))
+    expect(container!.textContent).toContain('Public join code (reusable):')
+    const codeEls = Array.from(container!.querySelectorAll('[data-testid="join-code-text"]'))
+    expect(codeEls.some((el) => el.textContent === 'PUB1234')).toBe(true)
+  })
+
+  it('does NOT render a public code row when publicReadCode is absent (negative case)', () => {
+    ;({ container, root } = renderPanel({
+      funnelActive: true,
+      funnelUrl: 'https://sess.tail-scale.ts.net/',
+    }))
+    // The public URL row still renders...
+    expect(container!.textContent).toMatch(/Public URL \(read-only\)/)
+    // ...but no reusable-code label/row appears.
+    expect(container!.textContent).not.toContain('Public join code (reusable):')
   })
 })
