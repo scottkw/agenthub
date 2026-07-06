@@ -565,7 +565,7 @@ Plans:
 | 167. Native Notifications | 7/7 | Complete   | 2026-07-01 |
 | 168. Bug Fix & Settings Polish | 9/9 | Complete   | 2026-07-02 |
 | 169. Tailscale Detection Fix | 2/2 | Complete (verified; M-45 live deferred) | 2026-07-05 |
-| 170. Public Share Access Codes (read) | 2/4 | In Progress|  |
+| 170. Public Share Access Codes (read) | 3/4 | In Progress|  |
 | 171. Public Full-Access (RW) Sharing | 0/? | Spec-first — run /gsd-spec-phase 171 | — |
 
 ### Phase 170: Public Share Access Codes (read)
@@ -584,7 +584,7 @@ Plans:
 - Keep **40-bit crypto/rand** entropy (2⁴⁰ over an ≤8h window is not brute-forceable even without rate-limiting).
 - **Supplement, not replace** the existing self-contained cap-URL + QR flow.
 
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 
@@ -598,7 +598,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 170-03-PLAN.md — Frontend: models.ts sync + reusable `<CodeDisplay>` row in the INTERNET (PUBLIC) section + `publicReadCode` threaded through the modal warm-up/disable + component test (FNL-08)
+- [x] 170-03-PLAN.md — Frontend: models.ts sync + reusable `<CodeDisplay>` row in the INTERNET (PUBLIC) section + `publicReadCode` threaded through the modal warm-up/disable + component test (FNL-08)
 
 **Wave 4** *(blocked on Waves 1-3)*
 
