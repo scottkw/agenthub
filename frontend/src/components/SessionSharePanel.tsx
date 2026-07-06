@@ -91,6 +91,13 @@ interface SessionSharePanelProps {
   warmupTimedOut?: boolean
   /** One-click Funnel teardown — SetSessionFunnel(id, false, 0). No confirm dialog (D-13). */
   onDisableFunnel?: () => void
+  /**
+   * Phase 170 / FNL-08: the reusable, read-only, share-lifetime public join
+   * code minted by the daemon alongside the Funnel read URL. `null`/absent
+   * means no code is available yet (or the Funnel isn't live) — no row is
+   * rendered in that case.
+   */
+  publicReadCode?: string | null
 }
 
 /**
@@ -119,6 +126,7 @@ export function SessionSharePanel({
   warmingUp = false,
   warmupTimedOut = false,
   onDisableFunnel,
+  publicReadCode = null,
 }: SessionSharePanelProps): React.ReactElement {
   const [readCopied, setReadCopied] = useState(false)
   const [writeCopied, setWriteCopied] = useState(false)
@@ -358,6 +366,9 @@ export function SessionSharePanel({
                   </button>
                 </div>
               </div>
+              {publicReadCode && (
+                <CodeDisplay label="Public join code (reusable):" code={publicReadCode} />
+              )}
               {showFunnelQR && funnelQRb64 && (
                 <img
                   className="session-share-panel__qr"
