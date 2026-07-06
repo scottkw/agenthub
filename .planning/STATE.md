@@ -5,15 +5,15 @@ milestone_name: Funnel Sharing & Polish
 current_phase: 170
 current_phase_name: public-share-access-codes-reusable-share-lifetime-join-code-
 status: executing
-stopped_at: "v4.2 REOPENED 2026-07-05 — live UAT of Funnel added 2 phases: 170 public read code (needs /gsd-plan-phase), 171 public full-access (SPEC-FIRST). 165-169 done; 2 Share-modal layout bugs fixed live (commit 27d398e7)."
-last_updated: "2026-07-06T00:37:19.035Z"
+stopped_at: Completed 170-02-PLAN.md
+last_updated: "2026-07-06T00:54:06.254Z"
 last_activity: 2026-07-06
 last_activity_desc: Phase 170 execution started
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 32
-  completed_plans: 29
+  completed_plans: 30
   percent: 63
 ---
 
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 ## Current Position
 
 Phase: 170 (public-share-access-codes-reusable-share-lifetime-join-code-) — EXECUTING
-Plan: 1 of 4 in current phase
-Status: Executing Phase 170
+Plan: 2 of 4 in current phase
+Status: Ready to execute
 
-- **170 Public Share Access Codes (read)** — reusable share-lifetime join code for the INTERNET (PUBLIC) link (FNL-08). UAT found the public link shows no join code (unlike RO/Full) → typing the URL dead-ends on a code page with no code. Root cause: join codes are 5-min single-use (`api.go:259`), wrong for a public share → needs per-code TTL + reusable semantics tied to funnel expiry, read-only only. **170-01 EXECUTED 2026-07-05** (commits 70f2f8ad/fa35b928/1618255b/cc864779/eb119e4c): `JoinCodeManager.IssueReusable`/`Revoke` + reusable-conditional `Exchange` delete, proven at unit layer (4 new tests, 6 pre-existing untouched) AND at the public `/join/exchange` HTTP boundary (new `internal/webserver/join_test.go` — reusable read code resolves twice, single-use code still fails on 2nd try). NEXT = 170-02 (daemon-side minting tied to Funnel enable/expiry, read-only enforcement at mint site per T-170-01).
+- **170 Public Share Access Codes (read)** — reusable share-lifetime join code for the INTERNET (PUBLIC) link (FNL-08). UAT found the public link shows no join code (unlike RO/Full) → typing the URL dead-ends on a code page with no code. Root cause: join codes are 5-min single-use (`api.go:259`), wrong for a public share → needs per-code TTL + reusable semantics tied to funnel expiry, read-only only. **170-01 EXECUTED 2026-07-05** (commits 70f2f8ad/fa35b928/1618255b/cc864779/eb119e4c): `JoinCodeManager.IssueReusable`/`Revoke` + reusable-conditional `Exchange` delete, proven at unit layer (4 new tests, 6 pre-existing untouched) AND at the public `/join/exchange` HTTP boundary (new `internal/webserver/join_test.go` — reusable read code resolves twice, single-use code still fails on 2nd try). **170-02 EXECUTED 2026-07-05** (commits 3cb05dea/5f0bb981/d38a9689/835bbaa4, RED/GREEN TDD): `issueCapabilitiesForSession` mints the reusable public read code from the read-only `rTok` ONLY (never `wTok`), caches it per session (idempotent — no rotation on re-issue), and surfaces it on `IssueCapabilitiesResponse.PublicReadCode` (`""` for non-Funnel sessions); `handleSetSessionFunnel` captures `min(ExpiresIn, 8h)` as the per-code TTL; `disableFunnelForSession` (the single teardown chokepoint) revokes the cached code on all 4 in-process triggers (toggle-off, web-share-off, session-exit, auto-expiry timer — daemon-stop intentionally excluded, bypasses this chokepoint by design). Wails TS binding (`models.ts`) regenerated for Wave 3. NEXT = 170-03 (frontend: Share modal reads `resp.publicReadCode`, per Wave 3 per the plan's objective).
 - **171 Public Full-Access (RW) Sharing** — opt-in public read-write behind a hard consent gate + single-use write code (FNL-09). Supersedes today's ACCIDENTAL public write (issueCapabilitiesForSession rebases both read+write caps to the funnel base by timing; funnel exposes whole mux, no read-only downgrade). **SPEC-FIRST** (internet RCE): `/gsd-spec-phase 171` → discuss → `/gsd-secure-phase` → plan.
 
 **Live UAT of 165-169 (2026-07-05, prod build on real Funnel tailnet) — Phase 166 Funnel UAT NOW COMPLETE, all 4 PASS (166-UAT.md status→passed):** M-37 (off-tailnet phone QR loads read-only session; public URL 200 off-host), M-38 (daemon 60s auto-expiry → torn down, URL HTTP 000, badge cleared, no manual disable), M-39 (globe + INTERNET badge appears/clears), M-40 (stop tailscale + restart daemon → local mode → toggle greyed + "requires Tailscale" + backend 400 fail-closed; reconnect auto-upgrades → toggle re-enables). **2 Share-modal layout bugs found + fixed live (commit 27d398e7):** (1) `.hub-share-modal` had no height bound → overflowed viewport/clipped; fixed with max-height. (2) that max-height made `__body` a constrained flex column and the risk panel's `overflow:hidden` let flexbox shrink it 202px→39px, clipping the Auto-expire select + Enable CTA → Funnel uncommittable via UI; fixed with `flex-shrink:0`. Both root-caused via dev-browser CSS harness, verified live. OBSERVATION (not blocking, maybe file): daemon does NOT live-downgrade to local mode on a mid-session tailscale drop (stays tailscale-mode w/ stale IP) — local fallback is startup-only; auto-upgrade on reconnect works. REMAINING deferrals: M-41 (notif delivery win/linux, needs those platforms), M-45 (non-admin macsys, env-only). **Phase 172 (Hub-card layout & badge refinement) CREATED 2026-07-05** (`/gsd-phase add`; frontend-only, Depends on: None — independent of Funnel 170/171). NEXT = user wants 2-3 throwaway HTML mockups (frontend-design / /gsd-sketch) BEFORE `/gsd-plan-phase 172`. Design critique captured: the Hub session card (image ref) uses THREE inconsistent metadata treatments — `Running`/`Local` = icon+plain-text, `/bin/zsh` = outlined pill, `INTERNET` = filled green pill on its own row — loosely stacked with no grouping. Direction: consolidate into ONE consistent chip row (agent · origin · exposure) with tighter vertical rhythm, while KEEPING the INTERNET chip the one deliberately-prominent colored/filled chip (it's a security-exposure signal that must stay unmissable + colorblind-safe per [[user_colorblind]]; making others quieter/outlined makes INTERNET pop MORE by contrast). Frontend-only (Hub card component + style.css); no backend. User wants 2-3 throwaway HTML mockups (frontend-design skill) BEFORE touching code. This is a v4.2 phase (milestone reopened). To add: `/gsd-phase add ...` (will become 172).
@@ -145,9 +145,9 @@ v4.2 Progress: [██████████████░░░░░░] 71
 
 ## Session Continuity
 
-Last session: 2026-07-06T00:37:06.944Z
-Stopped at: Phase 169 context gathered
-Resume file: .planning/phases/169-tailscale-detection-fix/169-CONTEXT.md
+Last session: 2026-07-06T00:54:06.245Z
+Stopped at: Completed 170-02-PLAN.md
+Resume file: None
 Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 phase — FIX-05: non-admin macOS accounts report Tailscale "installed but not Connected" because `macsys` `sameuserproof` is unreadable; add a CLI `status` fallback. Run `/gsd-plan-phase 169` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
 
 ## Decisions (carry-forward from v4.1 — architecture reference)
@@ -232,6 +232,7 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 | Phase 168 P07 | 15min | 2 tasks | 1 files |
 | Phase 169 P01 | 13min | 2 tasks | 3 files |
 | Phase 170 P01 | 5min | 3 tasks | 3 files |
+| Phase 170 P02 | 9min | 2 tasks | 6 files |
 
 ## Decisions
 
@@ -279,3 +280,6 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 - [Phase ?]: Phase 169-01: reused tailscale.com/ipn/ipnstate.Status for CLI JSON unmarshal instead of a new local struct — mirrors the SDK-success field-mapping exactly
 - [Phase ?]: Phase 169-01: cliStatusFunc fires on ANY SDK error, on ALL platforms — no error-string classification, no runtime.GOOS gate (D-03/D-04)
 - [Phase 170-01]: IssueReusable reuses Issue's exact crypto/rand + joinCodeEncoding path (no new RNG surface); Exchange's success-path delete gated on entry.reusable while expiry-path delete stays unconditional for both classes
+- [Phase ?]: Phase 170-02: a.mu held across IssueReusable (no blocking I/O) closes the concurrent-mint TOCTOU race for the Funnel public read code
+- [Phase ?]: Phase 170-02: PublicReadCode lives only on IssueCapabilitiesResponse (not SetSessionFunnelResponse) — rides the frontend's existing warm-up re-issue
+- [Phase ?]: Phase 170-02: daemon-stop (site 4) intentionally excluded from public-read-code revocation assertions — ws.Stop() bypasses disableFunnelForSession by design (165-02 precedent)
