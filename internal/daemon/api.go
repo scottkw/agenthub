@@ -1465,27 +1465,35 @@ func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, 
 	// where two concurrent callers could each mint a distinct code.
 	if isFunnelSession {
 		a.mu.Lock()
-		cached, ok := a.funnelReadCode[sessionID]
-		if !ok {
-			code, mintErr := a.mintFunnelReadCodeLocked(sessionID, rTok)
-			if mintErr != nil {
-				a.mu.Unlock()
-				return "", "", "", "", "", mintErr
+		// WR-01: re-verify Funnel membership INSIDE the same critical section as
+		// the mint. isFunnelSession was read above under a separate RLock; a
+		// disableFunnelForSession that interleaved between that read and this
+		// Lock (expiry timer, user disable) would otherwise let us mint a
+		// reusable code the teardown already ran past and will never revoke —
+		// orphaning a live public code past "dies with the share" (T-170-02).
+		if a.funnelSessions[sessionID] {
+			cached, ok := a.funnelReadCode[sessionID]
+			if !ok {
+				code, mintErr := a.mintFunnelReadCodeLocked(sessionID, rTok)
+				if mintErr != nil {
+					a.mu.Unlock()
+					return "", "", "", "", "", mintErr
+				}
+				cached = code
+			} else if rebindErr := a.joinCodes.Rebind(cached, rTok); rebindErr != nil {
+				// CR-01: the cached public code exists but its stored token no
+				// longer resolves (expired-and-swept or revoked out from under
+				// us) — mint a fresh one so the UI never surfaces a dead code.
+				code, mintErr := a.mintFunnelReadCodeLocked(sessionID, rTok)
+				if mintErr != nil {
+					a.mu.Unlock()
+					return "", "", "", "", "", mintErr
+				}
+				cached = code
 			}
-			cached = code
-		} else if rebindErr := a.joinCodes.Rebind(cached, rTok); rebindErr != nil {
-			// CR-01: the cached public code exists but its stored token no
-			// longer resolves (expired-and-swept or revoked out from under us)
-			// — mint a fresh one so the UI never surfaces a dead code.
-			code, mintErr := a.mintFunnelReadCodeLocked(sessionID, rTok)
-			if mintErr != nil {
-				a.mu.Unlock()
-				return "", "", "", "", "", mintErr
-			}
-			cached = code
+			publicReadCode = cached
 		}
 		a.mu.Unlock()
-		publicReadCode = cached
 	}
 
 	return readURL, writeURL, readCode, writeCode, publicReadCode, nil
