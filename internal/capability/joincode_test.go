@@ -130,3 +130,95 @@ func TestJoinCodeManager_ExchangeRejectsUnknownCode(t *testing.T) {
 		t.Errorf("Exchange(unknown): expected ErrCodeNotFound, got %v", err)
 	}
 }
+
+// TestJoinCodeManager_IssueReusable_MultiExchange asserts that a code minted
+// via IssueReusable survives repeated Exchange calls — the core FNL-08
+// property that distinguishes it from the single-use Issue path.
+func TestJoinCodeManager_IssueReusable_MultiExchange(t *testing.T) {
+	mgr := capability.NewJoinCodeManager(5 * time.Minute)
+	code, err := mgr.IssueReusable("tok-reusable", time.Hour)
+	if err != nil {
+		t.Fatalf("IssueReusable: %v", err)
+	}
+	if !joinCodeRegex.MatchString(code) {
+		t.Errorf("code %q does not match %s", code, joinCodeRegex)
+	}
+
+	got1, err := mgr.Exchange(code)
+	if err != nil {
+		t.Fatalf("first Exchange: %v", err)
+	}
+	if got1 != "tok-reusable" {
+		t.Errorf("first Exchange returned %q, want %q", got1, "tok-reusable")
+	}
+
+	got2, err := mgr.Exchange(code)
+	if err != nil {
+		t.Fatalf("second Exchange: expected success (reusable), got error: %v", err)
+	}
+	if got2 != "tok-reusable" {
+		t.Errorf("second Exchange returned %q, want %q", got2, "tok-reusable")
+	}
+}
+
+// TestJoinCodeManager_Revoke asserts that Revoke immediately invalidates a
+// reusable code — the next Exchange returns ErrCodeNotFound.
+func TestJoinCodeManager_Revoke(t *testing.T) {
+	mgr := capability.NewJoinCodeManager(5 * time.Minute)
+	code, err := mgr.IssueReusable("tok-revoke", time.Hour)
+	if err != nil {
+		t.Fatalf("IssueReusable: %v", err)
+	}
+	// Sanity: the code resolves before Revoke.
+	if _, err := mgr.Exchange(code); err != nil {
+		t.Fatalf("Exchange before Revoke: %v", err)
+	}
+
+	mgr.Revoke(code)
+
+	if _, err := mgr.Exchange(code); !errors.Is(err, capability.ErrCodeNotFound) {
+		t.Errorf("Exchange after Revoke: expected ErrCodeNotFound, got %v", err)
+	}
+}
+
+// TestJoinCodeManager_Revoke_UnknownCodeIsNoOp asserts that revoking a code
+// that was never issued does not panic and leaves the manager usable.
+func TestJoinCodeManager_Revoke_UnknownCodeIsNoOp(t *testing.T) {
+	mgr := capability.NewJoinCodeManager(5 * time.Minute)
+	mgr.Revoke("ZZZZ-ZZZZ") // must not panic
+
+	// Manager remains fully functional afterward.
+	code, err := mgr.Issue("tok")
+	if err != nil {
+		t.Fatalf("Issue after no-op Revoke: %v", err)
+	}
+	if _, err := mgr.Exchange(code); err != nil {
+		t.Fatalf("Exchange after no-op Revoke: %v", err)
+	}
+}
+
+// TestJoinCodeManager_ReusableExpiresAfterTTL asserts that a reusable code
+// whose per-call TTL has elapsed returns ErrCodeExpired (and is deleted),
+// same as the single-use expiry contract — reusable does not mean immortal.
+// Uses SetClockForTest so no real sleeps are involved.
+func TestJoinCodeManager_ReusableExpiresAfterTTL(t *testing.T) {
+	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	clock := start
+	mgr := capability.NewJoinCodeManager(5 * time.Minute)
+	mgr.SetClockForTest(func() time.Time { return clock })
+
+	code, err := mgr.IssueReusable("tok-ttl", time.Hour)
+	if err != nil {
+		t.Fatalf("IssueReusable: %v", err)
+	}
+	// Advance the clock past the per-code TTL (1 hour).
+	clock = start.Add(2 * time.Hour)
+
+	if _, err := mgr.Exchange(code); !errors.Is(err, capability.ErrCodeExpired) {
+		t.Errorf("Exchange after TTL: expected ErrCodeExpired, got %v", err)
+	}
+	// Subsequent Exchange must return ErrCodeNotFound (entry was deleted).
+	if _, err := mgr.Exchange(code); !errors.Is(err, capability.ErrCodeNotFound) {
+		t.Errorf("Exchange after expiry cleanup: expected ErrCodeNotFound, got %v", err)
+	}
+}
