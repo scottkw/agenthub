@@ -8,6 +8,7 @@ package daemon
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/scottkw/agenthub/internal/capability"
 	"github.com/scottkw/agenthub/internal/webserver"
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
@@ -323,6 +325,187 @@ func TestFunnelAutoExpiry(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 170-02 / FNL-08: reusable public read code — mint/idempotent/revoke
+// regression suite. Task 1 (api_test.go) drives the mint site directly with
+// a white-box injected funnelSessions/funnelReadCodeTTL; these tests exercise
+// the full HTTP-driven Funnel lifecycle through the real handlers.
+// ---------------------------------------------------------------------------
+
+// TestFunnelPublicCode_ReadOnlyScope verifies T-170-01: the public read
+// code's token (resolved via Exchange + Verify) carries read-only Perms —
+// never "write" or capability.PermFilesWrite — in BOTH perm-matrix states
+// (browse OFF and browse ON), proving the read-only invariant holds
+// regardless of the browse toggle.
+func TestFunnelPublicCode_ReadOnlyScope(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+
+	run := func(t *testing.T, browseOn bool) {
+		api, _, socketPath := testDaemon(t)
+		_, _ = makeFunnelTestWebServer(t, api, "test.ts.net")
+		key := configureCapabilityStateForTest(t, api, api.webServer)
+
+		_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"public-code-scope","workDir":""}`)
+		var cr CreateResponse
+		if err := json.Unmarshal(body, &cr); err != nil {
+			t.Fatalf("decode create: %v", err)
+		}
+		if browseOn {
+			api.engine.SetSessionBrowse(cr.ID, true)
+		}
+		rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":true}`)
+		enableFunnelViaHTTP(t, socketPath, cr.ID)
+
+		_, _, _, _, publicReadCode, err := api.issueCapabilitiesForSession(cr.ID)
+		if err != nil {
+			t.Fatalf("issueCapabilitiesForSession: %v", err)
+		}
+		if publicReadCode == "" {
+			t.Fatal("PublicReadCode must be non-empty for a Funnel session")
+		}
+
+		tok, err := api.joinCodes.Exchange(publicReadCode)
+		if err != nil {
+			t.Fatalf("Exchange(publicReadCode): %v", err)
+		}
+		claims, err := capability.Verify(tok, key)
+		if err != nil {
+			t.Fatalf("Verify: %v", err)
+		}
+		if capability.HasPerm(claims.Perms, "write") {
+			t.Errorf("T-170-01: Perms = %q must NOT contain write (browseOn=%v)", claims.Perms, browseOn)
+		}
+		if capability.HasPerm(claims.Perms, capability.PermFilesWrite) {
+			t.Errorf("T-170-01: Perms = %q must NOT contain files.write (browseOn=%v)", claims.Perms, browseOn)
+		}
+	}
+
+	t.Run("browse_off", func(t *testing.T) { run(t, false) })
+	t.Run("browse_on", func(t *testing.T) { run(t, true) })
+}
+
+// TestIssueCapabilities_FunnelPublicCode_Idempotent verifies T-170-04: two
+// consecutive issueCapabilitiesForSession calls for the same active Funnel
+// session return the IDENTICAL PublicReadCode — a code already handed to a
+// viewer must not silently rotate on a repeat capability re-issue (browse
+// toggle, warm-up re-issue, modal reopen).
+func TestIssueCapabilities_FunnelPublicCode_Idempotent(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+	api, _, socketPath := testDaemon(t)
+	_, _ = makeFunnelTestWebServer(t, api, "test.ts.net")
+	configureCapabilityStateForTest(t, api, api.webServer)
+
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"public-code-idempotent","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create: %v", err)
+	}
+	rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":true}`)
+	enableFunnelViaHTTP(t, socketPath, cr.ID)
+
+	_, _, _, _, code1, err := api.issueCapabilitiesForSession(cr.ID)
+	if err != nil {
+		t.Fatalf("issueCapabilitiesForSession (1st): %v", err)
+	}
+	_, _, _, _, code2, err := api.issueCapabilitiesForSession(cr.ID)
+	if err != nil {
+		t.Fatalf("issueCapabilitiesForSession (2nd): %v", err)
+	}
+	if code1 == "" || code2 == "" {
+		t.Fatalf("PublicReadCode must be non-empty: code1=%q code2=%q", code1, code2)
+	}
+	if code1 != code2 {
+		t.Errorf("T-170-04: PublicReadCode rotated across re-issue: %q != %q", code1, code2)
+	}
+}
+
+// TestFunnelAutoExpiry_RevokesPublicReadCode extends FNL-07/FNL-08: once the
+// auto-expiry timer fires (disableFunnelForSession, trigger 5), the cached
+// public read code must no longer Exchange — the timer-driven teardown path
+// is one of the in-process triggers that must revoke the code (T-170-02),
+// not just leave it to its own per-code TTL.
+func TestFunnelAutoExpiry_RevokesPublicReadCode(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener and timer wait")
+	}
+	api, _, socketPath := testDaemon(t)
+	_, fake := makeFunnelTestWebServer(t, api, "test.ts.net")
+	configureCapabilityStateForTest(t, api, api.webServer)
+
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"public-code-expiry","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create: %v", err)
+	}
+	rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":true}`)
+
+	// Enable with 1-second auto-expiry.
+	status, _ := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/funnel", cr.ID), `{"enabled":true,"expiresIn":1}`)
+	if status != http.StatusOK {
+		t.Fatalf("enable with expiry: want 200, got %d", status)
+	}
+
+	_, _, _, _, publicReadCode, err := api.issueCapabilitiesForSession(cr.ID)
+	if err != nil {
+		t.Fatalf("issueCapabilitiesForSession: %v", err)
+	}
+	if publicReadCode == "" {
+		t.Fatal("PublicReadCode must be non-empty before expiry")
+	}
+
+	// Poll for the timer to fire.
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if !fake.IsFunnelOn() {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if fake.IsFunnelOn() {
+		t.Fatal("precondition: expiry timer did not fire within 3s")
+	}
+
+	if _, err := api.joinCodes.Exchange(publicReadCode); !errors.Is(err, capability.ErrCodeNotFound) {
+		t.Errorf("FNL-08 / T-170-02: after auto-expiry, Exchange(publicReadCode) = %v, want ErrCodeNotFound", err)
+	}
+}
+
+// TestIssueCapabilities_NonFunnelSession_EmptyPublicReadCode verifies FNL-08
+// at the public HTTP boundary: an ordinary web-enabled (non-Funnel) session's
+// IssueCapabilitiesResponse carries PublicReadCode == "" — the reusable code
+// exists only for internet (Funnel) shares.
+func TestIssueCapabilities_NonFunnelSession_EmptyPublicReadCode(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+	api, _, socketPath := testDaemon(t)
+	_, _ = makeFunnelTestWebServer(t, api, "test.ts.net")
+	configureCapabilityStateForTest(t, api, api.webServer)
+
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"non-funnel-public-code","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create: %v", err)
+	}
+	rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":true}`)
+
+	st, issueBody := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/capabilities", cr.ID), ``)
+	if st != http.StatusOK {
+		t.Fatalf("capabilities: want 200, got %d; body: %s", st, issueBody)
+	}
+	var resp IssueCapabilitiesResponse
+	if err := json.Unmarshal(issueBody, &resp); err != nil {
+		t.Fatalf("decode IssueCapabilitiesResponse: %v", err)
+	}
+	if resp.PublicReadCode != "" {
+		t.Errorf("FNL-08: non-Funnel session PublicReadCode = %q, want empty", resp.PublicReadCode)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Task 2: All five teardown triggers + ref-count guard
 // ---------------------------------------------------------------------------
 
@@ -335,10 +518,19 @@ func TestFunnelTeardown_AllTriggers(t *testing.T) {
 		t.Skip("requires TLS listener")
 	}
 
-	setup := func(t *testing.T) (api *API, socketPath string, ws *webserver.WebServer, fake *daemonFakeFunnelClient, sessionID string) {
+	// setup also mints the FNL-08 public read code (via configureCapabilityStateForTest
+	// + issueCapabilitiesForSession) so each in-process trigger sub-test can assert it
+	// was revoked (T-170-02), not just that the serve config emptied. Site 4
+	// (daemon_stop) is deliberately excluded from this assertion below: ws.Stop()
+	// calls DisableFunnel directly at the webserver layer, bypassing
+	// disableFunnelForSession entirely (by design, per that function's doc comment) —
+	// the plan's must_haves list only 4 in-process triggers (toggle-off,
+	// web-share-off, session-exit, auto-expiry timer) for this invariant.
+	setup := func(t *testing.T) (api *API, socketPath string, ws *webserver.WebServer, fake *daemonFakeFunnelClient, sessionID, publicReadCode string) {
 		t.Helper()
 		api, _, socketPath = testDaemon(t)
 		ws, fake = makeFunnelTestWebServer(t, api, "test.ts.net")
+		configureCapabilityStateForTest(t, api, ws)
 		_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"teardown","workDir":""}`)
 		var cr CreateResponse
 		if err := json.Unmarshal(body, &cr); err != nil {
@@ -348,11 +540,18 @@ func TestFunnelTeardown_AllTriggers(t *testing.T) {
 		if !fake.IsFunnelOn() {
 			t.Fatal("precondition: fake config must show IsFunnelOn after enable")
 		}
-		return api, socketPath, ws, fake, cr.ID
+		_, _, _, _, publicReadCode, err := api.issueCapabilitiesForSession(cr.ID)
+		if err != nil {
+			t.Fatalf("issueCapabilitiesForSession: %v", err)
+		}
+		if publicReadCode == "" {
+			t.Fatal("precondition: PublicReadCode must be non-empty after Funnel enable")
+		}
+		return api, socketPath, ws, fake, cr.ID, publicReadCode
 	}
 
 	t.Run("1_toggle_off", func(t *testing.T) {
-		_, socketPath, _, fake, sid := setup(t)
+		api, socketPath, _, fake, sid, publicReadCode := setup(t)
 		status, _ := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/funnel", sid), `{"enabled":false}`)
 		if status != http.StatusNoContent {
 			t.Fatalf("toggle-off: want 204, got %d", status)
@@ -360,10 +559,13 @@ func TestFunnelTeardown_AllTriggers(t *testing.T) {
 		if fake.IsFunnelOn() {
 			t.Error("FNL-05: toggle-off did not clear fake config (IsFunnelOn still true)")
 		}
+		if _, err := api.joinCodes.Exchange(publicReadCode); !errors.Is(err, capability.ErrCodeNotFound) {
+			t.Errorf("FNL-08 / T-170-02: toggle-off did not revoke public read code: Exchange = %v, want ErrCodeNotFound", err)
+		}
 	})
 
 	t.Run("2_web_share_off", func(t *testing.T) {
-		_, socketPath, _, fake, sid := setup(t)
+		api, socketPath, _, fake, sid, publicReadCode := setup(t)
 		// Enable web-share first so disable is meaningful.
 		rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", sid), `{"enabled":true}`)
 		// Disable web-share — must also teardown Funnel (site 2).
@@ -374,19 +576,25 @@ func TestFunnelTeardown_AllTriggers(t *testing.T) {
 		if fake.IsFunnelOn() {
 			t.Error("FNL-05: web-share-off did not clear fake config (IsFunnelOn still true)")
 		}
+		if _, err := api.joinCodes.Exchange(publicReadCode); !errors.Is(err, capability.ErrCodeNotFound) {
+			t.Errorf("FNL-08 / T-170-02: web-share-off did not revoke public read code: Exchange = %v, want ErrCodeNotFound", err)
+		}
 	})
 
 	t.Run("3_session_natural_end", func(t *testing.T) {
-		api, _, _, fake, sid := setup(t)
+		api, _, _, fake, sid, publicReadCode := setup(t)
 		// Invoke the same cleanup routine that the real onExit callback uses.
 		api.runSessionExitCleanupForTest(sid)
 		if fake.IsFunnelOn() {
 			t.Error("FNL-05: runSessionExitCleanup did not clear fake config (IsFunnelOn still true)")
 		}
+		if _, err := api.joinCodes.Exchange(publicReadCode); !errors.Is(err, capability.ErrCodeNotFound) {
+			t.Errorf("FNL-08 / T-170-02: runSessionExitCleanup did not revoke public read code: Exchange = %v, want ErrCodeNotFound", err)
+		}
 	})
 
 	t.Run("4_daemon_stop", func(t *testing.T) {
-		_, _, ws, fake, _ := setup(t)
+		_, _, ws, fake, _, _ := setup(t)
 		// ws.Stop() calls DisableFunnel (165-01 wired it); do NOT call
 		// disableFunnelForSession here (that would double-fire).
 		if err := ws.Stop(); err != nil {
@@ -395,13 +603,17 @@ func TestFunnelTeardown_AllTriggers(t *testing.T) {
 		if fake.IsFunnelOn() {
 			t.Error("FNL-05: ws.Stop() did not clear fake config via 165-01 wiring (IsFunnelOn still true)")
 		}
+		// No public-read-code revocation assertion here: ws.Stop() intentionally
+		// bypasses disableFunnelForSession (see that function's doc comment /
+		// the plan's must_haves, which list only 4 in-process triggers for this
+		// invariant) — the web listener itself is gone, so the code is moot.
 	})
 
 	t.Run("5_expiry_timer", func(t *testing.T) {
 		if testing.Short() {
 			t.Skip("requires timer wait")
 		}
-		_, socketPath, _, fake, sid := setup(t)
+		api, socketPath, _, fake, sid, publicReadCode := setup(t)
 		// Re-enable with a 1-second auto-expiry.
 		status, _ := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/funnel", sid), `{"enabled":true,"expiresIn":1}`)
 		if status != http.StatusOK {
@@ -417,6 +629,9 @@ func TestFunnelTeardown_AllTriggers(t *testing.T) {
 		}
 		if fake.IsFunnelOn() {
 			t.Error("FNL-05: expiry timer did not clear fake config (IsFunnelOn still true)")
+		}
+		if _, err := api.joinCodes.Exchange(publicReadCode); !errors.Is(err, capability.ErrCodeNotFound) {
+			t.Errorf("FNL-08 / T-170-02: expiry timer did not revoke public read code: Exchange = %v, want ErrCodeNotFound", err)
 		}
 	})
 }
