@@ -5,16 +5,16 @@ milestone_name: Funnel Sharing & Polish
 current_phase: 170
 current_phase_name: public-share-access-codes-reusable-share-lifetime-join-code-
 status: executing
-stopped_at: Completed 170-02-PLAN.md
-last_updated: "2026-07-06T01:05:11.705Z"
+stopped_at: Completed 170-04-PLAN.md
+last_updated: "2026-07-06T01:11:19.132Z"
 last_activity: 2026-07-06
 last_activity_desc: Phase 170 execution started
 progress:
   total_phases: 8
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 32
-  completed_plans: 31
-  percent: 63
+  completed_plans: 32
+  percent: 75
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 ## Current Position
 
 Phase: 170 (public-share-access-codes-reusable-share-lifetime-join-code-) — EXECUTING
-Plan: 3 of 4 in current phase
+Plan: 4 of 4 in current phase
 Status: Ready to execute
 
 - **170 Public Share Access Codes (read)** — reusable share-lifetime join code for the INTERNET (PUBLIC) link (FNL-08). UAT found the public link shows no join code (unlike RO/Full) → typing the URL dead-ends on a code page with no code. Root cause: join codes are 5-min single-use (`api.go:259`), wrong for a public share → needs per-code TTL + reusable semantics tied to funnel expiry, read-only only. **170-01 EXECUTED 2026-07-05** (commits 70f2f8ad/fa35b928/1618255b/cc864779/eb119e4c): `JoinCodeManager.IssueReusable`/`Revoke` + reusable-conditional `Exchange` delete, proven at unit layer (4 new tests, 6 pre-existing untouched) AND at the public `/join/exchange` HTTP boundary (new `internal/webserver/join_test.go` — reusable read code resolves twice, single-use code still fails on 2nd try). **170-02 EXECUTED 2026-07-05** (commits 3cb05dea/5f0bb981/d38a9689/835bbaa4, RED/GREEN TDD): `issueCapabilitiesForSession` mints the reusable public read code from the read-only `rTok` ONLY (never `wTok`), caches it per session (idempotent — no rotation on re-issue), and surfaces it on `IssueCapabilitiesResponse.PublicReadCode` (`""` for non-Funnel sessions); `handleSetSessionFunnel` captures `min(ExpiresIn, 8h)` as the per-code TTL; `disableFunnelForSession` (the single teardown chokepoint) revokes the cached code on all 4 in-process triggers (toggle-off, web-share-off, session-exit, auto-expiry timer — daemon-stop intentionally excluded, bypasses this chokepoint by design). Wails TS binding (`models.ts`) regenerated for Wave 3. NEXT = 170-03 (frontend: Share modal reads `resp.publicReadCode`, per Wave 3 per the plan's objective).
@@ -145,8 +145,8 @@ v4.2 Progress: [██████████████░░░░░░] 71
 
 ## Session Continuity
 
-Last session: 2026-07-06T01:04:17.947Z
-Stopped at: Completed 170-02-PLAN.md
+Last session: 2026-07-06T01:11:19.123Z
+Stopped at: Completed 170-04-PLAN.md
 Resume file: None
 Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 phase — FIX-05: non-admin macOS accounts report Tailscale "installed but not Connected" because `macsys` `sameuserproof` is unreadable; add a CLI `status` fallback. Run `/gsd-plan-phase 169` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
 
@@ -234,6 +234,7 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 | Phase 170 P01 | 5min | 3 tasks | 3 files |
 | Phase 170 P02 | 9min | 2 tasks | 6 files |
 | Phase 170 P03 | 4min | 3 tasks | 5 files |
+| Phase 170 P04 | 8min | 2 tasks | 1 files |
 
 ## Decisions
 
@@ -286,3 +287,4 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 - [Phase ?]: Phase 170-02: daemon-stop (site 4) intentionally excluded from public-read-code revocation assertions — ws.Stop() bypasses disableFunnelForSession by design (165-02 precedent)
 - [Phase ?]: Phase 170-03: App.d.ts hand-authored IssueCapabilitiesResponse interface (distinct from daemon.IssueCapabilitiesResponse in models.ts) needed publicReadCode added too -- two separate wails TS binding files exist; 170-02 synced one, 170-03 synced the other (precedent 887975df)
 - [Phase ?]: Phase 170-03: publicReadCode kept as Funnel-scoped local state in SessionShareModal, separate from CachedShare (single-use RO/Full-Access codes)
+- [Phase ?]: Phase 170-04: TESTING.md Suite Manifest/traceability rows were already reconciled by 170-01/02/03's incremental docs commits (no drift); added Section 5 Category X / M-46 (live off-tailnet reusable-code join + share-lifetime teardown)

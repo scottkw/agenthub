@@ -389,7 +389,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 167: Native Notifications** - beeep cross-platform notification on waiting-state transition, de-dup guard, Settings toggle (default off) (7/7 plans executed 2026-07-01, incl. 167-05/06/07 M-41 crash-hardening + instrumentation + permission-denied hint) — CLOSED complete 2026-07-01; code-verified 11/11, M-41 live on-screen delivery DEFERRED to release-time UAT on signed macOS/Windows/Linux builds (inherently unautomatable)
 - [x] **Phase 168: Bug Fix & Settings Polish** - Fix #112 (web-guest plugin-config SSE), #117 (multi-viewer kick + disconnect UI), #118 (remote-open in-app tab), #115 (Footer Share modal), #116 (Hub auto-switch setting), #121 (phantom viewer count — pairs with #117) (9/9 plans executed 2026-07-02, incl. 168-08 UX-02 footer-pill drift + 168-09 FIX-03 remote-tab RC-A/B/C gap-closures) — CLOSED complete 2026-07-02; verified 6/6 must-haves, all live UAT 4/4 PASS (FIX-01/02/03 + UX-02 confirmed on a two-Mac tailnet production build)
 - [x] **Phase 169: Tailscale Detection Fix** - Fix #120 (Tailscale reports "installed but not Connected" on non-admin macOS accounts where `macsys` `sameuserproof` is unreadable) — honest permission-aware detection (`permProbeFunc` + `PermissionLimited`, never a false Connected) + Settings "Permission Limited" state. Executed + verified 2026-07-05 (2/2 plans); M-45 live non-admin macsys acceptance deferred (env-only).
-- [ ] **Phase 170: Public Share Access Codes (read)** - Reusable, share-lifetime join code for the INTERNET (PUBLIC) link so recipients who can't scan the QR / paste the full URL can join read-only with a short code (FNL-08). Added 2026-07-05 from live UAT. Planned 2026-07-05 (4 plans / 4 waves) — run `/gsd-execute-phase 170`.
+- [x] **Phase 170: Public Share Access Codes (read)** - Reusable, share-lifetime join code for the INTERNET (PUBLIC) link so recipients who can't scan the QR / paste the full URL can join read-only with a short code (FNL-08). Added 2026-07-05 from live UAT. Planned 2026-07-05 (4 plans / 4 waves) — run `/gsd-execute-phase 170`. (completed 2026-07-06)
 - [ ] **Phase 171: Public Full-Access (Read-Write) Sharing** - Opt-in public read-write Funnel sharing behind a hard consent gate + single-use write code + shorter expiry; supersedes today's accidental write-cap rebasing (FNL-09). Added 2026-07-05. **SPEC-FIRST**: `/gsd-spec-phase 171` → discuss → secure → plan.
 
 ## Phase Details
@@ -565,7 +565,7 @@ Plans:
 | 167. Native Notifications | 7/7 | Complete   | 2026-07-01 |
 | 168. Bug Fix & Settings Polish | 9/9 | Complete   | 2026-07-02 |
 | 169. Tailscale Detection Fix | 2/2 | Complete (verified; M-45 live deferred) | 2026-07-05 |
-| 170. Public Share Access Codes (read) | 3/4 | In Progress|  |
+| 170. Public Share Access Codes (read) | 4/4 | Complete   | 2026-07-06 |
 | 171. Public Full-Access (RW) Sharing | 0/? | Spec-first — run /gsd-spec-phase 171 | — |
 
 ### Phase 170: Public Share Access Codes (read)
@@ -584,7 +584,7 @@ Plans:
 - Keep **40-bit crypto/rand** entropy (2⁴⁰ over an ≤8h window is not brute-forceable even without rate-limiting).
 - **Supplement, not replace** the existing self-contained cap-URL + QR flow.
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 
@@ -602,7 +602,7 @@ Plans:
 
 **Wave 4** *(blocked on Waves 1-3)*
 
-- [ ] 170-04-PLAN.md — TESTING.md reconcile: Suite Manifest counts + FNL-08 traceability rows + M-46 live off-tailnet manual item + `check-traceability-paths.sh` (FNL-08)
+- [x] 170-04-PLAN.md — TESTING.md reconcile: Suite Manifest counts + FNL-08 traceability rows + M-46 live off-tailnet manual item + `check-traceability-paths.sh` (FNL-08)
 
 ### Phase 171: Public Full-Access (Read-Write) Sharing
 
