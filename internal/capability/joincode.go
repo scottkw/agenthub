@@ -104,6 +104,30 @@ func (m *JoinCodeManager) IssueReusable(token string, ttl time.Duration) (string
 	return code, nil
 }
 
+// IssueSingleUseWithTTL generates a new 8-character base32 join code in
+// XXXX-XXXX form, exactly like Issue (same crypto/rand + joinCodeEncoding
+// path — no second RNG or alphabet is introduced), but accepts a
+// caller-supplied ttl instead of the manager's fixed field. reusable is left
+// at its zero value (false), so Exchange keeps its atomic delete-on-first-
+// redeem single-use semantics unchanged (R2 concurrency guarantee) — only
+// the expiry window is customizable here. This is the primitive behind a
+// public write-share code (FNL-09): a 15m/30m/1h write grant must not be
+// silently truncated to the manager's fixed 5-minute Issue window (RESEARCH
+// Pitfall 4).
+func (m *JoinCodeManager) IssueSingleUseWithTTL(token string, ttl time.Duration) (string, error) {
+	var raw [5]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return "", err
+	}
+	encoded := joinCodeEncoding.EncodeToString(raw[:])
+	code := encoded[:4] + "-" + encoded[4:8]
+
+	m.mu.Lock()
+	m.codes[code] = joinEntry{token: token, expiry: m.now().Add(ttl)}
+	m.mu.Unlock()
+	return code, nil
+}
+
 // Revoke removes code from the manager immediately, regardless of class or
 // remaining TTL. The next Exchange(code) will return ErrCodeNotFound.
 // Revoking an unknown or already-removed code is a no-op — deleting an

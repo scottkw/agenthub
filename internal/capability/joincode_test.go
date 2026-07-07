@@ -280,3 +280,110 @@ func TestJoinCodeManager_Rebind_UnknownCode(t *testing.T) {
 		t.Errorf("Rebind of unknown code: expected ErrCodeNotFound, got %v", err)
 	}
 }
+
+// TestJoinCodeManager_IssueSingleUseWithTTL asserts the FNL-09 write-code
+// primitive: format matches D-10, first Exchange succeeds, second Exchange
+// of the same code fails closed (single-use — reusable stays false).
+func TestJoinCodeManager_IssueSingleUseWithTTL(t *testing.T) {
+	mgr := capability.NewJoinCodeManager(5 * time.Minute)
+	code, err := mgr.IssueSingleUseWithTTL("tok-write", time.Hour)
+	if err != nil {
+		t.Fatalf("IssueSingleUseWithTTL: %v", err)
+	}
+	if !joinCodeRegex.MatchString(code) {
+		t.Errorf("code %q does not match %s", code, joinCodeRegex)
+	}
+
+	got, err := mgr.Exchange(code)
+	if err != nil {
+		t.Fatalf("first Exchange: %v", err)
+	}
+	if got != "tok-write" {
+		t.Errorf("first Exchange returned %q, want %q", got, "tok-write")
+	}
+
+	if _, err := mgr.Exchange(code); !errors.Is(err, capability.ErrCodeNotFound) {
+		t.Errorf("second Exchange: expected ErrCodeNotFound (single-use), got %v", err)
+	}
+}
+
+// TestJoinCodeManager_IssueSingleUseWithTTL_CustomTTLHonored asserts the
+// per-call ttl argument governs expiry, NOT the manager's fixed 5-minute
+// field (RESEARCH Pitfall 4) — a 1h write code must still be valid past the
+// 5-minute mark, and expire only past its own 1h window.
+func TestJoinCodeManager_IssueSingleUseWithTTL_CustomTTLHonored(t *testing.T) {
+	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	clock := start
+	mgr := capability.NewJoinCodeManager(5 * time.Minute)
+	mgr.SetClockForTest(func() time.Time { return clock })
+
+	code, err := mgr.IssueSingleUseWithTTL("tok-write", time.Hour)
+	if err != nil {
+		t.Fatalf("IssueSingleUseWithTTL: %v", err)
+	}
+
+	// Advance past the manager's fixed 5-minute field but under the 1h ttl.
+	clock = start.Add(30 * time.Minute)
+	got, err := mgr.Exchange(code)
+	if err != nil {
+		t.Fatalf("Exchange at +30m: expected success (custom 1h ttl), got error: %v", err)
+	}
+	if got != "tok-write" {
+		t.Errorf("Exchange at +30m returned %q, want %q", got, "tok-write")
+	}
+}
+
+// TestJoinCodeManager_IssueSingleUseWithTTL_ExpiresAfterCustomTTL asserts the
+// entry expires once the custom ttl elapses (not immortal, not tied to the
+// manager's fixed field).
+func TestJoinCodeManager_IssueSingleUseWithTTL_ExpiresAfterCustomTTL(t *testing.T) {
+	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	clock := start
+	mgr := capability.NewJoinCodeManager(5 * time.Minute)
+	mgr.SetClockForTest(func() time.Time { return clock })
+
+	code, err := mgr.IssueSingleUseWithTTL("tok-write", time.Hour)
+	if err != nil {
+		t.Fatalf("IssueSingleUseWithTTL: %v", err)
+	}
+
+	// Advance past the 1h custom ttl.
+	clock = start.Add(2 * time.Hour)
+	if _, err := mgr.Exchange(code); !errors.Is(err, capability.ErrCodeExpired) {
+		t.Errorf("Exchange after custom ttl: expected ErrCodeExpired, got %v", err)
+	}
+	if _, err := mgr.Exchange(code); !errors.Is(err, capability.ErrCodeNotFound) {
+		t.Errorf("Exchange after expiry cleanup: expected ErrCodeNotFound, got %v", err)
+	}
+}
+
+// TestJoinCodeManager_IssueSingleUseWithTTL_ConcurrentExchangeIsAtomic
+// mirrors TestJoinCodeManager_ConcurrentExchangeIsAtomic (RESEARCH Pitfall
+// 4 / R2): N goroutines Exchange the same single-use-with-TTL code
+// simultaneously; exactly one must succeed.
+func TestJoinCodeManager_IssueSingleUseWithTTL_ConcurrentExchangeIsAtomic(t *testing.T) {
+	mgr := capability.NewJoinCodeManager(5 * time.Minute)
+	code, err := mgr.IssueSingleUseWithTTL("tok-write", time.Hour)
+	if err != nil {
+		t.Fatalf("IssueSingleUseWithTTL: %v", err)
+	}
+	const N = 100
+	var successes atomic.Int64
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	for i := 0; i < N; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			if _, err := mgr.Exchange(code); err == nil {
+				successes.Add(1)
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	if got := successes.Load(); got != 1 {
+		t.Errorf("expected exactly 1 successful Exchange, got %d", got)
+	}
+}
