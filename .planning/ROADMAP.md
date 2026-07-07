@@ -566,7 +566,7 @@ Plans:
 | 168. Bug Fix & Settings Polish | 9/9 | Complete   | 2026-07-02 |
 | 169. Tailscale Detection Fix | 2/2 | Complete (verified; M-45 live deferred) | 2026-07-05 |
 | 170. Public Share Access Codes (read) | 4/4 | ✅ M-46 live UAT PASSED (2026-07-06) | — |
-| 171. Public Full-Access (RW) Sharing | 1/4 | In Progress|  |
+| 171. Public Full-Access (RW) Sharing | 2/4 | In Progress|  |
 
 ### Phase 170: Public Share Access Codes (read)
 
@@ -622,7 +622,7 @@ Plans:
 - Distinct, unmissable UI treatment (text + icon + color, colorblind-safe) so a public-write link is never confused with public-read.
 - Threat model must assert: **no public write path except through the new gate** (closes the accidental rebasing).
 
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 
 Plans:
 
@@ -632,7 +632,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 171-02-PLAN.md — Daemon RW-gate lifecycle: `handleSetSessionFunnelWrite` (terminal-only D-05, expiry clamp R5), `revokeFunnelWriteLocked`/`disableFunnelWriteForSession` all-trigger teardown, D-04 write-rebase removal, `SessionInfo.FunnelWriteActive`, client + Wails binding (FNL-09)
+- [x] 171-02-PLAN.md — Daemon RW-gate lifecycle: `handleSetSessionFunnelWrite` (terminal-only D-05, expiry clamp R5), `revokeFunnelWriteLocked`/`disableFunnelWriteForSession` all-trigger teardown, D-04 write-rebase removal, `SessionInfo.FunnelWriteActive`, client + Wails binding (FNL-09)
 
 **Wave 3** *(blocked on Wave 2)*
 
