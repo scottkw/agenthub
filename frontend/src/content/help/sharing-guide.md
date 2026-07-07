@@ -17,6 +17,20 @@ To stop sharing, toggle **Enable internet share** off in the modal. AgentHub imm
 
 For more on how Tailscale Funnel works, see the [Tailscale Funnel documentation](https://tailscale.com/kb/1223/tailscale-funnel/).
 
+### Public write access (FULL ACCESS)
+
+By default, a Funnel link only grants **read-only** viewing. Public write access is a separate, opt-in escalation available once internet sharing is on.
+
+**What it grants — stated plainly, not softened: command execution.** Enabling public write access lets anyone who has the write link and the single-use write code type into your terminal and run commands, exactly as if they were sitting at your keyboard. This is a real remote-code-execution risk. Only enable it when you specifically intend to hand over terminal control to someone.
+
+**How to enable it.** In the Share modal, scroll to the **Danger** section. Read the warning copy, choose an expiry (15 minutes, 30 minutes, or 1 hour — there is no "until I disable" option for public write), and press and hold the confirm button for 3 seconds. Releasing early cancels the action and nothing is granted — the hold is a deliberate friction gate, not a decoration.
+
+**The write code is single-use, one writer, short-lived.** Once someone redeems the write code, it cannot be redeemed again — there is exactly one writer per grant. The default lifetime is 15 minutes; the maximum is 1 hour. When the timer runs out, write access ends automatically.
+
+**Disabling is one click and immediate.** Click "Disable public write" in the Danger section at any time. The writer is cut off instantly — their next keystroke will not reach the terminal.
+
+**The read share is unaffected.** Disabling public write access, or letting it expire, does not touch the separate read-only public link. A read spectator using the reusable read code keeps viewing without interruption.
+
 ### Option 2 — Device Share + ACL (contained)
 
 Device sharing keeps traffic inside the Tailscale network. Your guest must have a Tailscale account. This option gives you fine-grained control over who can connect.
