@@ -1251,3 +1251,150 @@ func TestIssueCapabilities_TeardownDuringMint_NoOrphanCode(t *testing.T) {
 		t.Error("WR-01: a cached public code entry survived teardown-during-mint")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Phase 171-02 / FNL-09: gate-minted public write cap — mint + expiry-clamp
+// regression suite. Drives handleSetSessionFunnelWrite through the real HTTP
+// route, then proves the minted cap's shape (terminal-only Perms, active
+// grant) by exchanging its single-use code and verifying the resulting
+// claims — never by reading a.funnelWriteGrant/Code directly (mirrors the
+// Pitfall 5/13 real-boundary guard used throughout this file).
+// ---------------------------------------------------------------------------
+
+// enableFunnelWriteViaHTTP calls POST /sessions/{id}/funnel-write through the
+// daemon Unix socket and returns the decoded SetSessionFunnelWriteResponse.
+func enableFunnelWriteViaHTTP(t *testing.T, socketPath, sessionID string, expiresIn int) (int, SetSessionFunnelWriteResponse) {
+	t.Helper()
+	status, body := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/funnel-write", sessionID),
+		fmt.Sprintf(`{"expiresIn":%d}`, expiresIn))
+	var resp SetSessionFunnelWriteResponse
+	if status == http.StatusOK {
+		if err := json.Unmarshal(body, &resp); err != nil {
+			t.Fatalf("decode SetSessionFunnelWriteResponse: %v; body: %s", err, body)
+		}
+	}
+	return status, resp
+}
+
+// TestFunnelWriteGate_TerminalOnlyScope verifies T-171-06/D-05 (Pitfall 5):
+// the gate-minted write cap's Perms is EXACTLY "read,write" — never
+// files.write — regardless of the session's browse toggle. It also proves
+// the mint's side effects reach the real enforcement boundary: the exchanged
+// token's grant is active (ws.AddGrant applied) via a probeGrant round-trip.
+func TestFunnelWriteGate_TerminalOnlyScope(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+
+	run := func(t *testing.T, browseOn bool) {
+		api, _, socketPath := testDaemon(t)
+		ws, _ := makeFunnelTestWebServer(t, api, "test.ts.net")
+		key := configureCapabilityStateForTest(t, api, ws)
+		// probeGrant hits /api/sessions/{id}/info, which 404s (not 200) when no
+		// session resolver is set even for a live grant — supply one so a 200
+		// unambiguously means "grant active" (precedent: TestIssueCapabilities_BrowseToggleRebindsPublicCode).
+		ws.SetSessionResolver(func(string) (string, string, string, string) {
+			return "write-gate-scope", "cat", "running", "localhost"
+		})
+
+		_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"write-gate-scope","workDir":""}`)
+		var cr CreateResponse
+		if err := json.Unmarshal(body, &cr); err != nil {
+			t.Fatalf("decode create: %v", err)
+		}
+		if browseOn {
+			api.engine.SetSessionBrowse(cr.ID, true)
+		}
+		rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":true}`)
+		enableFunnelViaHTTP(t, socketPath, cr.ID)
+
+		status, resp := enableFunnelWriteViaHTTP(t, socketPath, cr.ID, 900)
+		if status != http.StatusOK {
+			t.Fatalf("POST funnel-write: want 200, got %d", status)
+		}
+		if resp.WriteURL == "" || resp.WriteCode == "" || resp.ExpiresAt == 0 {
+			t.Fatalf("SetSessionFunnelWriteResponse incomplete: %+v", resp)
+		}
+		funnelBase := ws.FunnelBaseURL()
+		if !strings.HasPrefix(resp.WriteURL, funnelBase) {
+			t.Errorf("WriteURL %q must start with FunnelBaseURL %q", resp.WriteURL, funnelBase)
+		}
+
+		wTok, err := api.joinCodes.Exchange(resp.WriteCode)
+		if err != nil {
+			t.Fatalf("Exchange(WriteCode): %v", err)
+		}
+		claims, err := capability.Verify(wTok, key)
+		if err != nil {
+			t.Fatalf("Verify: %v", err)
+		}
+		if claims.Perms != "read,write" {
+			t.Errorf("T-171-06/D-05: Perms = %q, want exactly \"read,write\" (browseOn=%v)", claims.Perms, browseOn)
+		}
+		if capability.HasPerm(claims.Perms, capability.PermFilesWrite) {
+			t.Errorf("T-171-06/D-05: Perms = %q must NOT contain files.write (browseOn=%v, Pitfall 5)", claims.Perms, browseOn)
+		}
+
+		// The mint's ws.AddGrant side effect must reach the real enforcement
+		// boundary: a token bearing this exact grantID must be accepted.
+		if !probeGrant(t, ws, key, cr.ID, claims.GrantID) {
+			t.Error("expected the gate-minted grant to be active (ws.AddGrant applied)")
+		}
+	}
+
+	t.Run("browse_off", func(t *testing.T) { run(t, false) })
+	t.Run("browse_on", func(t *testing.T) { run(t, true) })
+}
+
+// TestHandleSetSessionFunnelWrite_ExpiryClamp verifies R5/D-11 (Pitfall 6):
+// ExpiresIn is clamped UNCONDITIONALLY to (0, 3600] server-side — 0 or any
+// value greater than 3600 becomes exactly 3600; an in-range value passes
+// through unchanged. This is deliberately NOT the read Funnel handler's
+// ExpiresIn==0-means-unbounded semantics.
+func TestHandleSetSessionFunnelWrite_ExpiryClamp(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+
+	tests := []struct {
+		name      string
+		expiresIn int
+		wantTTL   int
+	}{
+		{"zero_clamps_to_1h", 0, 3600},
+		{"huge_clamps_to_1h", 999999, 3600},
+		{"in_range_passes_through", 900, 900},
+		{"exactly_1h_passes_through", 3600, 3600},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			api, _, socketPath := testDaemon(t)
+			ws, _ := makeFunnelTestWebServer(t, api, "test.ts.net")
+			configureCapabilityStateForTest(t, api, ws)
+
+			_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"write-gate-clamp","workDir":""}`)
+			var cr CreateResponse
+			if err := json.Unmarshal(body, &cr); err != nil {
+				t.Fatalf("decode create: %v", err)
+			}
+			rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":true}`)
+			enableFunnelViaHTTP(t, socketPath, cr.ID)
+
+			before := time.Now()
+			status, resp := enableFunnelWriteViaHTTP(t, socketPath, cr.ID, tc.expiresIn)
+			if status != http.StatusOK {
+				t.Fatalf("POST funnel-write: want 200, got %d", status)
+			}
+			wantExpiresAt := before.Add(time.Duration(tc.wantTTL) * time.Second).Unix()
+			// Small tolerance for test wall-clock jitter between `before` and the
+			// handler's own time.Now() call.
+			const toleranceSeconds = 5
+			diff := resp.ExpiresAt - wantExpiresAt
+			if diff < -toleranceSeconds || diff > toleranceSeconds {
+				t.Errorf("R5/D-11: ExpiresIn=%d -> ExpiresAt=%d, want ~%d (clamped TTL=%ds)",
+					tc.expiresIn, resp.ExpiresAt, wantExpiresAt, tc.wantTTL)
+			}
+		})
+	}
+}

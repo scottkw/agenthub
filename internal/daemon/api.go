@@ -233,6 +233,12 @@ func (a *API) registerRoutes() {
 	// Loopback-trust (daemon socket): no auth gate — only the owner's GUI calls this.
 	// Disable path routes through disableFunnelForSession (ref-count gate, T-165-09).
 	a.mux.HandleFunc("POST /sessions/{id}/funnel", a.handleSetSessionFunnel)
+	// Phase 171-02 / FNL-09: gate-minted public write capability. Registered
+	// on the SAME loopback mux, adjacent to the Funnel toggle above, and
+	// inherits the identical owner-only access-control model (no new auth
+	// layer — the daemon binds this mux to the loopback socket only).
+	// Mints a terminal-only cap with a single-use code, expiry clamped <=1h.
+	a.mux.HandleFunc("POST /sessions/{id}/funnel-write", a.handleSetSessionFunnelWrite)
 	a.mux.HandleFunc("POST /join/exchange", a.handleExchangeJoinCode)
 	a.mux.HandleFunc("POST /capability/regenerate-key", a.handleRegenerateSigningKey)
 	// Phase 118 / FS-03..FS-07: read-only file API on the daemon-local socket.
@@ -1822,6 +1828,118 @@ func (a *API) handleSetSessionFunnel(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, SetSessionFunnelResponse{FunnelURL: ws.FunnelBaseURL()})
 }
 
+// funnelWriteExpiryMax bounds ExpiresIn for the gate-minted public write cap
+// (FNL-09) to exactly 1 hour, unconditionally. This is the R5/D-11 clamp
+// (Pitfall 6): 0 or any value greater than this becomes exactly this — NOT
+// the read Funnel handler's ExpiresIn==0-means-unbounded semantics. A
+// public WRITE cap must never be long-lived or unbounded.
+const funnelWriteExpiryMax = 3600 * time.Second
+
+// handleSetSessionFunnelWrite handles POST /sessions/{id}/funnel-write
+// (FNL-09). It mints the gate-minted, terminal-only public write
+// capability: registers a grant (ws.AddGrant), sets the RW consent gate
+// (ws.SetRWGate), mints a single-use join code bound to the write token
+// (joinCodes.IssueSingleUseWithTTL), and starts an expiry timer that
+// revokes exactly this write cap on fire (disableFunnelWriteForSession,
+// added in Task 3). Perms is hardcoded to "read,write" — NEVER derived
+// from the session's browse toggle (T-171-06/D-05, Pitfall 5): this
+// handler never calls a.engine.browseEnabledFor.
+//
+// Loopback-trust (daemon socket): no auth gate — same access-control model
+// as the existing POST /sessions/{id}/funnel toggle registered above.
+func (a *API) handleSetSessionFunnelWrite(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req SetSessionFunnelWriteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	a.signingKeyMu.RLock()
+	key := a.signingKey
+	a.signingKeyMu.RUnlock()
+	if key == nil {
+		http.Error(w, "capability: signing key not bootstrapped", http.StatusInternalServerError)
+		return
+	}
+	if a.joinCodes == nil {
+		http.Error(w, "capability: join-code manager not bootstrapped", http.StatusInternalServerError)
+		return
+	}
+
+	a.mu.RLock()
+	ws := a.webServer
+	a.mu.RUnlock()
+	if ws == nil {
+		http.Error(w, "web server not running", http.StatusBadRequest)
+		return
+	}
+
+	// R5/D-11 (Pitfall 6): unconditional clamp — 0 or >1h becomes exactly
+	// 1h. Deliberately NOT the read handler's "0 == unbounded" semantics; a
+	// public WRITE cap must always have a bounded, short lifetime.
+	if req.ExpiresIn <= 0 || time.Duration(req.ExpiresIn)*time.Second > funnelWriteExpiryMax {
+		req.ExpiresIn = int(funnelWriteExpiryMax / time.Second)
+	}
+	ttl := time.Duration(req.ExpiresIn) * time.Second
+
+	var gid [16]byte
+	if _, err := rand.Read(gid[:]); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	grantID := hex.EncodeToString(gid[:])
+
+	// T-171-06/D-05 (Pitfall 5): Perms hardcoded "read,write" — terminal-only,
+	// NEVER derived from a.engine.browseEnabledFor. This cap must never carry
+	// files.write regardless of the session's local browse setting.
+	claims := capability.Claims{SID: id, Perms: "read,write", IAT: time.Now().Unix(), GrantID: grantID, V: 1}
+	wTok, err := capability.Sign(claims, key)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	code, err := a.joinCodes.IssueSingleUseWithTTL(wTok, ttl)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	a.mu.Lock()
+	ws.AddGrant(id, grantID)
+	ws.SetRWGate(id, true)
+	if a.funnelWriteGrant == nil {
+		a.funnelWriteGrant = make(map[string]string)
+	}
+	a.funnelWriteGrant[id] = grantID
+	if a.funnelWriteCode == nil {
+		a.funnelWriteCode = make(map[string]string)
+	}
+	a.funnelWriteCode[id] = code
+	if a.funnelWriteExpiry == nil {
+		a.funnelWriteExpiry = make(map[string]*time.Timer)
+	}
+	// Cancel any existing write-gate timer for this session before
+	// registering the new one (mirrors T-165-13's re-enable-before-expiry
+	// double-fire guard for the read Funnel timer).
+	if t, ok := a.funnelWriteExpiry[id]; ok {
+		t.Stop()
+	}
+	expiresAt := time.Now().Add(ttl)
+	a.funnelWriteExpiry[id] = time.AfterFunc(ttl, func() {
+		a.disableFunnelWriteForSession(context.Background(), id)
+	})
+	a.mu.Unlock()
+
+	writeURL := ws.FunnelBaseURL() + "/sessions/" + id + "?cap=" + wTok
+	writeJSON(w, http.StatusOK, SetSessionFunnelWriteResponse{
+		WriteURL:  writeURL,
+		WriteCode: code,
+		ExpiresAt: expiresAt.Unix(),
+	})
+}
+
 // disableFunnelForSession clears the per-session Funnel state and calls
 // ws.DisableFunnel when no other Funnel sessions remain (ref-count gate).
 // Invoked by: handleSetSessionFunnel toggle-off (site 1), handleWebServe
@@ -1863,6 +1981,38 @@ func (a *API) disableFunnelForSession(ctx context.Context, sessionID string) {
 	// the last Funnel session is torn down so a still-active sibling is never cut off.
 	if ws != nil && remaining == 0 {
 		_ = ws.DisableFunnel(ctx)
+	}
+}
+
+// disableFunnelWriteForSession revokes the gate-minted write grant, code,
+// RW gate, and expiry timer for sessionID (FNL-09) — surgically, WITHOUT
+// touching the reusable public read share, funnelSessions, or any other
+// grant for the session. This is the expiry-timer callback target
+// (registered by handleSetSessionFunnelWrite); Task 3 additionally wires it
+// as the RW-only HTTP disable path. ctx is accepted for parity with
+// disableFunnelForSession's signature even though this teardown makes no
+// blocking calls that need it.
+func (a *API) disableFunnelWriteForSession(_ context.Context, sessionID string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	ws := a.webServer
+	if grantID, ok := a.funnelWriteGrant[sessionID]; ok {
+		if ws != nil {
+			ws.RemoveGrant(sessionID, grantID)
+		}
+		delete(a.funnelWriteGrant, sessionID)
+	}
+	if code, ok := a.funnelWriteCode[sessionID]; ok {
+		a.joinCodes.Revoke(code)
+		delete(a.funnelWriteCode, sessionID)
+	}
+	if ws != nil {
+		ws.SetRWGate(sessionID, false)
+	}
+	if t, ok := a.funnelWriteExpiry[sessionID]; ok {
+		t.Stop()
+		delete(a.funnelWriteExpiry, sessionID)
 	}
 }
 
