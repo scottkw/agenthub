@@ -4706,6 +4706,13 @@ textarea {
   /* COLORBLIND-SAFE: internet badge dark hex #43ddb2 — reinforcement only; GlobeAltIcon shape + "INTERNET" text carry state */
   --hub-internet-badge-bg: rgba(67, 221, 178, 0.15);
   --hub-internet-badge-text: #43ddb2;
+  /* === Phase 171 (FNL-09): Full-access badge tokens (dark) === */
+  /* COLORBLIND-SAFE: full-access badge dark hex = --hub-destructive (#f7768e) — reinforcement
+     only; LockOpenIcon shape + "FULL ACCESS" text + notched badge geometry carry the state.
+     Deliberately a DIFFERENT hue from --hub-internet-badge-text (#43ddb2 teal) so the two
+     badges are never confusable even in a side-by-side grayscale render. */
+  --hub-fullaccess-badge-bg: rgba(247, 118, 142, 0.15);
+  --hub-fullaccess-badge-text: #f7768e;
   /* Phase 147: Help page search highlight token (dark theme) */
   --hub-search-highlight-bg: rgba(122, 162, 247, 0.25);
 }
@@ -4765,6 +4772,12 @@ textarea {
   /* COLORBLIND-SAFE: internet badge light hex #0d7a5c — WCAG AA ~5.2:1 on white; icon + text carry state */
   --hub-internet-badge-bg: rgba(13, 122, 92, 0.13);
   --hub-internet-badge-text: #0d7a5c;
+  /* === Phase 171 (FNL-09): Full-access badge tokens (light) === */
+  /* COLORBLIND-SAFE: full-access badge light hex = --hub-destructive (#c0394f) — WCAG AA
+     verified 4.7:1 on #ffffff (same token already verified at style.css:4728). Reinforcement
+     only; icon + text + shape carry the state. */
+  --hub-fullaccess-badge-bg: rgba(192, 57, 79, 0.13);
+  --hub-fullaccess-badge-text: #c0394f;
   /* Phase 147: Help page search highlight token (light theme) */
   --hub-search-highlight-bg: rgba(61, 111, 232, 0.20);
   /* Comp semantic colors (light — light-theme values preserved this pass) */
@@ -7343,4 +7356,183 @@ textarea {
   font-size: var(--hub-font-size-sm);
   color: var(--hub-destructive);
   margin-top: 6px;
+}
+
+/* ===== Phase 171 (FNL-09) — public write consent gate + FULL ACCESS badge ===== */
+
+/* Danger section — public write consent gate (SessionSharePanel).
+   Structurally distinct from .hub-share-internet-section: 2px destructive top
+   border (vs the read section's 1px neutral border) — a source-verifiable,
+   not color-only, distinction (D-06). */
+.hub-funnel-write-gate {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 2px solid var(--hub-destructive);
+}
+.hub-funnel-write-gate__heading {
+  font-size: var(--hub-font-size-sm);
+  font-weight: 700; /* heavier than .hub-share-internet-section__heading's 600 */
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--hub-destructive);
+  margin-bottom: 8px;
+}
+.hub-funnel-write-gate__warning {
+  border-left: 3px solid var(--hub-destructive); /* NOT --hub-warning — see UI-SPEC Color */
+  padding-left: 8px;
+  margin-bottom: 12px;
+}
+.hub-funnel-write-gate__icon {
+  width: 16px;
+  height: 16px;
+  color: var(--hub-destructive);
+  vertical-align: middle;
+}
+.hub-funnel-write-gate__warning-heading {
+  font-size: var(--hub-font-size-base);
+  font-weight: 600;
+  color: var(--hub-text-primary); /* full weight, never muted — D-08 */
+  margin: 0 0 4px;
+}
+.hub-funnel-write-gate__warning-body {
+  font-size: var(--hub-font-size-base);
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--hub-text-secondary);
+  margin: 0;
+}
+.hub-funnel-write-gate__expiry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 8px;
+  font-size: var(--hub-font-size-base);
+  color: var(--hub-text-muted);
+}
+.hub-funnel-write-gate__expiry select {
+  font-size: var(--hub-font-size-base);
+  background-color: var(--hub-surface);
+  color: var(--hub-text-primary);
+  border: 1px solid var(--hub-border);
+  border-radius: var(--hub-radius-sm);
+  padding: 4px 8px;
+  outline: none;
+}
+/* Hold-to-confirm control (D-01/D-07/R1). 44px min-height touch-target
+   exception (UI-SPEC Spacing Scale) even though the control is full-width. */
+.hub-funnel-write-gate__hold-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 8px;
+  overflow: hidden;
+  background: var(--hub-surface);
+  border: 1px solid var(--hub-destructive);
+  border-radius: var(--hub-radius-sm);
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+.hub-funnel-write-gate__hold-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.hub-funnel-write-gate__hold-btn:focus-visible {
+  outline: 2px solid var(--hub-accent);
+}
+/* The fill IS the primary feedback mechanism (D-07) — functionally load-bearing,
+   not decorative, so it is not fully suppressed under prefers-reduced-motion. */
+.hub-funnel-write-gate__hold-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 0%;
+  background: var(--hub-destructive);
+  opacity: 0.25;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hub-funnel-write-gate__hold-fill { transition: width 50ms linear; }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Geometry-based feedback (fill width) is functional, not decorative, so it is
+     NOT suppressed — only the smoothing easing is removed (UI-SPEC Motion). */
+  .hub-funnel-write-gate__hold-fill { transition: none; }
+}
+.hub-funnel-write-gate__hold-label {
+  position: relative;
+  font-size: var(--hub-font-size-base);
+  font-weight: var(--hub-font-weight-emphasis);
+  color: var(--hub-text-primary);
+}
+.hub-funnel-write-gate__result {
+  margin-top: 12px;
+}
+.hub-funnel-write-gate__countdown {
+  font-size: var(--hub-font-size-sm);
+  font-weight: 600;
+  color: var(--hub-text-secondary);
+  margin-top: 6px;
+}
+.hub-funnel-write-gate__countdown--urgent {
+  color: var(--hub-destructive);
+}
+.hub-funnel-write-gate__used {
+  font-size: var(--hub-font-size-sm);
+  font-weight: 600;
+  color: var(--hub-text-secondary);
+  margin-top: 6px;
+}
+.hub-funnel-write-gate__disable {
+  margin-top: 8px;
+  font-size: var(--hub-font-size-base);
+  color: var(--hub-destructive);
+  background: none;
+  border: 1px solid var(--hub-destructive);
+  border-radius: var(--hub-radius-sm);
+  cursor: pointer;
+  padding: 4px 12px;
+}
+.hub-funnel-write-gate__disable:focus-visible {
+  outline: 2px solid var(--hub-accent);
+}
+
+/* FULL ACCESS badge — Hub card (SessionCard).
+   COLORBLIND-SAFE: LockOpenIcon shape + "FULL ACCESS" text + notched clip-path
+   geometry carry the state; color is reinforcement only.
+   Dark hex #f7768e / light hex #c0394f — verify at source, NOT by eye (user is
+   colorblind). Never confusable with .hub-internet-badge: different label,
+   different icon import, different shape (clip-path notch vs pill radius). */
+.hub-fullaccess-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--hub-fullaccess-badge-bg);
+  /* NOT border-radius: var(--hub-radius-pill) — this is the load-bearing shape
+     distinction from .hub-internet-badge. */
+  clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%, 0 6px);
+  padding: 3px 10px 3px 8px;
+}
+.hub-fullaccess-badge__icon {
+  width: 12px;
+  height: 12px;
+  color: var(--hub-fullaccess-badge-text);
+}
+.hub-fullaccess-badge__label {
+  font-size: 11px;
+  font-weight: 700; /* heavier than .hub-internet-badge__label's 600 */
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--hub-fullaccess-badge-text);
+}
+
+/* FULL ACCESS icon — session tab (TabBar) */
+.tab__fullaccess-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--hub-fullaccess-badge-text);
+  flex-shrink: 0;
 }
