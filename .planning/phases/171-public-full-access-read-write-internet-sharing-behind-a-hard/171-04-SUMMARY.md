@@ -151,3 +151,7 @@ None - no external service configuration required.
 ---
 *Phase: 171-public-full-access-read-write-internet-sharing-behind-a-hard*
 *Completed: 2026-07-07*
+
+## Self-Check: PASSED
+
+All 4 created/modified files found on disk (TESTING.md, sharing-guide.md, 171-SECURITY.md, 171-04-SUMMARY.md); all 4 task/summary commit hashes (2bc3ba29, 2b193091, 6ab89d0f, f092240d) found in git log.
