@@ -5,10 +5,10 @@ milestone_name: Funnel Sharing & Polish
 current_phase: 170
 current_phase_name: public-share-access-codes-reusable-share-lifetime-join-code-
 status: phase-complete
-stopped_at: Phase 171 context gathered
-last_updated: "2026-07-07T19:39:24.178Z"
-last_activity: 2026-07-06
-last_activity_desc: Phase 170 execution started
+stopped_at: Phase 171 planned (4 plans, verification PASSED)
+last_updated: "2026-07-07T20:15:58.335Z"
+last_activity: 2026-07-07
+last_activity_desc: Phase 171 planned — 4 plans verified (gated public RW)
 progress:
   total_phases: 8
   completed_phases: 6
@@ -145,9 +145,9 @@ v4.2 Progress: [█████████████████░░░] 86
 
 ## Session Continuity
 
-Last session: 2026-07-07T19:39:24.161Z
-Stopped at: Phase 171 context gathered
-Resume file: .planning/phases/171-public-full-access-read-write-internet-sharing-behind-a-hard/171-CONTEXT.md
+Last session: 2026-07-07T20:15:58.321Z
+Stopped at: Phase 171 UI-SPEC approved
+Resume file: .planning/phases/171-public-full-access-read-write-internet-sharing-behind-a-hard/171-UI-SPEC.md
 Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 phase — FIX-05: non-admin macOS accounts report Tailscale "installed but not Connected" because `macsys` `sameuserproof` is unreadable; add a CLI `status` fallback. Run `/gsd-plan-phase 169` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
 
 ## Decisions (carry-forward from v4.1 — architecture reference)
