@@ -60,6 +60,7 @@ interface ModalOpts {
   homeDir?: boolean
   browseEnabled?: boolean
   funnelActive?: boolean
+  funnelWriteActive?: boolean
   viewerCount?: number
   webServerMode?: 'local' | 'tailscale'
   webServerRunning?: boolean
@@ -84,6 +85,7 @@ function makeSession(opts: ModalOpts = {}) {
     homeDir: opts.homeDir ?? false,
     browseEnabled: opts.browseEnabled ?? false,
     funnelActive: opts.funnelActive ?? false,
+    funnelWriteActive: opts.funnelWriteActive ?? false,
     viewerCount: opts.viewerCount ?? 0,
   }
 }

@@ -14,6 +14,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import React from 'react'
+import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import { SessionSharePanel } from '../SessionSharePanel'
@@ -42,6 +43,13 @@ interface RenderOpts {
   onDisableFunnel?: () => void
   // Phase 170 / FNL-08 — reusable public read join code
   publicReadCode?: string | null
+  // Phase 171 / FNL-09 — Danger section (public write consent gate)
+  onGateConfirm?: (expirySeconds: number) => void
+  writeGateUrl?: string | null
+  writeGateCode?: string | null
+  writeGateExpiresAt?: number | null
+  writeGateUsed?: boolean
+  onDisableGateWrite?: () => void
 }
 
 function renderPanel(opts: RenderOpts = {}) {
@@ -63,6 +71,12 @@ function renderPanel(opts: RenderOpts = {}) {
         warmupTimedOut: opts.warmupTimedOut,
         onDisableFunnel: opts.onDisableFunnel,
         publicReadCode: opts.publicReadCode,
+        onGateConfirm: opts.onGateConfirm,
+        writeGateUrl: opts.writeGateUrl,
+        writeGateCode: opts.writeGateCode,
+        writeGateExpiresAt: opts.writeGateExpiresAt,
+        writeGateUsed: opts.writeGateUsed,
+        onDisableGateWrite: opts.onDisableGateWrite,
       })
     )
   })
@@ -354,5 +368,180 @@ describe('SessionSharePanel — FNL-08 reusable public join code', () => {
     expect(container!.textContent).toMatch(/Public URL \(read-only\)/)
     // ...but no reusable-code label/row appears.
     expect(container!.textContent).not.toContain('Public join code (reusable):')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Phase 171 / FNL-09 — Danger section: public write consent gate
+// ---------------------------------------------------------------------------
+describe('SessionSharePanel — FNL-09 Danger section (public write consent gate)', () => {
+  let container: HTMLElement | undefined
+  let root: Root | undefined
+
+  afterEach(() => {
+    if (root) {
+      flushSync(() => root!.unmount())
+      root = undefined
+    }
+    if (container) {
+      container.remove()
+      container = undefined
+    }
+    vi.useRealTimers()
+    vi.clearAllMocks()
+  })
+
+  function holdBtn(c: HTMLElement): HTMLButtonElement {
+    return c.querySelector('.hub-funnel-write-gate__hold-btn') as HTMLButtonElement
+  }
+
+  it('does not render the Danger section when funnel is not engaged', () => {
+    ;({ container, root } = renderPanel())
+    expect(container!.querySelector('.hub-funnel-write-gate')).toBeNull()
+  })
+
+  it('renders the Danger section (heading + warning) when funnel is engaged', () => {
+    ;({ container, root } = renderPanel({ funnelActive: true }))
+    const gate = container!.querySelector('.hub-funnel-write-gate')
+    expect(gate).not.toBeNull()
+    expect(container!.textContent).toContain('PUBLIC WRITE ACCESS — COMMAND EXECUTION')
+    expect(container!.textContent).toContain('You are exposing a terminal to the internet')
+  })
+
+  it('consent-copy compliance (SPEC Prohibition #4): warning body literally contains "command execution" and "anyone with the link"', () => {
+    ;({ container, root } = renderPanel({ funnelActive: true }))
+    const body = container!.querySelector('.hub-funnel-write-gate__warning-body')
+    expect(body).not.toBeNull()
+    const text = (body!.textContent ?? '').toLowerCase()
+    expect(text).toContain('command execution')
+    expect(text).toContain('anyone with the link')
+  })
+
+  it('R1: releasing the hold before 3s issues nothing — zero onGateConfirm calls, fill resets to 0%, label reverts', () => {
+    vi.useFakeTimers()
+    const onGateConfirm = vi.fn()
+    ;({ container, root } = renderPanel({ funnelActive: true, onGateConfirm }))
+    const btn = holdBtn(container!)
+    act(() => {
+      btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1 }))
+    })
+    act(() => { vi.advanceTimersByTime(1000) })
+    act(() => {
+      btn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1 }))
+    })
+    expect(onGateConfirm).not.toHaveBeenCalled()
+    const fill = container!.querySelector('.hub-funnel-write-gate__hold-fill') as HTMLElement
+    expect(fill.style.width).toBe('0%')
+    expect(container!.textContent).toContain('Hold 3s to confirm')
+  })
+
+  it('R1: completing the ≥3s hold fires exactly one onGateConfirm(expirySeconds) and reveals the result block', () => {
+    vi.useFakeTimers()
+    const onGateConfirm = vi.fn()
+    ;({ container, root } = renderPanel({ funnelActive: true, onGateConfirm }))
+    const btn = holdBtn(container!)
+    act(() => {
+      btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1 }))
+    })
+    act(() => { vi.advanceTimersByTime(3000) })
+    expect(onGateConfirm).toHaveBeenCalledTimes(1)
+    expect(onGateConfirm).toHaveBeenCalledWith(900) // D-11 default: 15 minutes
+  })
+
+  it('keyboard equivalent: Space/Enter keydown drives the same hold; early keyup issues nothing', () => {
+    vi.useFakeTimers()
+    const onGateConfirm = vi.fn()
+    ;({ container, root } = renderPanel({ funnelActive: true, onGateConfirm }))
+    const btn = holdBtn(container!)
+    act(() => {
+      btn.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }))
+    })
+    act(() => { vi.advanceTimersByTime(1000) })
+    act(() => {
+      btn.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true }))
+    })
+    expect(onGateConfirm).not.toHaveBeenCalled()
+  })
+
+  it('keyboard equivalent: holding Space/Enter for ≥3s fires exactly one onGateConfirm', () => {
+    vi.useFakeTimers()
+    const onGateConfirm = vi.fn()
+    ;({ container, root } = renderPanel({ funnelActive: true, onGateConfirm }))
+    const btn = holdBtn(container!)
+    act(() => {
+      btn.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    })
+    act(() => { vi.advanceTimersByTime(3000) })
+    expect(onGateConfirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('warm-up gating: the hold control is disabled (aria-disabled) until funnelActive && !warmingUp', () => {
+    ;({ container, root } = renderPanel({ funnelActive: false, warmingUp: true }))
+    const btn = holdBtn(container!)
+    expect(btn.disabled).toBe(true)
+    expect(btn.getAttribute('aria-disabled')).toBe('true')
+    expect(container!.textContent).toContain('Waiting for internet share to finish starting up…')
+  })
+
+  it('warm-up gating: the hold control is enabled once funnelActive && !warmingUp', () => {
+    ;({ container, root } = renderPanel({ funnelActive: true, warmingUp: false }))
+    const btn = holdBtn(container!)
+    expect(btn.disabled).toBe(false)
+    expect(btn.getAttribute('aria-disabled')).toBe('false')
+  })
+
+  it('renders the post-gate result block: public write URL + single-use write code + countdown + disable button', () => {
+    ;({ container, root } = renderPanel({
+      funnelActive: true,
+      writeGateUrl: 'https://sess.tail-scale.ts.net/sessions/abc123?cap=WRITE_TOKEN',
+      writeGateCode: 'WGATE-CODE',
+      writeGateExpiresAt: Math.floor(Date.now() / 1000) + 895,
+    }))
+    expect(container!.textContent).toContain('Public write URL:')
+    expect(container!.innerHTML).toContain('WRITE_TOKEN')
+    expect(container!.textContent).toContain('Single-use write code:')
+    const codeEls = Array.from(container!.querySelectorAll('[data-testid="join-code-text"]'))
+    expect(codeEls.some((el) => el.textContent === 'WGATE-CODE')).toBe(true)
+    expect(container!.textContent).toMatch(/Expires in \d+:\d{2}/)
+    const disableBtn = Array.from(container!.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Disable public write',
+    )
+    expect(disableBtn).not.toBeUndefined()
+    // Once the gate is confirmed, the hold control and expiry select disappear.
+    expect(container!.querySelector('.hub-funnel-write-gate__hold-btn')).toBeNull()
+  })
+
+  it('clicking "Disable public write" invokes onDisableGateWrite (single click, no confirm)', async () => {
+    const onDisableGateWrite = vi.fn()
+    ;({ container, root } = renderPanel({
+      funnelActive: true,
+      writeGateUrl: 'https://sess.tail-scale.ts.net/sessions/abc123?cap=WRITE_TOKEN',
+      writeGateCode: 'WGATE-CODE',
+      onDisableGateWrite,
+    }))
+    const disableBtn = Array.from(container!.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Disable public write',
+    ) as HTMLElement
+    await flushSync(() => disableBtn.click())
+    expect(onDisableGateWrite).toHaveBeenCalledTimes(1)
+  })
+
+  it('used state: collapses the URL/code rows to "Write code used — one writer connected" while keeping countdown + disable', () => {
+    ;({ container, root } = renderPanel({
+      funnelActive: true,
+      writeGateUrl: 'https://sess.tail-scale.ts.net/sessions/abc123?cap=WRITE_TOKEN',
+      writeGateCode: 'WGATE-CODE',
+      writeGateExpiresAt: Math.floor(Date.now() / 1000) + 500,
+      writeGateUsed: true,
+    }))
+    expect(container!.textContent).toContain('Write code used — one writer connected')
+    expect(container!.innerHTML).not.toContain('WRITE_TOKEN')
+    expect(container!.textContent).not.toContain('Single-use write code:')
+    // Countdown and disable button remain visible.
+    expect(container!.textContent).toMatch(/Expires in \d+:\d{2}/)
+    const disableBtn = Array.from(container!.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Disable public write',
+    )
+    expect(disableBtn).not.toBeUndefined()
   })
 })

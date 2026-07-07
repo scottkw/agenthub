@@ -55,6 +55,7 @@ function makeSession(opts: ModalOpts = {}) {
     homeDir: false,
     browseEnabled: false,
     funnelActive: false,
+    funnelWriteActive: false,
     viewerCount: opts.viewerCount ?? 0,
   }
 }

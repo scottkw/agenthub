@@ -5,6 +5,8 @@ import {
   ToggleWebServing,
   SetSessionBrowse,
   SetSessionFunnel,
+  SetSessionFunnelWrite,
+  DisableSessionFunnelWrite,
   GetLocalNetworkPassword,
   DisconnectViewers,
 } from '../../wailsjs/go/main/App'
@@ -27,6 +29,10 @@ interface ShareSession {
   browseEnabled: boolean
   // Phase 166 FUI-05: seeds the Internet-section state consumed in Plan 05.
   funnelActive: boolean
+  // Phase 171-02 / FNL-09: true when the gate-minted public write cap is
+  // active (server truth from the hubSessions poll). Authoritative signal for
+  // collapsing the Danger section's post-gate result back to Idle.
+  funnelWriteActive: boolean
   // Phase 168 FIX-04/FIX-02: remote (web-origin) viewer count — gates the
   // "Disconnect all viewers" button (D-04/D-05, only shown when > 0).
   viewerCount: number
@@ -435,6 +441,59 @@ export function SessionShareModal({
     setWarmupTimedOut(false)
   }
 
+  // ---- Danger section: public write consent gate (Phase 171 / FNL-09) ----
+  // Sibling state to the read-Funnel state above, but with its own lifecycle:
+  // onGateConfirm fires exactly once (from the panel's hold-to-confirm gesture)
+  // and mints a gate-scoped write cap. writeGateUsed has no live backend signal
+  // this phase (see 171-03 SUMMARY Deviations) — it stays false unless a future
+  // out-of-band detector sets it.
+  const [writeGateUrl, setWriteGateUrl] = useState<string | null>(null)
+  const [writeGateCode, setWriteGateCode] = useState<string | null>(null)
+  const [writeGateExpiresAt, setWriteGateExpiresAt] = useState<number | null>(null)
+  const [writeGateUsed, setWriteGateUsed] = useState(false)
+
+  async function handleGateConfirm(expirySeconds: number): Promise<void> {
+    try {
+      const resp = await SetSessionFunnelWrite(session.id, expirySeconds)
+      setWriteGateUrl(resp.writeUrl)
+      setWriteGateCode(resp.writeCode)
+      setWriteGateExpiresAt(resp.expiresAt)
+      setWriteGateUsed(false)
+    } catch {
+      // Leave the gate at Idle and surface the copywriting-contract error
+      // inline via the same funnelError slot the read-Funnel path uses.
+      setFunnelError('Failed to enable public write. Please try again.')
+    }
+  }
+
+  function clearWriteGateState(): void {
+    setWriteGateUrl(null)
+    setWriteGateCode(null)
+    setWriteGateExpiresAt(null)
+    setWriteGateUsed(false)
+  }
+
+  async function handleDisableGateWrite(): Promise<void> {
+    try {
+      await DisableSessionFunnelWrite(session.id)
+    } catch {
+      // Best-effort — still clear local state; the poll reconciles funnelWriteActive.
+    }
+    clearWriteGateState()
+  }
+
+  // Authoritative collapse-to-Idle (Interaction Contract steps 7/8 — Disable
+  // and Expiry both end the same way): watch session.funnelWriteActive (the
+  // existing 3s hubSessions poll) transition true→false and clear local
+  // write-gate state. Client-side countdown above is visual only.
+  const prevFunnelWriteActiveRef = useRef(session.funnelWriteActive)
+  useEffect(() => {
+    if (prevFunnelWriteActiveRef.current && !session.funnelWriteActive) {
+      clearWriteGateState()
+    }
+    prevFunnelWriteActiveRef.current = session.funnelWriteActive
+  }, [session.funnelWriteActive])
+
   function handleOpenHelp(): void {
     // Close the modal first, then let the host navigate to the help-sharing section.
     handleClose()
@@ -659,6 +718,12 @@ export function SessionShareModal({
               warmupTimedOut={warmupTimedOut}
               onDisableFunnel={() => void handleDisableFunnel()}
               publicReadCode={publicReadCode}
+              onGateConfirm={(expirySeconds) => void handleGateConfirm(expirySeconds)}
+              writeGateUrl={writeGateUrl}
+              writeGateCode={writeGateCode}
+              writeGateExpiresAt={writeGateExpiresAt}
+              writeGateUsed={writeGateUsed}
+              onDisableGateWrite={() => void handleDisableGateWrite()}
             />
           )}
         </div>

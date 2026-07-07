@@ -1,6 +1,112 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { GetCapabilityQRCode } from '../wailsjs/go/main/App'
 import { BrowserOpenURL, ClipboardSetText } from '../wailsjs/wailsjs/runtime/runtime'
+
+// ---------------------------------------------------------------------------
+// Phase 171 / FNL-09 — hold-to-confirm public write consent gate (D-01/D-07/R1)
+// ---------------------------------------------------------------------------
+const HOLD_DURATION_MS = 3000
+const HOLD_TICK_MS = 100
+
+/** Formats a non-negative second count as "mm:ss" for the post-gate countdown. */
+function formatCountdown(totalSeconds: number): string {
+  const clamped = Math.max(0, totalSeconds)
+  const mm = Math.floor(clamped / 60)
+  const ss = clamped % 60
+  return `${mm}:${String(ss).padStart(2, '0')}`
+}
+
+/**
+ * HoldToConfirmButton — the sole affordance that can mint a public write
+ * capability. A real <button> (native focus + keyboard operability, R1
+ * accessibility requirement) driven by pointerdown/up/leave AND Space/Enter
+ * keydown/keyup. Releasing before HOLD_DURATION_MS resets to 0% and issues
+ * NO callback — onConfirm fires exactly once, only when the full duration
+ * elapses while still held (matches the interaction contract; the timer,
+ * not the release, is authoritative for completion).
+ */
+function HoldToConfirmButton({
+  disabled,
+  onConfirm,
+}: {
+  disabled: boolean
+  onConfirm: () => void
+}): React.ReactElement {
+  const [holding, setHolding] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const startRef = useRef(0)
+
+  function clearTimers(): void {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
+    }
+  }
+
+  function startHold(): void {
+    if (disabled || holding) return
+    setHolding(true)
+    setProgress(0)
+    startRef.current = Date.now()
+    intervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startRef.current
+      setProgress(Math.min(100, (elapsed / HOLD_DURATION_MS) * 100))
+    }, HOLD_TICK_MS)
+    timeoutRef.current = setTimeout(() => {
+      clearTimers()
+      setProgress(100)
+      setHolding(false)
+      onConfirm()
+    }, HOLD_DURATION_MS)
+  }
+
+  function releaseHold(): void {
+    if (!holding) return
+    clearTimers()
+    setHolding(false)
+    setProgress(0)
+  }
+
+  useEffect(() => clearTimers, [])
+
+  return (
+    <button
+      type="button"
+      className="hub-funnel-write-gate__hold-btn"
+      disabled={disabled}
+      aria-disabled={disabled}
+      onPointerDown={(e) => {
+        try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* jsdom fallback */ }
+        startHold()
+      }}
+      onPointerUp={releaseHold}
+      onPointerLeave={releaseHold}
+      onKeyDown={(e) => {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault()
+          startHold()
+        }
+      }}
+      onKeyUp={(e) => {
+        if (e.key === ' ' || e.key === 'Enter') {
+          releaseHold()
+        }
+      }}
+    >
+      <span className="hub-funnel-write-gate__hold-fill" style={{ width: `${progress}%` }} />
+      <span className="hub-funnel-write-gate__hold-label">
+        {holding ? 'Holding… keep pressing' : 'Hold 3s to confirm'}
+      </span>
+    </button>
+  )
+}
 
 // CodeDisplay renders a join code with a small Copy affordance. Used for both
 // the read code and the write code in the share panel. The code is displayed
@@ -98,6 +204,31 @@ interface SessionSharePanelProps {
    * rendered in that case.
    */
   publicReadCode?: string | null
+
+  // ---- Phase 171 / FNL-09: Danger section (public write consent gate) ----
+  /**
+   * Called exactly once, with the currently-selected expiry (seconds), when
+   * the ≥3s hold-to-confirm gesture completes. Never called on early release
+   * (R1). The panel owns the expiry <select> locally; the modal is the sole
+   * RPC caller (SetSessionFunnelWrite).
+   */
+  onGateConfirm?: (expirySeconds: number) => void
+  /** The public write URL once SetSessionFunnelWrite resolves (null/absent = gate not yet confirmed). */
+  writeGateUrl?: string | null
+  /** The single-use write join code once SetSessionFunnelWrite resolves. */
+  writeGateCode?: string | null
+  /** UNIX-seconds expiry of the write grant/code — drives the live "Expires in mm:ss" countdown. */
+  writeGateExpiresAt?: number | null
+  /**
+   * true once a guest has redeemed the write code — collapses the URL/code
+   * rows to "Write code used — one writer connected" (countdown + disable
+   * remain visible). No live backend signal for this exists yet this phase
+   * (see SUMMARY Deviations); this is a controlled prop for callers that can
+   * detect it out-of-band.
+   */
+  writeGateUsed?: boolean
+  /** One-click RW-only teardown (DisableSessionFunnelWrite) — no confirm dialog (asymmetric with the hold-in gate, D-13). */
+  onDisableGateWrite?: () => void
 }
 
 /**
@@ -127,6 +258,12 @@ export function SessionSharePanel({
   warmupTimedOut = false,
   onDisableFunnel,
   publicReadCode = null,
+  onGateConfirm,
+  writeGateUrl = null,
+  writeGateCode = null,
+  writeGateExpiresAt = null,
+  writeGateUsed = false,
+  onDisableGateWrite,
 }: SessionSharePanelProps): React.ReactElement {
   const [readCopied, setReadCopied] = useState(false)
   const [writeCopied, setWriteCopied] = useState(false)
@@ -140,6 +277,33 @@ export function SessionSharePanel({
   const [showFunnelQR, setShowFunnelQR] = useState(false)
   const [funnelQRb64, setFunnelQRb64] = useState<string | null>(null)
   const [funnelQRError, setFunnelQRError] = useState<string | null>(null)
+
+  // ---- Phase 171 / FNL-09 — Danger section (public write consent gate) local state ----
+  const [gateExpirySeconds, setGateExpirySeconds] = useState(900) // D-11 default: 15 minutes
+  const [gateCopied, setGateCopied] = useState(false)
+  const [showGateQR, setShowGateQR] = useState(false)
+  const [gateQRb64, setGateQRb64] = useState<string | null>(null)
+  const [gateQRError, setGateQRError] = useState<string | null>(null)
+  // Live countdown tick (visual only — funnelWriteActive polling is the
+  // authoritative collapse-to-Idle signal, owned by the modal).
+  const [gateNowSec, setGateNowSec] = useState(() => Math.floor(Date.now() / 1000))
+  useEffect(() => {
+    if (writeGateExpiresAt == null) return
+    const id = setInterval(() => setGateNowSec(Math.floor(Date.now() / 1000)), 1000)
+    return () => clearInterval(id)
+  }, [writeGateExpiresAt])
+  // Focus management (UI-SPEC Focus Management): move focus to the Disable
+  // button the moment the gate completes (writeGateUrl/writeGateCode go from
+  // falsy to truthy).
+  const disableGateBtnRef = useRef<HTMLButtonElement | null>(null)
+  const hadGateResultRef = useRef(false)
+  useEffect(() => {
+    const hasResult = Boolean(writeGateUrl || writeGateCode)
+    if (hasResult && !hadGateResultRef.current) {
+      disableGateBtnRef.current?.focus()
+    }
+    hadGateResultRef.current = hasResult
+  }, [writeGateUrl, writeGateCode])
 
   // The Internet section is present whenever the Funnel is engaged (warming, timed out,
   // or live). Kept out of the DOM entirely when Funnel is off to avoid an empty section.
@@ -195,6 +359,29 @@ export function SessionSharePanel({
     }
     setter(true)
     setTimeout(() => setter(false), 1500)
+  }
+
+  // Phase 171 / FNL-09 — Danger section result-row QR toggle. Mirrors
+  // handleToggleFunnelQR/handleToggleQR: encodes the join-code exchange URL
+  // (D-09), never the raw capability token, so a photographed QR is worthless
+  // after the single-use code is redeemed.
+  async function handleToggleGateQR(): Promise<void> {
+    if (!writeGateUrl || !writeGateCode) return
+    if (showGateQR) {
+      setShowGateQR(false)
+      return
+    }
+    setGateQRError(null)
+    if (!gateQRb64) {
+      try {
+        const b64 = await GetCapabilityQRCode(joinURLFor(writeGateUrl, writeGateCode))
+        setGateQRb64(b64)
+      } catch {
+        setGateQRError('QR unavailable — tap to retry')
+        return
+      }
+    }
+    setShowGateQR(true)
   }
 
   function joinURLFor(capURL: string, code: string): string {
@@ -410,6 +597,129 @@ export function SessionSharePanel({
           >
             Disable internet share
           </button>
+        </div>
+      )}
+
+      {/* Phase 171 / FNL-09 — Danger section: public write consent gate.
+          Physically separate block BELOW the read (Internet) section (D-06) —
+          never nested inside it. Rendered under the same funnelEngaged gate as
+          the read section (the RW gate is meaningless without an active/warming
+          Funnel session), but the hold control itself stays disabled until
+          funnelActive && !warmingUp (Interaction Contract). */}
+      {funnelEngaged && (
+        <div className="hub-funnel-write-gate">
+          <div className="hub-funnel-write-gate__heading">PUBLIC WRITE ACCESS — COMMAND EXECUTION</div>
+
+          <div className="hub-funnel-write-gate__warning">
+            <ExclamationTriangleIcon className="hub-funnel-write-gate__icon" aria-hidden="true" />
+            <div className="hub-funnel-write-gate__warning-heading">⚠ You are exposing a terminal to the internet</div>
+            <p className="hub-funnel-write-gate__warning-body">
+              Anyone with the link and code gets full command execution on this machine, running
+              as your account, until you disable it or it expires (max 1 hour). A leaked link =
+              remote code execution.
+            </p>
+          </div>
+
+          {!writeGateUrl && !writeGateCode && (
+            <>
+              <label className="hub-funnel-write-gate__expiry">
+                <span>Expires:</span>
+                <select
+                  value={String(gateExpirySeconds)}
+                  onChange={(e) => setGateExpirySeconds(Number(e.target.value))}
+                  aria-label="Expires"
+                >
+                  <option value={900}>15 minutes</option>
+                  <option value={1800}>30 minutes</option>
+                  <option value={3600}>1 hour</option>
+                </select>
+              </label>
+
+              {!(funnelActive && !warmingUp) && (
+                <p className="hub-share-internet-section__warmup">
+                  Waiting for internet share to finish starting up…
+                </p>
+              )}
+
+              <HoldToConfirmButton
+                disabled={!(funnelActive && !warmingUp)}
+                onConfirm={() => onGateConfirm?.(gateExpirySeconds)}
+              />
+            </>
+          )}
+
+          {(writeGateUrl || writeGateCode) && (
+            <div className="hub-funnel-write-gate__result">
+              {!writeGateUsed ? (
+                <>
+                  <div className="session-share-panel__link-row" data-testid="write-gate-url-row">
+                    <span className="session-share-panel__label">Public write URL:</span>
+                    <span className="session-share-panel__url" title={writeGateUrl ?? ''}>{writeGateUrl}</span>
+                    <div className="session-share-panel__actions">
+                      <button
+                        type="button"
+                        className="daemon-panel__btn"
+                        onClick={() => void handleCopy(writeGateUrl ?? '', setGateCopied)}
+                        aria-label="Copy public write link to clipboard"
+                      >
+                        {gateCopied ? 'Copied!' : 'Copy'}
+                      </button>
+                      <button
+                        type="button"
+                        className="daemon-panel__btn"
+                        onClick={() => writeGateUrl && BrowserOpenURL(writeGateUrl)}
+                        aria-label="Open public write link in browser"
+                      >
+                        Open
+                      </button>
+                      <button
+                        type="button"
+                        className="daemon-panel__btn"
+                        onClick={() => void handleToggleGateQR()}
+                        aria-label={showGateQR ? 'Hide public write QR code' : 'Show public write QR code'}
+                      >
+                        {showGateQR ? 'Hide QR' : 'QR'}
+                      </button>
+                    </div>
+                  </div>
+                  {writeGateCode && (
+                    <CodeDisplay label="Single-use write code:" code={writeGateCode} />
+                  )}
+                  {showGateQR && gateQRb64 && (
+                    <img
+                      className="session-share-panel__qr"
+                      src={`data:image/png;base64,${gateQRb64}`}
+                      width={200}
+                      height={200}
+                      alt="QR code for public write link"
+                    />
+                  )}
+                  {gateQRError && <p className="session-share-panel__error">{gateQRError}</p>}
+                </>
+              ) : (
+                <div className="hub-funnel-write-gate__used">Write code used — one writer connected</div>
+              )}
+
+              {writeGateExpiresAt != null && (
+                <div
+                  className={`hub-funnel-write-gate__countdown${
+                    writeGateExpiresAt - gateNowSec < 60 ? ' hub-funnel-write-gate__countdown--urgent' : ''
+                  }`}
+                >
+                  Expires in {formatCountdown(writeGateExpiresAt - gateNowSec)}
+                </div>
+              )}
+
+              <button
+                type="button"
+                ref={disableGateBtnRef}
+                className="hub-funnel-write-gate__disable"
+                onClick={() => onDisableGateWrite?.()}
+              >
+                Disable public write
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
