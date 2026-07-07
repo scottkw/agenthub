@@ -622,11 +622,25 @@ Plans:
 - Distinct, unmissable UI treatment (text + icon + color, colorblind-safe) so a public-write link is never confused with public-read.
 - Threat model must assert: **no public write path except through the new gate** (closes the accidental rebasing).
 
-**Plans:** 0 plans — run `/gsd-spec-phase 171` first
+**Plans:** 4 plans (planned 2026-07-07 — spec → discuss → research → patterns → UI-spec complete; threat model embedded per-plan)
 
 Plans:
 
-- [ ] TBD (spec → discuss → secure → plan)
+**Wave 1**
+
+- [ ] 171-01-PLAN.md — Capability + webserver enforcement primitives: `IssueSingleUseWithTTL`, `RemoveGrant`, `SetRWGate`/`isRWGated` + `rwGated` map, gate-aware `originAllowedForWrite`, and the critical `TestHandleWSSRelay_WriteCap_RequiresGate` (FNL-09)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 171-02-PLAN.md — Daemon RW-gate lifecycle: `handleSetSessionFunnelWrite` (terminal-only D-05, expiry clamp R5), `revokeFunnelWriteLocked`/`disableFunnelWriteForSession` all-trigger teardown, D-04 write-rebase removal, `SessionInfo.FunnelWriteActive`, client + Wails binding (FNL-09)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 171-03-PLAN.md — Frontend: `.hub-funnel-write-gate` Danger section (≥3s hold-to-confirm, keyboard parity, warm-up gating, post-gate/used states) + colorblind-safe `.hub-fullaccess-badge`/tab icon (label+icon+shape distinct) + modal wiring (FNL-09)
+
+**Wave 4** *(blocked on Waves 1-3)*
+
+- [ ] 171-04-PLAN.md — TESTING.md reconcile (Suite Manifest + FNL-09 traceability + M-47 live off-tailnet public-write UAT) + Sharing Guide FULL ACCESS section (FNL-09)
 
 ### Phase 172: Hub-card layout & badge refinement
 
