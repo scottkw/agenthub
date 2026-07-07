@@ -516,17 +516,23 @@ func TestRequireAllowedOrigin_FunnelOrigin(t *testing.T) {
 }
 
 // TestOriginAllowedForWrite_FunnelOrigin verifies originAllowedForWrite dual-origin
-// logic (capability_mw.go, T-165-01 / CAP-03):
+// logic (capability_mw.go, T-165-01 / CAP-03), now RW-gate aware (Phase 171
+// Plan 01, FNL-09 D-02):
 //
 //   - Empty Origin passes vacuously (desktop Wails fetch).
 //   - Funnel origin fails when Funnel inactive (fail-closed).
-//   - Funnel origin passes after ws.EnableFunnel (Pitfall 5 guard).
-//   - Tailnet BaseURL origin still passes.
+//   - Funnel origin STILL fails after ws.EnableFunnel when the session has
+//     not passed the RW gate (T-171-05 — Funnel-active alone is no longer
+//     sufficient).
+//   - Funnel origin passes once SetRWGate(sessionID, true) has run.
+//   - Tailnet BaseURL origin still passes UNAFFECTED by the RW gate (the
+//     gate is a Funnel-origin-only defense-in-depth check).
 //   - Unrelated origin still fails.
 func TestOriginAllowedForWrite_FunnelOrigin(t *testing.T) {
 	ws, _ := testServer(t)
 
 	const funnelHostname = "testhost.ts.net"
+	const sessionID = "sess-171-origin-gate"
 	funnelURL := "https://" + funnelHostname
 
 	fake := &fakeFunnelClient{
@@ -547,12 +553,12 @@ func TestOriginAllowedForWrite_FunnelOrigin(t *testing.T) {
 	}
 
 	// Empty Origin passes vacuously (CAP-03 desktop path).
-	if !ws.originAllowedForWrite(reqWithOrigin("")) {
+	if !ws.originAllowedForWrite(reqWithOrigin(""), sessionID) {
 		t.Fatal("expected empty Origin to pass vacuously (CAP-03)")
 	}
 
 	// Funnel origin fails when inactive (fail-closed, T-165-07).
-	if ws.originAllowedForWrite(reqWithOrigin(funnelURL)) {
+	if ws.originAllowedForWrite(reqWithOrigin(funnelURL), sessionID) {
 		t.Fatal("expected Funnel origin to be rejected when Funnel inactive")
 	}
 
@@ -561,18 +567,25 @@ func TestOriginAllowedForWrite_FunnelOrigin(t *testing.T) {
 		t.Fatalf("EnableFunnel: %v", err)
 	}
 
-	// Funnel origin passes after EnableFunnel.
-	if !ws.originAllowedForWrite(reqWithOrigin(funnelURL)) {
-		t.Fatal("expected Funnel origin to pass after EnableFunnel")
+	// Funnel origin STILL fails after EnableFunnel when the session has not
+	// passed the RW gate (T-171-05 defense-in-depth).
+	if ws.originAllowedForWrite(reqWithOrigin(funnelURL), sessionID) {
+		t.Fatal("expected Funnel origin to be rejected for a non-gated session even with Funnel active")
 	}
 
-	// Tailnet BaseURL origin still passes.
-	if !ws.originAllowedForWrite(reqWithOrigin(ws.BaseURL())) {
+	// Once gated, Funnel origin passes.
+	ws.SetRWGate(sessionID, true)
+	if !ws.originAllowedForWrite(reqWithOrigin(funnelURL), sessionID) {
+		t.Fatal("expected Funnel origin to pass once the session is RW-gated")
+	}
+
+	// Tailnet BaseURL origin still passes, unaffected by gate state.
+	if !ws.originAllowedForWrite(reqWithOrigin(ws.BaseURL()), sessionID) {
 		t.Fatal("expected tailnet BaseURL origin to still pass")
 	}
 
 	// Unrelated origin still fails.
-	if ws.originAllowedForWrite(reqWithOrigin("https://evil.example")) {
+	if ws.originAllowedForWrite(reqWithOrigin("https://evil.example"), sessionID) {
 		t.Fatal("expected unrelated origin to still fail")
 	}
 }

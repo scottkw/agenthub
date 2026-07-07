@@ -161,7 +161,7 @@ func (ws *WebServer) requireFilesWrite(next http.HandlerFunc) http.HandlerFunc {
 		// request 403s with the informative body rather than the generic
 		// "forbidden" origin error. Ordering: requireCapability (401) →
 		// HasPerm (403) → Origin (403). (T-124-03, T-124-05)
-		if !ws.originAllowedForWrite(r) {
+		if !ws.originAllowedForWrite(r, claims.SID) {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
@@ -170,7 +170,7 @@ func (ws *WebServer) requireFilesWrite(next http.HandlerFunc) http.HandlerFunc {
 }
 
 // originAllowedForWrite reports whether the request's Origin header permits a
-// write operation.
+// write operation for sessionID.
 //
 // CRITICAL INVERSION (Critical Inversion 1 in PATTERNS.md, Pitfall 1 in
 // RESEARCH.md): this is the OPPOSITE of requireAllowedOrigin.
@@ -181,20 +181,32 @@ func (ws *WebServer) requireFilesWrite(next http.HandlerFunc) http.HandlerFunc {
 // fetch(); desktop Wails fetch() sends NO Origin header. Therefore:
 //
 //   - Absent Origin → return true (pass vacuously; trusted desktop caller).
-//   - Present Origin → strict byte-for-byte match against ws.BaseURL().
-//   - Present Origin with empty BaseURL (listener not ready) → return false
-//     (fail closed; CLAUDE.md "Silent Fallbacks Forbidden").
-// originAllowedForWrite checks whether the request's Origin is permitted to
-// submit write operations (MsgInput, MsgSessionInject, MsgChatSend). Dual-origin
-// aware: allows both the tailnet URL and the Funnel URL (when active), mirroring
-// requireAllowedOrigin's fail-closed secondary branch (Phase 165, FNL-04 / T-165-01).
-func (ws *WebServer) originAllowedForWrite(r *http.Request) bool {
+//   - Present Origin, tailnet BaseURL match → return true (D-03; unaffected
+//     by the RW gate — the gate is a Funnel-origin-only defense, D-02).
+//   - Present Origin, Funnel URL match → return true ONLY when
+//     isRWGated(sessionID) is also true (FNL-09 D-02 defense-in-depth); a
+//     non-gated session gets a Funnel-origin write rejected even with a
+//     structurally valid files.write capability.
+//   - Present Origin with empty BaseURL/FunnelBaseURL (listener not ready,
+//     or Funnel inactive) → return false (fail closed; CLAUDE.md "Silent
+//     Fallbacks Forbidden" — unchanged Phase 165 FNL-04 posture).
+//
+// originAllowedForWrite reaches ONLY the files.write HTTP routes via
+// requireFilesWrite — it does NOT gate MsgInput/MsgSessionInject at
+// handleWSSRelay. The terminal-write gate is grant validity at WS upgrade
+// (isGrantActive, sub.ReadOnly derivation — see RemoveGrant/SetRWGate in
+// server.go and TestHandleWSSRelay_WriteCap_RequiresGate). Treating this
+// function as covering terminal writes is the RESEARCH Pitfall 1
+// anti-pattern; it is defense-in-depth for files.write only, since the
+// gate-minted write cap never carries files.write perms (D-05).
+func (ws *WebServer) originAllowedForWrite(r *http.Request, sessionID string) bool {
 	origin := r.Header.Get("Origin")
 	if origin == "" {
 		// Desktop Wails fetch() sends no Origin — pass vacuously (CAP-03).
 		return true
 	}
-	// Primary: tailnet URL — exact byte-for-byte match (D-03).
+	// Primary: tailnet URL — exact byte-for-byte match (D-03). Unaffected by
+	// the RW gate; the gate is Funnel-origin-only defense-in-depth.
 	// Fail closed when BaseURL() is empty (listener not ready with a present
 	// Origin — never silently allow).
 	allowed := ws.BaseURL()
@@ -202,9 +214,12 @@ func (ws *WebServer) originAllowedForWrite(r *http.Request) bool {
 		return true
 	}
 	// Secondary: Funnel origin — exact match; fail-closed when FunnelBaseURL()==""
-	// (T-165-01 / T-165-07 no prefix/substring widen).
+	// (T-165-01 / T-165-07 no prefix/substring widen). Additionally requires
+	// the session to have passed the public-write consent gate (FNL-09 D-02) —
+	// a Funnel-origin write for a non-gated session is rejected even with a
+	// structurally valid capability.
 	if funnelURL := ws.FunnelBaseURL(); funnelURL != "" && origin == funnelURL {
-		return true
+		return ws.isRWGated(sessionID)
 	}
 	return false
 }

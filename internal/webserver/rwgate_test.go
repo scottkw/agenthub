@@ -15,12 +15,15 @@ import (
 	"bytes"
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/coder/websocket"
 	"github.com/scottkw/agenthub/internal/capability"
 	"github.com/scottkw/agenthub/internal/relay"
+	"tailscale.com/ipn"
+	"tailscale.com/ipn/ipnstate"
 )
 
 // TestRemoveGrant_Surgical asserts RemoveGrant deletes only the named
@@ -158,4 +161,76 @@ func TestHandleWSSRelay_WriteCap_RequiresGate(t *testing.T) {
 	if !bytes.Equal(got, want) {
 		t.Errorf("expected write cap to reach PTY once gated (sub.ReadOnly==false): want %q got %q", want, got)
 	}
+}
+
+// TestOriginAllowedForWrite_RWGate covers Task 3's <behavior> contract for
+// the gate-aware originAllowedForWrite (D-02 defense-in-depth, T-171-05):
+//
+//   - Funnel origin + isRWGated==false → rejected.
+//   - Funnel origin + isRWGated==true → permitted.
+//   - Tailnet-origin write is unaffected by RW-gate state either way.
+//   - Fail-closed posture preserved: empty FunnelBaseURL still rejects a
+//     funnel-origin write regardless of gate state (unchanged Phase 165
+//     FNL-04 posture).
+func TestOriginAllowedForWrite_RWGate(t *testing.T) {
+	const funnelHostname = "testhost-171.ts.net"
+	const sessionID = "sess-171-origin-rwgate"
+	funnelURL := "https://" + funnelHostname
+
+	reqWithOrigin := func(origin string) *http.Request {
+		req := httptest.NewRequest("GET", "/", nil)
+		if origin != "" {
+			req.Header.Set("Origin", origin)
+		}
+		return req
+	}
+
+	t.Run("FunnelOrigin_NotGated_Rejected_ThenGated_Permitted", func(t *testing.T) {
+		ws, _ := testServer(t)
+		fake := &fakeFunnelClient{
+			statusWithoutPeers: func(_ context.Context) (*ipnstate.Status, error) {
+				return validFunnelStatus(funnelHostname), nil
+			},
+			getServeConfig: func(_ context.Context) (*ipn.ServeConfig, error) { return nil, nil },
+			setServeConfig: func(_ context.Context, _ *ipn.ServeConfig) error { return nil },
+		}
+		ws.funnelClient = fake
+		if err := ws.EnableFunnel(context.Background(), 443); err != nil {
+			t.Fatalf("EnableFunnel: %v", err)
+		}
+
+		if ws.originAllowedForWrite(reqWithOrigin(funnelURL), sessionID) {
+			t.Fatal("expected Funnel-origin write rejected for a non-gated session")
+		}
+
+		ws.SetRWGate(sessionID, true)
+		if !ws.originAllowedForWrite(reqWithOrigin(funnelURL), sessionID) {
+			t.Fatal("expected Funnel-origin write permitted once the session is RW-gated")
+		}
+	})
+
+	t.Run("TailnetOrigin_UnaffectedByGateState", func(t *testing.T) {
+		ws, _ := testServer(t)
+
+		// Not gated: tailnet-origin write still passes.
+		if !ws.originAllowedForWrite(reqWithOrigin(ws.BaseURL()), sessionID) {
+			t.Fatal("expected tailnet-origin write to pass while non-gated")
+		}
+
+		// Gated: tailnet-origin write still passes (gate only affects the
+		// Funnel-origin branch).
+		ws.SetRWGate(sessionID, true)
+		if !ws.originAllowedForWrite(reqWithOrigin(ws.BaseURL()), sessionID) {
+			t.Fatal("expected tailnet-origin write to remain unaffected once gated")
+		}
+	})
+
+	t.Run("EmptyFunnelBaseURL_FailClosed_RegardlessOfGate", func(t *testing.T) {
+		ws, _ := testServer(t)
+		// Funnel never enabled — FunnelBaseURL() == "".
+		ws.SetRWGate(sessionID, true)
+		if ws.originAllowedForWrite(reqWithOrigin(funnelURL), sessionID) {
+			t.Fatal("expected fail-closed rejection of a Funnel-origin write when FunnelBaseURL is empty, even when gated")
+		}
+	})
 }
