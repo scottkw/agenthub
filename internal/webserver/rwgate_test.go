@@ -157,7 +157,13 @@ func TestHandleWSSRelay_WriteCap_RequiresGate(t *testing.T) {
 	if err := conn.Write(ctx, websocket.MessageBinary, relay.MakeInputFrame(want)); err != nil {
 		t.Fatalf("write input frame: %v", err)
 	}
-	got := readPipeWithTimeout(t, inputReader, 1*time.Second)
+	// Generous deadline: on a cold process the first WS->PTY input round-trip
+	// can take ~2s to warm up (io.Pipe + TLS + relay input pump), versus <0.1s
+	// once warm. A 1s deadline made this load-bearing security test pass only
+	// when run alongside sibling tests that warmed the path first, and fail
+	// deterministically in isolation. This assertion is that input ARRIVES, so
+	// a longer wait never weakens the check — it only avoids a false timeout.
+	got := readPipeWithTimeout(t, inputReader, 8*time.Second)
 	if !bytes.Equal(got, want) {
 		t.Errorf("expected write cap to reach PTY once gated (sub.ReadOnly==false): want %q got %q", want, got)
 	}
