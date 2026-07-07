@@ -566,7 +566,7 @@ Plans:
 | 168. Bug Fix & Settings Polish | 9/9 | Complete   | 2026-07-02 |
 | 169. Tailscale Detection Fix | 2/2 | Complete (verified; M-45 live deferred) | 2026-07-05 |
 | 170. Public Share Access Codes (read) | 4/4 | ✅ M-46 live UAT PASSED (2026-07-06) | — |
-| 171. Public Full-Access (RW) Sharing | 0/? | Spec-first — run /gsd-spec-phase 171 | — |
+| 171. Public Full-Access (RW) Sharing | 1/4 | In Progress|  |
 
 ### Phase 170: Public Share Access Codes (read)
 
@@ -622,13 +622,13 @@ Plans:
 - Distinct, unmissable UI treatment (text + icon + color, colorblind-safe) so a public-write link is never confused with public-read.
 - Threat model must assert: **no public write path except through the new gate** (closes the accidental rebasing).
 
-**Plans:** 4 plans (planned 2026-07-07 — spec → discuss → research → patterns → UI-spec complete; threat model embedded per-plan)
+**Plans:** 1/4 plans executed
 
 Plans:
 
 **Wave 1**
 
-- [ ] 171-01-PLAN.md — Capability + webserver enforcement primitives: `IssueSingleUseWithTTL`, `RemoveGrant`, `SetRWGate`/`isRWGated` + `rwGated` map, gate-aware `originAllowedForWrite`, and the critical `TestHandleWSSRelay_WriteCap_RequiresGate` (FNL-09)
+- [x] 171-01-PLAN.md — Capability + webserver enforcement primitives: `IssueSingleUseWithTTL`, `RemoveGrant`, `SetRWGate`/`isRWGated` + `rwGated` map, gate-aware `originAllowedForWrite`, and the critical `TestHandleWSSRelay_WriteCap_RequiresGate` (FNL-09)
 
 **Wave 2** *(blocked on Wave 1)*
 
