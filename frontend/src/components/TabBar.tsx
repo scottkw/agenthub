@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { GlobeAltIcon } from '@heroicons/react/24/outline'
+import { GlobeAltIcon, LockOpenIcon } from '@heroicons/react/24/outline'
 // WR/POL: agentBadgeModifier extracted to a shared lib so the Hub card left
 // spine (.hub-card[data-agent]) and this tab dot (.tab__agent-badge--*) derive
 // the per-CLI "session type" color from one source and cannot drift.
@@ -94,6 +94,15 @@ interface TabBarProps {
    * (rides the existing 3s poll — no new interval added).
    */
   funnelActiveSessions?: Record<string, boolean>
+  /**
+   * Phase 171 / FNL-09 — per-session public write (FULL ACCESS) exposure
+   * state, keyed by sessionId. When funnelWriteActiveSessions[tab.sessionId]
+   * is true, the tab renders a LockOpenIcon after the internet icon (D-10
+   * read-then-write order) with aria-label/title "Full access exposed —
+   * command execution". Mirrors funnelActiveSessions exactly — derived from
+   * the same hubSessions 3s poll in App.tsx, no new interval.
+   */
+  funnelWriteActiveSessions?: Record<string, boolean>
 }
 
 /**
@@ -114,6 +123,7 @@ export function TabBar({
   webMode = false,
   webFilesEnabled = false,
   funnelActiveSessions,
+  funnelWriteActiveSessions,
 }: TabBarProps): React.ReactElement {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -251,6 +261,19 @@ export function TabBar({
                 title="Internet exposed"
               >
                 <GlobeAltIcon aria-hidden="true" />
+              </span>
+            )}
+            {/* Phase 171 / FNL-09 — tab full-access (public write) indicator.
+                COLORBLIND-SAFE: LockOpenIcon shape carries state; color is
+                reinforcement only. Rendered AFTER the internet icon
+                (read-then-write order, D-10). */}
+            {funnelWriteActiveSessions?.[tab.sessionId] && (
+              <span
+                className="tab__fullaccess-icon"
+                aria-label="Full access exposed — command execution"
+                title="Full access exposed — command execution"
+              >
+                <LockOpenIcon aria-hidden="true" />
               </span>
             )}
             {editingId === tab.id ? (

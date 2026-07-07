@@ -314,3 +314,46 @@ describe('CARD-04: re-attach Open button is local-only', () => {
     expect(c.querySelector('button[aria-label="Open My Session"]')).not.toBeNull()
   })
 })
+
+// ---------------------------------------------------------------------------
+// Phase 171 / FNL-09 — FULL ACCESS badge (R7 distinct indicator + coexistence)
+// ---------------------------------------------------------------------------
+describe('FNL-09: FULL ACCESS badge — distinct indicator + coexistence with INTERNET', () => {
+  it('R7: renders .hub-fullaccess-badge with LockOpenIcon and literal label "FULL ACCESS" when funnelWriteActive', () => {
+    const session: SessionInfo = { ...localSession, funnelWriteActive: true }
+    const { container: c } = renderCard({ session })
+    const badge = c.querySelector('.hub-fullaccess-badge')
+    expect(badge).not.toBeNull()
+    expect(badge!.querySelector('svg')).not.toBeNull()
+    expect(badge!.querySelector('.hub-fullaccess-badge__label')?.textContent).toBe('FULL ACCESS')
+    // Source-level distinctness from the read badge — different class, icon import name,
+    // and label string (never color alone, per the colorblind-safe standing rule).
+    expect(badge!.className).not.toBe('hub-internet-badge')
+  })
+
+  it('does not render .hub-fullaccess-badge when funnelWriteActive is false', () => {
+    const session: SessionInfo = { ...localSession, funnelWriteActive: false }
+    const { container: c } = renderCard({ session })
+    expect(c.querySelector('.hub-fullaccess-badge')).toBeNull()
+  })
+
+  it('coexistence: both badges render (read INTERNET first, FULL ACCESS second) when both are active', () => {
+    const session: SessionInfo = { ...localSession, funnelActive: true, funnelWriteActive: true }
+    const { container: c } = renderCard({ session })
+    const internetBadge = c.querySelector('.hub-internet-badge')
+    const fullAccessBadge = c.querySelector('.hub-fullaccess-badge')
+    expect(internetBadge).not.toBeNull()
+    expect(fullAccessBadge).not.toBeNull()
+    // DOM order: INTERNET badge precedes FULL ACCESS badge (read-then-write order, D-10).
+    const badges = Array.from(c.querySelectorAll('.hub-internet-badge, .hub-fullaccess-badge'))
+    expect(badges[0]).toBe(internetBadge)
+    expect(badges[1]).toBe(fullAccessBadge)
+  })
+
+  it('RW teardown keeps the read badge: funnelWriteActive=false with funnelActive=true renders only the read badge', () => {
+    const session: SessionInfo = { ...localSession, funnelActive: true, funnelWriteActive: false }
+    const { container: c } = renderCard({ session })
+    expect(c.querySelector('.hub-internet-badge')).not.toBeNull()
+    expect(c.querySelector('.hub-fullaccess-badge')).toBeNull()
+  })
+})

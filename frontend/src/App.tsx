@@ -1637,6 +1637,12 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
               {}
             )
           }
+          funnelWriteActiveSessions={/* Phase 171 / FNL-09: derived from hubSessions 3s poll; no new interval */
+            hubSessions.reduce<Record<string, boolean>>(
+              (acc, s) => ({ ...acc, [s.id]: s.funnelWriteActive }),
+              {}
+            )
+          }
         />
 
         <div className="terminal-container">

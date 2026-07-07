@@ -16,6 +16,7 @@ import {
   EllipsisHorizontalIcon,
   BellAlertIcon,          // ATTN-01: attention icon — colorblind-safe shape carrier
   LockClosedIcon,         // D-13: shape signal for disabled Share button on remote peer cards
+  LockOpenIcon,           // Phase 171 / FNL-09: FULL ACCESS badge shape carrier (colorblind-safe, distinct from GlobeAltIcon)
   LinkIcon,               // CARD-03: "Connected" state shape signal (colorblind-safe)
   WindowIcon,             // FIX-03 RC-C: "Open in tab" in-app glyph (D-17 opens an in-app tab, not a browser)
 } from '@heroicons/react/24/outline'
@@ -539,6 +540,21 @@ export function SessionCard({
         <span className="hub-internet-badge">
           <GlobeAltIcon className="hub-internet-badge__icon" aria-hidden="true" />
           <span className="hub-internet-badge__label">INTERNET</span>
+        </span>
+      )}
+
+      {/* Phase 171 / FNL-09 — FULL ACCESS (public write) badge.
+          COLORBLIND-SAFE: LockOpenIcon shape + "FULL ACCESS" text + notched
+          clip-path badge geometry carry the state; color is reinforcement
+          only. Dark hex #f7768e / light hex #c0394f — verify at source, NOT
+          by eye (user is colorblind). Read-then-write order: rendered AFTER
+          .hub-internet-badge so both may coexist (read-many, write-one). It
+          clears independently of funnelActive (RW teardown keeps the read
+          badge, D-10) — gated solely on session.funnelWriteActive. */}
+      {session.funnelWriteActive && (
+        <span className="hub-fullaccess-badge">
+          <LockOpenIcon className="hub-fullaccess-badge__icon" aria-hidden="true" />
+          <span className="hub-fullaccess-badge__label">FULL ACCESS</span>
         </span>
       )}
 
