@@ -1398,3 +1398,198 @@ func TestHandleSetSessionFunnelWrite_ExpiryClamp(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Phase 171-02 / FNL-09: gate-minted write cap teardown regression suite.
+// Proves revokeFunnelWriteLocked's surgical scope: an RW-only disable must
+// revoke ONLY the write grant/code/gate, never the reusable public read
+// share or funnelSessions itself; and all four teardown triggers (owner
+// disables RW / funnel-off / session-exit / auto-expiry) must revoke the
+// write cap so no orphaned grant survives.
+// ---------------------------------------------------------------------------
+
+// TestDisableFunnelWrite_RevokesGrantOnly verifies D-03 / T-171-08 /
+// prohibition 1: DELETE /sessions/{id}/funnel-write revokes the gate-minted
+// write grant (probeGrant flips from active to inactive) while leaving the
+// reusable public read code resolving and Funnel itself active — an
+// RW-only disable must never cascade into the read share or funnelSessions
+// ref-count (Pitfall 3).
+func TestDisableFunnelWrite_RevokesGrantOnly(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+	api, _, socketPath := testDaemon(t)
+	ws, fake := makeFunnelTestWebServer(t, api, "test.ts.net")
+	key := configureCapabilityStateForTest(t, api, ws)
+	ws.SetSessionResolver(func(string) (string, string, string, string) {
+		return "rw-disable-grant-only", "cat", "running", "localhost"
+	})
+
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"rw-disable-grant-only","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create: %v", err)
+	}
+	rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":true}`)
+	enableFunnelViaHTTP(t, socketPath, cr.ID)
+
+	// Mint the reusable public read code first (FNL-08 — survives repeated
+	// Exchange) so we can prove the RW-only disable leaves it live.
+	_, _, _, _, publicReadCode, err := api.issueCapabilitiesForSession(cr.ID)
+	if err != nil {
+		t.Fatalf("issueCapabilitiesForSession: %v", err)
+	}
+	if publicReadCode == "" {
+		t.Fatal("precondition: PublicReadCode must be non-empty for a Funnel session")
+	}
+	if _, err := api.joinCodes.Exchange(publicReadCode); err != nil {
+		t.Fatalf("precondition: public read code must resolve before RW-only disable: %v", err)
+	}
+
+	// Mint the gate-minted write cap.
+	status, resp := enableFunnelWriteViaHTTP(t, socketPath, cr.ID, 900)
+	if status != http.StatusOK {
+		t.Fatalf("mint write cap: want 200, got %d", status)
+	}
+	wTok, err := api.joinCodes.Exchange(resp.WriteCode)
+	if err != nil {
+		t.Fatalf("Exchange(WriteCode) precondition: %v", err)
+	}
+	claims, err := capability.Verify(wTok, key)
+	if err != nil {
+		t.Fatalf("Verify precondition: %v", err)
+	}
+	if !probeGrant(t, ws, key, cr.ID, claims.GrantID) {
+		t.Fatal("precondition: gate-minted write grant must be active before RW-only disable")
+	}
+
+	// RW-only disable.
+	delStatus, _ := rawDelete(t, socketPath, fmt.Sprintf("/sessions/%s/funnel-write", cr.ID))
+	if delStatus != http.StatusNoContent {
+		t.Fatalf("DELETE funnel-write: want 204, got %d", delStatus)
+	}
+
+	// The write grant must be gone — writer's next request 401/403.
+	if probeGrant(t, ws, key, cr.ID, claims.GrantID) {
+		t.Error("T-171-08: write grant still active after RW-only disable")
+	}
+
+	// Prohibition: the reusable public read code must STILL resolve — an
+	// RW-only disable must never break the read share.
+	if _, err := api.joinCodes.Exchange(publicReadCode); err != nil {
+		t.Errorf("prohibition violated: public read code no longer resolves after RW-only disable: %v", err)
+	}
+
+	// D-03 / Pitfall 3: funnelSessions/Funnel itself must be untouched — an
+	// RW-only disable must never ref-count decrement or call ws.DisableFunnel.
+	if !fake.IsFunnelOn() {
+		t.Error("D-03/Pitfall 3: RW-only disable must not tear down Funnel itself")
+	}
+}
+
+// TestFunnelWriteTeardown_AllTriggers verifies the write-cap cascade (D-03):
+// funnel-off, session natural end, and the write cap's own auto-expiry timer
+// must each revoke the gate-minted write grant (via revokeFunnelWriteLocked,
+// appended inside disableFunnelForSession / the expiry timer's own callback)
+// so no orphaned write cap survives any of the four teardown triggers
+// (prohibition 2).
+func TestFunnelWriteTeardown_AllTriggers(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+
+	// setup mints a Funnel session's write cap and returns everything a
+	// sub-test needs to assert the grant was live beforehand and is gone
+	// after its trigger fires.
+	setup := func(t *testing.T) (api *API, socketPath string, fake *daemonFakeFunnelClient, ws *webserver.WebServer, key []byte, sessionID, grantID string) {
+		t.Helper()
+		api, _, socketPath = testDaemon(t)
+		ws, fake = makeFunnelTestWebServer(t, api, "test.ts.net")
+		key = configureCapabilityStateForTest(t, api, ws)
+		ws.SetSessionResolver(func(string) (string, string, string, string) {
+			return "write-teardown", "cat", "running", "localhost"
+		})
+
+		_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"write-teardown","workDir":""}`)
+		var cr CreateResponse
+		if err := json.Unmarshal(body, &cr); err != nil {
+			t.Fatalf("decode create: %v", err)
+		}
+		rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":true}`)
+		enableFunnelViaHTTP(t, socketPath, cr.ID)
+
+		status, resp := enableFunnelWriteViaHTTP(t, socketPath, cr.ID, 900)
+		if status != http.StatusOK {
+			t.Fatalf("mint write cap: want 200, got %d", status)
+		}
+		wTok, err := api.joinCodes.Exchange(resp.WriteCode)
+		if err != nil {
+			t.Fatalf("Exchange(WriteCode) precondition: %v", err)
+		}
+		claims, err := capability.Verify(wTok, key)
+		if err != nil {
+			t.Fatalf("Verify precondition: %v", err)
+		}
+		if !probeGrant(t, ws, key, cr.ID, claims.GrantID) {
+			t.Fatal("precondition: gate-minted write grant must be active before the trigger fires")
+		}
+		return api, socketPath, fake, ws, key, cr.ID, claims.GrantID
+	}
+
+	t.Run("funnel_off", func(t *testing.T) {
+		_, socketPath, fake, ws, key, sid, grantID := setup(t)
+		status, _ := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/funnel", sid), `{"enabled":false}`)
+		if status != http.StatusNoContent {
+			t.Fatalf("funnel toggle-off: want 204, got %d", status)
+		}
+		if fake.IsFunnelOn() {
+			t.Error("precondition regression: funnel toggle-off did not clear fake config")
+		}
+		if probeGrant(t, ws, key, sid, grantID) {
+			t.Error("D-03: gate-minted write grant still active after funnel-off")
+		}
+	})
+
+	t.Run("session_natural_end", func(t *testing.T) {
+		api, _, _, ws, key, sid, grantID := setup(t)
+		api.runSessionExitCleanupForTest(sid)
+		if probeGrant(t, ws, key, sid, grantID) {
+			t.Error("D-03: gate-minted write grant still active after session natural end")
+		}
+	})
+
+	t.Run("write_cap_auto_expiry", func(t *testing.T) {
+		api, socketPath, _, ws, key, sid, grantID := setup(t)
+		// Re-mint with a 1-second expiry so its own timer (not the funnel
+		// read timer) fires and drives disableFunnelWriteForSession.
+		status, resp := enableFunnelWriteViaHTTP(t, socketPath, sid, 1)
+		if status != http.StatusOK {
+			t.Fatalf("re-mint with 1s expiry: want 200, got %d", status)
+		}
+		wTok, err := api.joinCodes.Exchange(resp.WriteCode)
+		if err != nil {
+			t.Fatalf("Exchange(WriteCode) after re-mint: %v", err)
+		}
+		claims, err := capability.Verify(wTok, key)
+		if err != nil {
+			t.Fatalf("Verify after re-mint: %v", err)
+		}
+		if claims.GrantID == grantID {
+			t.Fatal("precondition: re-mint must issue a fresh grantID")
+		}
+		if !probeGrant(t, ws, key, sid, claims.GrantID) {
+			t.Fatal("precondition: re-minted write grant must be active")
+		}
+
+		deadline := time.Now().Add(3 * time.Second)
+		for time.Now().Before(deadline) {
+			if !probeGrant(t, ws, key, sid, claims.GrantID) {
+				break
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		if probeGrant(t, ws, key, sid, claims.GrantID) {
+			t.Error("D-03: write cap's own auto-expiry timer did not revoke the grant within 3s")
+		}
+	})
+}

@@ -238,7 +238,10 @@ func (a *API) registerRoutes() {
 	// inherits the identical owner-only access-control model (no new auth
 	// layer — the daemon binds this mux to the loopback socket only).
 	// Mints a terminal-only cap with a single-use code, expiry clamped <=1h.
+	// DELETE revokes ONLY the write grant/code/gate (D-03) — the reusable
+	// public read share, funnelSessions, and every other grant are untouched.
 	a.mux.HandleFunc("POST /sessions/{id}/funnel-write", a.handleSetSessionFunnelWrite)
+	a.mux.HandleFunc("DELETE /sessions/{id}/funnel-write", a.handleDisableSessionFunnelWrite)
 	a.mux.HandleFunc("POST /join/exchange", a.handleExchangeJoinCode)
 	a.mux.HandleFunc("POST /capability/regenerate-key", a.handleRegenerateSigningKey)
 	// Phase 118 / FS-03..FS-07: read-only file API on the daemon-local socket.
@@ -1907,6 +1910,14 @@ func (a *API) handleSetSessionFunnelWrite(w http.ResponseWriter, r *http.Request
 	}
 
 	a.mu.Lock()
+	// Clear any prior gate-minted write grant/code/timer for this session
+	// before installing the fresh one: a re-mint without an intervening
+	// disable must not leak the previous grant/code, nor leave a stale timer
+	// that could later fire and revoke the NEW mint out from under it
+	// (mirrors T-165-13's re-enable-before-expiry double-fire guard for the
+	// read Funnel timer, generalised via the shared teardown primitive).
+	a.revokeFunnelWriteLocked(id, ws)
+
 	ws.AddGrant(id, grantID)
 	ws.SetRWGate(id, true)
 	if a.funnelWriteGrant == nil {
@@ -1920,12 +1931,6 @@ func (a *API) handleSetSessionFunnelWrite(w http.ResponseWriter, r *http.Request
 	if a.funnelWriteExpiry == nil {
 		a.funnelWriteExpiry = make(map[string]*time.Timer)
 	}
-	// Cancel any existing write-gate timer for this session before
-	// registering the new one (mirrors T-165-13's re-enable-before-expiry
-	// double-fire guard for the read Funnel timer).
-	if t, ok := a.funnelWriteExpiry[id]; ok {
-		t.Stop()
-	}
 	expiresAt := time.Now().Add(ttl)
 	a.funnelWriteExpiry[id] = time.AfterFunc(ttl, func() {
 		a.disableFunnelWriteForSession(context.Background(), id)
@@ -1938,6 +1943,18 @@ func (a *API) handleSetSessionFunnelWrite(w http.ResponseWriter, r *http.Request
 		WriteCode: code,
 		ExpiresAt: expiresAt.Unix(),
 	})
+}
+
+// handleDisableSessionFunnelWrite handles DELETE /sessions/{id}/funnel-write
+// (FNL-09). Revokes ONLY the gate-minted write grant/code/gate — never the
+// reusable public read share, funnelSessions, or any other grant for the
+// session (D-03, Pitfall 3): this handler delegates to
+// disableFunnelWriteForSession, never to ClearGrants or
+// disableFunnelForSession, both of which have a much wider blast radius.
+func (a *API) handleDisableSessionFunnelWrite(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	a.disableFunnelWriteForSession(r.Context(), id)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // disableFunnelForSession clears the per-session Funnel state and calls
@@ -1975,6 +1992,13 @@ func (a *API) disableFunnelForSession(ctx context.Context, sessionID string) {
 	delete(a.funnelSessions, sessionID)
 	remaining := len(a.funnelSessions)
 	ws := a.webServer
+	// Phase 171-02 / FNL-09 / D-03: cascade into the write-cap teardown too —
+	// every trigger that tears down the read share (toggle-off, web-share-off,
+	// session-exit, auto-expiry) must also revoke any gate-minted write cap;
+	// a public write cap must never outlive the read share it was granted
+	// alongside. revokeFunnelWriteLocked is a no-op when no write cap was
+	// ever minted for this session.
+	a.revokeFunnelWriteLocked(sessionID, ws)
 	a.mu.Unlock()
 
 	// Ref-count gate (Anti-Pattern 3 / T-165-09): only call DisableFunnel when
@@ -1984,19 +2008,18 @@ func (a *API) disableFunnelForSession(ctx context.Context, sessionID string) {
 	}
 }
 
-// disableFunnelWriteForSession revokes the gate-minted write grant, code,
-// RW gate, and expiry timer for sessionID (FNL-09) — surgically, WITHOUT
-// touching the reusable public read share, funnelSessions, or any other
-// grant for the session. This is the expiry-timer callback target
-// (registered by handleSetSessionFunnelWrite); Task 3 additionally wires it
-// as the RW-only HTTP disable path. ctx is accepted for parity with
-// disableFunnelForSession's signature even though this teardown makes no
-// blocking calls that need it.
-func (a *API) disableFunnelWriteForSession(_ context.Context, sessionID string) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	ws := a.webServer
+// revokeFunnelWriteLocked revokes exactly the gate-minted write grant, code,
+// RW gate, and expiry timer for sessionID (FNL-09) — the single shared
+// teardown primitive called from BOTH the RW-only disable path
+// (disableFunnelWriteForSession) and disableFunnelForSession's cascade
+// above (funnel-off / web-share-off / session-exit / auto-expiry). The
+// caller MUST hold a.mu. Mirrors the inlined funnelReadCode cleanup block
+// in disableFunnelForSession, but scoped to the write cap ONLY — it never
+// touches funnelSessions/funnelReadCode and never calls ws.DisableFunnel or
+// ClearGrants (that wider blast radius is exactly why an RW-only disable
+// must not route through disableFunnelForSession, Pitfall 3). A no-op when
+// no write cap was ever minted for this session (idempotent).
+func (a *API) revokeFunnelWriteLocked(sessionID string, ws *webserver.WebServer) {
 	if grantID, ok := a.funnelWriteGrant[sessionID]; ok {
 		if ws != nil {
 			ws.RemoveGrant(sessionID, grantID)
@@ -2014,6 +2037,20 @@ func (a *API) disableFunnelWriteForSession(_ context.Context, sessionID string) 
 		t.Stop()
 		delete(a.funnelWriteExpiry, sessionID)
 	}
+}
+
+// disableFunnelWriteForSession revokes the gate-minted write grant/code/gate
+// for sessionID (FNL-09) WITHOUT touching the reusable public read share,
+// funnelSessions, or any other grant — a surgical sibling to
+// disableFunnelForSession's much wider blast radius (Pitfall 3). This is
+// both the expiry-timer callback target (registered by
+// handleSetSessionFunnelWrite) and the RW-only HTTP DELETE
+// /sessions/{id}/funnel-write handler's delegate.
+func (a *API) disableFunnelWriteForSession(_ context.Context, sessionID string) {
+	a.mu.Lock()
+	ws := a.webServer
+	a.revokeFunnelWriteLocked(sessionID, ws)
+	a.mu.Unlock()
 }
 
 // handleSetSessionBrowse handles POST /sessions/{id}/browse.
