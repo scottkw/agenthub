@@ -107,6 +107,13 @@ type WebServer struct {
 	// by ws.mu.
 	grants map[string]map[string]struct{}
 
+	// rwGated tracks which sessions have passed the public-write consent gate
+	// (FNL-09 D-02). Set via SetRWGate, read via isRWGated. Guarded by ws.mu,
+	// colocated with grants. Lazy-initialized by SetRWGate — a nil map reads
+	// as "no session gated" (Go's nil-map-read-returns-zero-value semantics),
+	// so NewWebServer does not need to pre-allocate it.
+	rwGated map[string]bool
+
 	// signingKey is the 32-byte HMAC-SHA256 key used by requireCapability
 	// (D-04/D-16). Guarded by ws.mu; swapped race-free via SetSigningKey.
 	// Read via currentSigningKey which returns the slice header under RLock.
@@ -329,6 +336,48 @@ func (ws *WebServer) isGrantActive(sessionID, grantID string) bool {
 	}
 	_, ok := ws.grants[sessionID][grantID]
 	return ok
+}
+
+// RemoveGrant removes a single grantID from sessionID's active grant set,
+// leaving any other grants for that session (e.g. the ordinary tailnet
+// read/write grants) intact and still valid. This is a surgical sibling to
+// ClearGrants (D-15), which wipes every grant for a session — using
+// ClearGrants to revoke one gate-minted write grant would also kill the
+// session's other active grants (Pitfall 2). Idempotent: removing an absent
+// or already-removed grantID is a no-op.
+func (ws *WebServer) RemoveGrant(sessionID, grantID string) {
+	ws.mu.Lock()
+	if ws.grants[sessionID] != nil {
+		delete(ws.grants[sessionID], grantID)
+	}
+	ws.mu.Unlock()
+}
+
+// SetRWGate records whether sessionID has passed the public-write consent
+// gate (FNL-09 D-02). active=true marks the session gated; active=false
+// deletes the entry (rather than leaving a lingering false value) so
+// isRWGated's zero-value read (false) is indistinguishable from an explicit
+// clear. Guarded by ws.mu, colocated with the grants map.
+func (ws *WebServer) SetRWGate(sessionID string, active bool) {
+	ws.mu.Lock()
+	if active {
+		if ws.rwGated == nil {
+			ws.rwGated = make(map[string]bool)
+		}
+		ws.rwGated[sessionID] = true
+	} else {
+		delete(ws.rwGated, sessionID)
+	}
+	ws.mu.Unlock()
+}
+
+// isRWGated reports whether sessionID has passed the public-write consent
+// gate. Read-only; uses the RLock path to avoid blocking concurrent
+// requireCapability/originAllowedForWrite calls against other sessions.
+func (ws *WebServer) isRWGated(sessionID string) bool {
+	ws.mu.RLock()
+	defer ws.mu.RUnlock()
+	return ws.rwGated[sessionID]
 }
 
 // SetSigningKey installs the HMAC-SHA256 signing key used by subsequent
