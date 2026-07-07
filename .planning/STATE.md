@@ -5,10 +5,10 @@ milestone_name: Funnel Sharing & Polish
 current_phase: 171
 current_phase_name: public-full-access-read-write-internet-sharing-behind-a-hard
 status: verifying
-stopped_at: Completed 171-04-PLAN.md
-last_updated: "2026-07-07T22:07:17.764Z"
+stopped_at: Phase 171 executed 4/4 + automated verification PASSED; awaiting M-47 live off-tailnet UAT
+last_updated: "2026-07-07T23:56:00.000Z"
 last_activity: 2026-07-07
-last_activity_desc: Phase 171 execution started
+last_activity_desc: Phase 171 executed (4/4 plans) + auto-verified; human_needed on M-47 live public-write UAT (run /gsd-verify-work 171)
 progress:
   total_phases: 8
   completed_phases: 7
