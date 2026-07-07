@@ -143,4 +143,26 @@ export namespace daemon {
 		b?: boolean;       // true when bold attribute set
 	}
 
+	// Phase 171-02 / FNL-09: response body for (*App).SetSessionFunnelWrite —
+	// mirrors internal/daemon/types.go SetSessionFunnelWriteResponse. WriteURL
+	// is the Funnel-base public entry point for the gate-minted write cap;
+	// WriteCode is its single-use join code; ExpiresAt is the shared
+	// UNIX-seconds expiry of the grant + code (server-clamped to <=1h).
+	export class SetSessionFunnelWriteResponse {
+	    writeUrl: string;
+	    writeCode: string;
+	    expiresAt: number;
+
+	    static createFrom(source: any = {}) {
+	        return new SetSessionFunnelWriteResponse(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.writeUrl = source["writeUrl"];
+	        this.writeCode = source["writeCode"];
+	        this.expiresAt = source["expiresAt"];
+	    }
+	}
+
 }

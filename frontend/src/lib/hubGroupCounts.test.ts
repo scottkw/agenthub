@@ -24,6 +24,7 @@ function makeSession(
     homeDir: false,
     browseEnabled: false,
     funnelActive: false,
+    funnelWriteActive: false,
     workDir: overrides.workDir,
   }
 }

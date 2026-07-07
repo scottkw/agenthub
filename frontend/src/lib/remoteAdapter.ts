@@ -28,6 +28,7 @@ export function adaptRemoteSession(
     homeDir: false,
     browseEnabled: false,
     funnelActive: false,       // remote sessions are never Funnel-active from the local perspective
+    funnelWriteActive: false,  // remote sessions never carry the local gate-minted write cap (FNL-09)
     url: session.url,          // CR-01: carry the peer URL so "Open in browser" can resolve it
   }
 }

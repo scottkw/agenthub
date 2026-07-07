@@ -752,6 +752,55 @@ func TestIssueCapabilities_FunnelURL(t *testing.T) {
 	}
 }
 
+// TestIssueCapabilitiesForSession_WriteRebaseRemoved verifies D-04 (Phase
+// 171-02 / FNL-09, T-171-07): even for an ACTIVE Funnel session,
+// issueCapabilitiesForSession's WriteURL (the tailnet "Full Access Link")
+// must stay on the tailnet BaseURL — it must NEVER be rebased to
+// FunnelBaseURL. ReadURL (the FNL-08 public-share link) keeps its existing
+// Funnel-rebase behavior unchanged. Before this fix both shared one `base`
+// variable, so enabling Funnel silently turned the owner's tailnet-only
+// full-access link into a public one.
+func TestIssueCapabilitiesForSession_WriteRebaseRemoved(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+	api, _, socketPath := testDaemon(t)
+	_, _ = makeFunnelTestWebServer(t, api, "test.ts.net")
+	configureCapabilityStateForTest(t, api, api.webServer)
+
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"write-rebase-removed","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create: %v", err)
+	}
+	rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":true}`)
+	enableFunnelViaHTTP(t, socketPath, cr.ID)
+
+	tailnetBase := api.webServer.BaseURL()
+	funnelBase := api.webServer.FunnelBaseURL()
+	if funnelBase == "" {
+		t.Fatal("precondition: FunnelBaseURL must be non-empty after enable")
+	}
+
+	readURL, writeURL, _, _, _, err := api.issueCapabilitiesForSession(cr.ID)
+	if err != nil {
+		t.Fatalf("issueCapabilitiesForSession: %v", err)
+	}
+
+	// D-04: WriteURL must stay on the tailnet base, NEVER the Funnel base.
+	if !strings.HasPrefix(writeURL, tailnetBase) {
+		t.Errorf("D-04: WriteURL %q must start with tailnet BaseURL %q (Funnel active must not rebase it)", writeURL, tailnetBase)
+	}
+	if strings.HasPrefix(writeURL, funnelBase) {
+		t.Errorf("D-04 / T-171-07: WriteURL %q must NOT start with FunnelBaseURL %q — this is the accidental public-write gap", writeURL, funnelBase)
+	}
+
+	// ReadURL keeps its pre-existing FNL-08 Funnel-rebase behavior — unaffected by D-04.
+	if !strings.HasPrefix(readURL, funnelBase) {
+		t.Errorf("ReadURL %q must still start with FunnelBaseURL %q (unaffected by D-04)", readURL, funnelBase)
+	}
+}
+
 // TestExchangeJoinCode_FunnelURL_GateIntact verifies FNL-03 in handleExchangeJoinCode:
 //   - For a Funnel session, POST /join/exchange with a VALID code returns a URL
 //     on the funnel host (no port) AND includes ?cap=<token>.

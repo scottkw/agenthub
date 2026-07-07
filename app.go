@@ -1061,6 +1061,31 @@ func (a *App) SetSessionFunnel(sessionID string, enabled bool, expiresIn int) er
 	return a.client.SetSessionFunnel(sessionID, enabled, expiresIn)
 }
 
+// SetSessionFunnelWrite mints the gate-minted, terminal-only public write
+// capability for a session (FNL-09). Phase 171-02. Thin bridge — all
+// RW-gate lifecycle logic lives in the daemon; expiresIn is the requested
+// TTL in seconds (server-clamped unconditionally to (0, 3600]).
+func (a *App) SetSessionFunnelWrite(sessionID string, expiresIn int) (daemon.SetSessionFunnelWriteResponse, error) {
+	if a.client == nil {
+		return daemon.SetSessionFunnelWriteResponse{}, fmt.Errorf("daemon not connected")
+	}
+	writeURL, writeCode, expiresAt, err := a.client.SetSessionFunnelWrite(sessionID, expiresIn)
+	if err != nil {
+		return daemon.SetSessionFunnelWriteResponse{}, err
+	}
+	return daemon.SetSessionFunnelWriteResponse{WriteURL: writeURL, WriteCode: writeCode, ExpiresAt: expiresAt}, nil
+}
+
+// DisableSessionFunnelWrite revokes the gate-minted write grant/code/gate
+// for a session (FNL-09) without disturbing the reusable public read share.
+// Phase 171-02. Thin bridge — mirrors SetSessionFunnelWrite.
+func (a *App) DisableSessionFunnelWrite(sessionID string) error {
+	if a.client == nil {
+		return fmt.Errorf("daemon not connected")
+	}
+	return a.client.DisableSessionFunnelWrite(sessionID)
+}
+
 // NotifyThemeChange signals active OpenCode terminal sessions to re-query
 // the terminal palette after a theme change in Settings > Appearance.
 // Fire-and-forget from the frontend — errors are logged, not surfaced to UI.

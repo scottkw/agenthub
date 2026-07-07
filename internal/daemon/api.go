@@ -106,6 +106,25 @@ type API struct {
 	// disableFunnelForSession alongside funnelReadCode. Guarded by a.mu.
 	funnelReadCodeExpiry map[string]time.Time
 
+	// --- Phase 171-02 Funnel public WRITE-gate state (FNL-09) ----------------
+	// funnelWriteGrant caches the gate-minted write grantID per session so
+	// revokeFunnelWriteLocked can surgically ws.RemoveGrant exactly that
+	// grant — never a ClearGrants-style wipe of the session's other active
+	// grants (Pitfall 2 precedent from Phase 171-01's RemoveGrant). Lazy-
+	// initialised on first mint. Guarded by a.mu.
+	funnelWriteGrant map[string]string
+	// funnelWriteCode caches the single-use public write join code per
+	// session so it can be explicitly a.joinCodes.Revoke'd at any of the
+	// four teardown triggers (owner disables RW / funnel-off / session-exit
+	// / auto-expiry) rather than being left to its own TTL alone.
+	// Lazy-initialised on first mint. Guarded by a.mu.
+	funnelWriteCode map[string]string
+	// funnelWriteExpiry holds the per-session auto-expiry timer for the
+	// gate-minted write cap (clamped <=1h, R5/D-11). Stopped + removed on
+	// early teardown to prevent double-fire (mirrors funnelExpiry/T-165-13).
+	// Lazy-initialised on first mint. Guarded by a.mu.
+	funnelWriteExpiry map[string]*time.Timer
+
 	// mintRaceHookForTest, when non-nil, is invoked by issueCapabilitiesForSession
 	// AFTER the base-URL Funnel-membership read but BEFORE the mint critical
 	// section takes a.mu — the exact TOCTOU window WR-01 closes. A test sets it to
@@ -682,6 +701,11 @@ func (a *API) handleListSessions(w http.ResponseWriter, r *http.Request) {
 	for k, v := range a.funnelSessions {
 		funnelSnap[k] = v
 	}
+	// Snapshot funnelWriteGrant presence (FNL-09) under the same read lock.
+	funnelWriteSnap := make(map[string]bool, len(a.funnelWriteGrant))
+	for k := range a.funnelWriteGrant {
+		funnelWriteSnap[k] = true
+	}
 	a.mu.RUnlock()
 	if ws != nil {
 		for i := range sessions {
@@ -692,6 +716,12 @@ func (a *API) handleListSessions(w http.ResponseWriter, r *http.Request) {
 	// NOT omitempty: false must serialise so frontend polling detects expiry.
 	for i := range sessions {
 		sessions[i].FunnelActive = funnelSnap[sessions[i].ID]
+	}
+	// Populate FunnelWriteActive from the snapshot (FNL-09).
+	// NOT omitempty: false must serialise so the frontend poll detects the
+	// true->false flip when the gate-minted write cap is revoked.
+	for i := range sessions {
+		sessions[i].FunnelWriteActive = funnelWriteSnap[sessions[i].ID]
 	}
 
 	writeJSON(w, http.StatusOK, sessions)
@@ -1448,20 +1478,30 @@ func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, 
 	ws.AddGrant(sessionID, rClaims.GrantID)
 	ws.AddGrant(sessionID, wClaims.GrantID)
 
-	// Phase 165 / FNL-03: use FunnelBaseURL (no-port public URL) for Funnel sessions;
-	// fall back to the tailnet BaseURL when Funnel is not active for this session.
-	// Fail-safe: if FunnelBaseURL is "" (not yet cached or race), keep the tailnet base.
-	base := ws.BaseURL()
+	// Phase 165 / FNL-03: use FunnelBaseURL (no-port public URL) for the READ
+	// link on Funnel sessions; fall back to the tailnet BaseURL when Funnel
+	// is not active for this session. Fail-safe: if FunnelBaseURL is "" (not
+	// yet cached or race), keep the tailnet base.
+	//
+	// D-04 (Phase 171 / FNL-09): the WRITE link (tailnet "Full Access Link")
+	// is NEVER rebased to the Funnel base here — readBase and writeBase are
+	// deliberately separate variables. Before this fix both shared one `base`
+	// var, so enabling Funnel silently turned the owner's tailnet-only
+	// full-access link into a public one (T-171-07, the accidental-write
+	// gap this phase closes). The ONLY public write cap is now minted by the
+	// dedicated gate handler (handleSetSessionFunnelWrite), never here.
+	readBase := ws.BaseURL()
+	writeBase := ws.BaseURL()
 	a.mu.RLock()
 	isFunnelSession := a.funnelSessions[sessionID]
 	a.mu.RUnlock()
 	if isFunnelSession {
 		if fb := ws.FunnelBaseURL(); fb != "" {
-			base = fb
+			readBase = fb
 		}
 	}
-	readURL = base + "/sessions/" + sessionID + "?cap=" + rTok
-	writeURL = base + "/sessions/" + sessionID + "?cap=" + wTok
+	readURL = readBase + "/sessions/" + sessionID + "?cap=" + rTok
+	writeURL = writeBase + "/sessions/" + sessionID + "?cap=" + wTok
 
 	readCode, err = a.joinCodes.Issue(rTok)
 	if err != nil {

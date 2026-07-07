@@ -21,6 +21,7 @@ function makeSession(overrides: Partial<SessionInfo> = {}): SessionInfo {
     homeDir: false,
     browseEnabled: false,
     funnelActive: false,
+    funnelWriteActive: false,
     workDir: '',
     ...overrides,
   }

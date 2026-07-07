@@ -23,6 +23,8 @@ export interface SessionInfo {
   funnelActive: boolean
   /** Phase 131 / GRID-02: EvalSymlinks-resolved session working directory. Used by the Hub to group session cards by working directory. */
   workDir: string
+  /** Phase 171-02 / FNL-09: true when the gate-minted public write cap is active. NOT omitempty — false must serialize so the frontend poll detects revocation. */
+  funnelWriteActive: boolean
 }
 
 export interface DetectedCLI {
@@ -221,3 +223,12 @@ export function SetSessionBrowse(sessionID: string, enabled: boolean): Promise<v
 
 // Phase 165 / FNL-01 — Funnel on/off; expiresIn=0 means no auto-expiry (FNL-07).
 export function SetSessionFunnel(sessionID: string, enabled: boolean, expiresIn: number): Promise<void>
+
+// Phase 171-02 / FNL-09 — mint the gate-minted, terminal-only public write
+// capability (single-use write code, RW consent gate, expiry clamped
+// server-side to <=1h regardless of the requested expiresIn — NOT the
+// funnel-read handler's expiresIn==0-means-unbounded semantics).
+export function SetSessionFunnelWrite(sessionID: string, expiresIn: number): Promise<daemon.SetSessionFunnelWriteResponse>
+// Phase 171-02 / FNL-09 — revoke the gate-minted write grant/code/gate without
+// disturbing the reusable public read share.
+export function DisableSessionFunnelWrite(sessionID: string): Promise<void>

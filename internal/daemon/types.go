@@ -33,6 +33,11 @@ type SessionInfo struct {
 	BrowseEnabled bool   `json:"browseEnabled"`      // Phase 137 / SHARE-05: true when per-session browse toggle is ON; NOT omitempty (false must serialize so modal can seed on open)
 	FunnelActive  bool   `json:"funnelActive"`       // Phase 165 / FNL-01: true when Tailscale Funnel is active for this session; NOT omitempty (false must serialize so frontend poll detects expiry)
 	WorkDir       string `json:"workDir"`            // Phase 131 / GRID-02: EvalSymlinks-resolved session working directory; populated from engine.sessionWorkDirs map; enables Hub card grouping by directory
+	// FunnelWriteActive is true when the gate-minted public write cap (FNL-09)
+	// is currently active for this session. NOT omitempty — false must
+	// serialize so the frontend poll detects a true->false teardown flip
+	// (mirrors FunnelActive/BrowseEnabled, Phase 171 / FNL-09).
+	FunnelWriteActive bool `json:"funnelWriteActive"`
 }
 
 // CreateRequest is the request body for POST /sessions.
@@ -163,6 +168,30 @@ type SetSessionFunnelRequest struct {
 // (port 443 = default HTTPS, so ":443" is omitted). Phase 165 / FNL-01/FNL-03.
 type SetSessionFunnelResponse struct {
 	FunnelURL string `json:"funnelUrl"` // "https://<hostname>" — no :443 suffix
+}
+
+// SetSessionFunnelWriteRequest is the request body for POST
+// /sessions/{id}/funnel-write. Phase 171 / FNL-09 — mints the gate-minted,
+// terminal-only, single-use public write capability.
+type SetSessionFunnelWriteRequest struct {
+	// ExpiresIn is the requested TTL (seconds) for the write grant/code.
+	// Server-side clamped UNCONDITIONALLY to (0, 3600]: 0 or a value greater
+	// than 3600 becomes exactly 3600 (R5/D-11). This is deliberately NOT the
+	// read Funnel handler's ExpiresIn==0-means-unbounded semantics (Pitfall
+	// 6) — a public WRITE cap must always be bounded and short-lived.
+	ExpiresIn int `json:"expiresIn"`
+}
+
+// SetSessionFunnelWriteResponse is the response body for POST
+// /sessions/{id}/funnel-write. WriteURL is the Funnel-base public entry
+// point (never the tailnet base — this cap is public-only by design);
+// WriteCode is the single-use join code; ExpiresAt is the absolute
+// UNIX-seconds expiry shared by both the grant and the code.
+// Phase 171 / FNL-09.
+type SetSessionFunnelWriteResponse struct {
+	WriteURL  string `json:"writeUrl"`
+	WriteCode string `json:"writeCode"`
+	ExpiresAt int64  `json:"expiresAt"`
 }
 
 // --- Phase 87 capability types (D-06, D-07, D-09, D-11) ------------------

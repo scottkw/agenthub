@@ -143,3 +143,7 @@ export const SetSessionBrowse        = (sessionID, enabled) => Call('main.App.Se
 
 // Phase 165 / FNL-01 — Funnel enable/disable with auto-expiry (expiresIn=0 = no expiry).
 export const SetSessionFunnel = (sessionID, enabled, expiresIn) => Call('main.App.SetSessionFunnel', [sessionID, enabled, expiresIn])
+
+// Phase 171-02 / FNL-09 — mint/revoke the gate-minted public write capability.
+export const SetSessionFunnelWrite     = (sessionID, expiresIn) => Call('main.App.SetSessionFunnelWrite', [sessionID, expiresIn])
+export const DisableSessionFunnelWrite = (sessionID)            => Call('main.App.DisableSessionFunnelWrite', [sessionID])

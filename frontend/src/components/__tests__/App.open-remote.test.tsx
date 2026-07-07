@@ -74,6 +74,7 @@ const remoteSession: SessionInfo = {
   homeDir: false,
   browseEnabled: false,
   funnelActive: false,
+  funnelWriteActive: false,
   workDir: '/home/user',
 }
 
