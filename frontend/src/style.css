@@ -4715,6 +4715,11 @@ textarea {
   --hub-fullaccess-badge-text: #f7768e;
   /* Phase 147: Help page search highlight token (dark theme) */
   --hub-search-highlight-bg: rgba(122, 162, 247, 0.25);
+  /* === Phase 173 (SM-03/D-03): Share segmented-control active-segment bg (dark) ===
+     COLORBLIND-SAFE: mirrors --hub-sidebar-item-active-bg's accent-tint pattern
+     (raised bg only; the danger segment's distinction is a box-shadow inset ring
+     on --hub-destructive, never this token). No new hue introduced. */
+  --hub-share-seg-active-bg: rgba(122, 162, 247, 0.12);
 }
 
 /* --- Light theme (HUB-04 — applied via [data-ui-theme="light"] on <html>) --- */
@@ -4780,6 +4785,9 @@ textarea {
   --hub-fullaccess-badge-text: #c0394f;
   /* Phase 147: Help page search highlight token (light theme) */
   --hub-search-highlight-bg: rgba(61, 111, 232, 0.20);
+  /* === Phase 173 (SM-03/D-03): Share segmented-control active-segment bg (light) ===
+     Mirrors --hub-sidebar-item-active-bg's light-theme accent-tint value. */
+  --hub-share-seg-active-bg: rgba(61, 111, 232, 0.10);
   /* Comp semantic colors (light — light-theme values preserved this pass) */
   --hub-teal: #0d9488;
   --hub-orange: #c2410c;
@@ -6387,10 +6395,15 @@ textarea {
    Analog: .hub-modal / .hub-modal__header / .hub-modal__body above.
    ===================================================================== */
 
-/* Share Modal Panel — narrower than hub-modal (480px vs 1100px) */
+/* Share Modal Panel — narrower than hub-modal (520px vs 1100px) */
 .hub-share-modal {
   position: relative;
-  width: min(480px, calc(100vw - 48px));
+  /* Phase 173 (SM-08): widened 480px -> 520px so the three-tab segmented
+     control's stacked two-line labels ("Internet" / "Read-only") and the
+     link-card rows have room to breathe; min() still clamps on narrow
+     viewports (verified: base clamps to (100vw - 48px), independent of the
+     prefers-reduced-motion override below, which is a MOTION guard only). */
+  width: min(520px, calc(100vw - 48px));
   /* Bound the card height so tall content (home-dir warning + RO/RW links +
      the Funnel INTERNET-PUBLIC section + QR) scrolls inside __body instead of
      overflowing the viewport and clipping the header/QR. Mirrors .hub-modal's
@@ -6430,7 +6443,12 @@ textarea {
   white-space: nowrap;
 }
 
-/* Share Modal Body — scrollable content container */
+/* Share Modal Body — outer flex column (control strip + segbar + tabpanel).
+   Phase 173 (SM-02): overflow-y:auto is KEPT here as an outer safety bound
+   (e.g. a very short viewport), but under normal sizing the fixed control
+   strip + segmented control never grow, so this level should not need to
+   scroll in practice — .hub-share-modal__tabpanel below is the ONE region
+   designed to scroll when a tab's content is tall. */
 .hub-share-modal__body {
   flex: 1;
   min-height: 0;
@@ -6438,6 +6456,18 @@ textarea {
   flex-direction: column;
   padding: 16px;
   overflow-y: auto;
+  gap: 12px;
+}
+
+/* Share Modal Tab Panel — the single inner scroll region (SM-02/D-02).
+   Mounted by the shell (Plan 06) to wrap the active tab's body content only;
+   the control strip + segbar above it stay fixed and never scroll with it. */
+.hub-share-modal__tabpanel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
