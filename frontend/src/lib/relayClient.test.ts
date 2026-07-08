@@ -678,3 +678,70 @@ describe('RelayClient onSelf callback dispatch (Phase 161-02)', () => {
     client.close()
   })
 })
+
+// ─── Phase 175-06: onClose(code, reason) — BUG-02 (#125) ─────────────────────
+
+describe('RelayClient onClose callback dispatch (Phase 175-06 / BUG-02)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let lastMockWS: any
+
+  beforeEach(() => {
+    lastMockWS = null
+    const MockWS = vi.fn(function (this: Record<string, unknown>) {
+      this.binaryType = 'arraybuffer'
+      this.readyState = 1 // OPEN
+      this.onopen = null
+      this.onmessage = null
+      this.onclose = null
+      this.onerror = null
+      this.send = vi.fn()
+      this.close = vi.fn()
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
+      lastMockWS = this
+    }) as unknown as typeof WebSocket
+    ;(MockWS as any).OPEN = 1
+    vi.stubGlobal('WebSocket', MockWS)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('fires onClose(code, reason) exactly once with the CloseEvent code/reason on ws close', () => {
+    const onCloseFn = vi.fn()
+    const client = new RelayClient(34115, 'sess-close', { onOutput: vi.fn(), onClose: onCloseFn })
+
+    lastMockWS.onclose?.({ code: 1000, reason: 'session ended' } as CloseEvent)
+
+    expect(onCloseFn).toHaveBeenCalledTimes(1)
+    expect(onCloseFn).toHaveBeenCalledWith(1000, 'session ended')
+
+    client.close()
+  })
+
+  it('does not throw when onClose is omitted and the ws closes', () => {
+    const callbacks: RelayClientCallbacks = { onOutput: vi.fn() }
+    const client = new RelayClient(34115, 'sess-noclose', callbacks)
+
+    expect(() => {
+      lastMockWS.onclose?.({ code: 1000, reason: 'session ended' } as CloseEvent)
+    }).not.toThrow()
+
+    client.close()
+  })
+
+  it('still clears the ping interval on close (pre-existing behavior preserved)', () => {
+    vi.useFakeTimers()
+    const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval')
+    const client = new RelayClient(34115, 'sess-clearping', { onOutput: vi.fn() })
+
+    lastMockWS.onopen?.()
+    lastMockWS.onclose?.({ code: 1000, reason: 'session ended' } as CloseEvent)
+
+    expect(clearIntervalSpy).toHaveBeenCalled()
+
+    client.close()
+    clearIntervalSpy.mockRestore()
+    vi.useRealTimers()
+  })
+})

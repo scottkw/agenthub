@@ -205,7 +205,15 @@ export function parseServerFrame(data: Uint8Array): ServerFrame {
 export interface RelayClientCallbacks {
   onOutput: (data: Uint8Array) => void
   onOpen?: () => void
-  onClose?: () => void
+  /**
+   * Phase 175-06 (BUG-02 / #125): fired once when the WebSocket closes,
+   * carrying the raw CloseEvent code/reason. Both server write pumps
+   * (webserver/server.go, relay/server.go) send a fixed generic reason
+   * ("session ended") on hub.Done() — never a raw error string or a
+   * user-set session name (T-175-06-01). code/reason are optional so
+   * existing () => void-shaped callers keep working unchanged.
+   */
+  onClose?: (code?: number, reason?: string) => void
   onPresence?: (participants: PresenceEntry[]) => void
   onTyping?: (personKey: string, alias: string, typing: boolean) => void
   onChat?: (message: ChatMessage) => void
@@ -294,9 +302,9 @@ export class RelayClient {
       }
     }
 
-    this.ws.onclose = () => {
+    this.ws.onclose = (evt: CloseEvent) => {
       this._clearPing()
-      callbacks.onClose?.()
+      callbacks.onClose?.(evt.code, evt.reason)
     }
 
     this.ws.onerror = () => {

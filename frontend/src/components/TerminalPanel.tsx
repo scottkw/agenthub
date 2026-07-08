@@ -20,6 +20,7 @@ import { daemon } from '../wailsjs/go/models'
 import { isAllowedScheme, getRisk, type RiskKind } from '../lib/urlSafety'
 import { openLink, isModifierPressed, type ModifierMode } from '../lib/openLink'
 import { LinkConfirmPopover } from './LinkConfirmPopover'
+import { SessionEndedBanner } from './SessionEndedBanner'
 // Phase 113 UI-03 / UI-04 — iPad single-finger scrollback. xterm.js v6 has
 // no built-in touch handling; this helper attaches the missing handlers.
 import { attachTouchScroll } from '../lib/touchScrollHandler'
@@ -204,6 +205,15 @@ export function TerminalPanel({
   // SearchAddon (also at this level) and FindBar share a single source of
   // truth. searchOptions are seeded from pluginConfig?.searchConfig at
   // mount only (Pitfall #2 — mid-open re-sync would surprise the user).
+  // Phase 175-06 (BUG-02 / #125): guest-path disconnect notice. Set when the
+  // RelayClient onClose fires on the guest (remote viewer) path — the owner
+  // ended/stopped the session and the server sent a "session ended" close.
+  // Never set on the host path, and never wired to auto-reconnect (RESEARCH
+  // anti-pattern) — a "session ended" close means the session is genuinely
+  // gone.
+  const [sessionEnded, setSessionEnded] = useState<{ ended: boolean; reason?: string }>({
+    ended: false,
+  })
   const [findBarOpen, setFindBarOpen] = useState(false)
   // Phase 94 WR-01 / SC-4 — exit animation. While `findBarExiting` is true,
   // the FindBar receives an `exiting` prop that toggles the .find-bar--exiting
@@ -344,7 +354,13 @@ export function TerminalPanel({
       onOpen: isGuest
         ? undefined
         : () => { client.sendResize(term.cols, term.rows) },
-      onClose: () => console.debug(`[RelayClient] disconnected session=${sessionId}`),
+      // Phase 175-06 (BUG-02 / #125): show the disconnect banner on the
+      // guest path only — the host is the owner and does not need a
+      // "session ended" notice about its own session. No auto-reconnect.
+      onClose: (code, reason) => {
+        console.debug(`[RelayClient] disconnected session=${sessionId}`, code, reason)
+        if (isGuest) setSessionEnded({ ended: true, reason })
+      },
       // VIEW-04/05 (Phase 157): guest honors server-pushed 0x02 → term.resize +
       // scale recompute. Pitfall 5: term.resize BEFORE recomputeScale so scale
       // math reads the new term.cols/rows. Clamp to ≥1 (T-157-03 / xterm guard).
@@ -946,6 +962,12 @@ export function TerminalPanel({
         backgroundColor: theme.background ?? '#1a1b26',
       }}
     >
+      {isGuestRef.current && sessionEnded.ended && (
+        <SessionEndedBanner
+          reason={sessionEnded.reason}
+          onDismiss={() => setSessionEnded({ ended: false })}
+        />
+      )}
       {(findBarOpen || findBarExiting) && pluginConfig?.search && (
         <FindBar
           query={searchQuery}
