@@ -829,3 +829,105 @@ describe('SessionCard attention (ATTN-01)', () => {
     expect(badge!.textContent).toBe('@')
   })
 })
+
+// ---- Phase 172: consolidated chip row (agent · origin · exposure) ----
+// Structural assertions only (class presence + text content) — this is a jsdom
+// render, not a visual check. The pixel-level contract (border-radius: 7px,
+// exposure forced onto its own line via flex-basis: 100%, etc.) is the Sketch
+// 001 Variant B / computed-style contract verified at source in style.css
+// (Task 1's automated grep gate), not asserted here — jsdom does not compute
+// layout, so a flex-basis/border-radius assertion here would be a no-op.
+describe('SessionCard chip row (Phase 172)', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.clearAllMocks()
+  })
+
+  function renderCardWithProps(
+    session: SessionInfo,
+    props: { isRemote?: boolean; isConnected?: boolean } = {},
+  ) {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(
+        <SessionCard session={session} isRemote={props.isRemote} isConnected={props.isConnected} />
+      )
+    })
+    return { container, root }
+  }
+
+  it('renders an agent chip (.hub-card__chip--agent) with the cli text', () => {
+    const { container } = renderCardWithProps(makeSession({ cli: 'claude' }))
+    const chip = container.querySelector('.hub-card__chip--agent')
+    expect(chip).not.toBeNull()
+    expect(chip!.textContent).toContain('claude')
+  })
+
+  it('local session renders an origin chip (.hub-card__chip--origin) with "Local"', () => {
+    const { container } = renderCardWithProps(
+      makeSession({ hostname: '' }),
+      { isRemote: false },
+    )
+    const chip = container.querySelector('.hub-card__chip--origin')
+    expect(chip).not.toBeNull()
+    expect(chip!.textContent).toContain('Local')
+  })
+
+  it('remote session renders an origin chip (.hub-card__chip--origin) with the peer hostname', () => {
+    const { container } = renderCardWithProps(
+      makeSession({ hostname: 'peer.tail9c2f1.ts.net' }),
+      { isRemote: true },
+    )
+    const chip = container.querySelector('.hub-card__chip--origin')
+    expect(chip).not.toBeNull()
+    expect(chip!.textContent).toContain('peer.tail9c2f1.ts.net')
+  })
+
+  it('FUI-03/D-04: funnelActive=true renders .hub-internet-badge inside .hub-card__exposure', () => {
+    const { container } = renderCardWithProps(makeSession({ funnelActive: true }))
+    const exposure = container.querySelector('.hub-card__exposure')
+    expect(exposure).not.toBeNull()
+    const badge = exposure!.querySelector('.hub-internet-badge')
+    expect(badge).not.toBeNull()
+  })
+
+  // DECISIVE colorblind/security case (D-05): both exposure badges must coexist,
+  // never supersede/collapse — see 172-01-PLAN.md threat T-172-01.
+  it('D-05: funnelActive AND funnelWriteActive both true renders BOTH exposure badges (coexist, no supersede)', () => {
+    const { container } = renderCardWithProps(
+      makeSession({ funnelActive: true, funnelWriteActive: true }),
+    )
+    const exposure = container.querySelector('.hub-card__exposure')
+    expect(exposure).not.toBeNull()
+    const internetBadge = exposure!.querySelector('.hub-internet-badge')
+    const fullAccessBadge = exposure!.querySelector('.hub-fullaccess-badge')
+    expect(internetBadge).not.toBeNull()
+    expect(fullAccessBadge).not.toBeNull()
+    const label = exposure!.querySelector('.hub-fullaccess-badge__label')
+    expect(label).not.toBeNull()
+    expect(label!.textContent).toBe('FULL ACCESS')
+  })
+
+  it('D-06: muted .hub-card__meta line renders the viewer count when viewerCount > 0', () => {
+    const { container } = renderCardWithProps(makeSession({ viewerCount: 4 }))
+    const meta = container.querySelector('.hub-card__meta')
+    expect(meta).not.toBeNull()
+    const viewers = meta!.querySelector('.hub-card__viewers')
+    expect(viewers).not.toBeNull()
+    expect(viewers!.textContent).toContain('4 viewers')
+  })
+
+  it('D-06: connected remote card renders the Connected item inside .hub-card__meta', () => {
+    const { container } = renderCardWithProps(
+      makeSession({ hostname: 'peer.tail' }),
+      { isRemote: true, isConnected: true },
+    )
+    const meta = container.querySelector('.hub-card__meta')
+    expect(meta).not.toBeNull()
+    const conn = meta!.querySelector('.hub-card__conn--connected')
+    expect(conn).not.toBeNull()
+    expect(conn!.textContent).toContain('Connected')
+  })
+})
