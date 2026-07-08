@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 172
-current_phase_name: hub-card-layout-badge-refinement
 status: verifying
 stopped_at: Completed 172-01-PLAN.md
-last_updated: "2026-07-08T02:12:43.038Z"
+last_updated: "2026-07-08T02:24:04.459Z"
 last_activity: 2026-07-08
-last_activity_desc: Phase 172 execution started
+last_activity_desc: Phase 172 complete
 progress:
   total_phases: 8
   completed_phases: 8
   total_plans: 37
   completed_plans: 37
   percent: 100
+current_phase_name: hub-card-layout-badge-refinement
 ---
 
 # Project State
@@ -28,15 +28,15 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 ## Current Position
 
-Phase: 172 (hub-card-layout-badge-refinement) — EXECUTING
-Plan: 1 of 1
+Phase: 172
+Plan: Not started
 Status: Phase complete — ready for verification
 
 - **170 Public Share Access Codes (read)** — reusable share-lifetime join code for the INTERNET (PUBLIC) link (FNL-08). UAT found the public link shows no join code (unlike RO/Full) → typing the URL dead-ends on a code page with no code. Root cause: join codes are 5-min single-use (`api.go:259`), wrong for a public share → needs per-code TTL + reusable semantics tied to funnel expiry, read-only only. **170-01 EXECUTED 2026-07-05** (commits 70f2f8ad/fa35b928/1618255b/cc864779/eb119e4c): `JoinCodeManager.IssueReusable`/`Revoke` + reusable-conditional `Exchange` delete, proven at unit layer (4 new tests, 6 pre-existing untouched) AND at the public `/join/exchange` HTTP boundary (new `internal/webserver/join_test.go` — reusable read code resolves twice, single-use code still fails on 2nd try). **170-02 EXECUTED 2026-07-05** (commits 3cb05dea/5f0bb981/d38a9689/835bbaa4, RED/GREEN TDD): `issueCapabilitiesForSession` mints the reusable public read code from the read-only `rTok` ONLY (never `wTok`), caches it per session (idempotent — no rotation on re-issue), and surfaces it on `IssueCapabilitiesResponse.PublicReadCode` (`""` for non-Funnel sessions); `handleSetSessionFunnel` captures `min(ExpiresIn, 8h)` as the per-code TTL; `disableFunnelForSession` (the single teardown chokepoint) revokes the cached code on all 4 in-process triggers (toggle-off, web-share-off, session-exit, auto-expiry timer — daemon-stop intentionally excluded, bypasses this chokepoint by design). Wails TS binding (`models.ts`) regenerated for Wave 3. **170-03 EXECUTED 2026-07-06** (commits b05e22ce/3c93ec57/e10b6067/2ec5c1c5/7b5cfa54): Share modal INTERNET (PUBLIC) section renders `<CodeDisplay label="Public join code (reusable):" code={publicReadCode} />`; `SessionShareModal` threads `resp.publicReadCode` from the existing warm-up round-trip and clears it on disable. Deviation: the type field went into the *actually-imported* hand-authored stub `frontend/src/wailsjs/go/main/App.d.ts` (not just the unused generated `models.ts`) — required for `tsc --noEmit` to pass. Frontend gate: `tsc --noEmit` clean + `vite build` OK + 2335 vitest pass. **170-04 EXECUTED 2026-07-06** (commits 805dbf87/d1c8ddda): TESTING.md reconciled — counts already correct (528 total: 375 Go/142 vitest/9 PW/2 build), added Section-5 category with **M-46** live off-tailnet reusable-code-join + teardown item; `check-traceability-paths.sh` exits 0. **PHASE VERIFIED (code) 2026-07-06** — gsd-verifier: 14/14 must-haves VERIFIED including the security-critical read-only-only mint (`IssueReusable(rTok, …)`, never `wTok`); status `human_needed`, sole open item = M-46 (needs real Funnel tailnet + 2 off-tailnet devices). ROADMAP/REQUIREMENTS completion markers reverted to pending per user (keep-pending-UAT). NEXT = `/gsd-verify-work 170` (record live M-46 pass → phase complete).
 - **171 Public Full-Access (RW) Sharing** — opt-in public read-write behind a hard consent gate + single-use write code (FNL-09). Supersedes today's ACCIDENTAL public write (issueCapabilitiesForSession rebases both read+write caps to the funnel base by timing; funnel exposes whole mux, no read-only downgrade). **SPEC-FIRST** (internet RCE): `/gsd-spec-phase 171` → discuss → `/gsd-secure-phase` → plan.
 
 **Live UAT of 165-169 (2026-07-05, prod build on real Funnel tailnet) — Phase 166 Funnel UAT NOW COMPLETE, all 4 PASS (166-UAT.md status→passed):** M-37 (off-tailnet phone QR loads read-only session; public URL 200 off-host), M-38 (daemon 60s auto-expiry → torn down, URL HTTP 000, badge cleared, no manual disable), M-39 (globe + INTERNET badge appears/clears), M-40 (stop tailscale + restart daemon → local mode → toggle greyed + "requires Tailscale" + backend 400 fail-closed; reconnect auto-upgrades → toggle re-enables). **2 Share-modal layout bugs found + fixed live (commit 27d398e7):** (1) `.hub-share-modal` had no height bound → overflowed viewport/clipped; fixed with max-height. (2) that max-height made `__body` a constrained flex column and the risk panel's `overflow:hidden` let flexbox shrink it 202px→39px, clipping the Auto-expire select + Enable CTA → Funnel uncommittable via UI; fixed with `flex-shrink:0`. Both root-caused via dev-browser CSS harness, verified live. OBSERVATION (not blocking, maybe file): daemon does NOT live-downgrade to local mode on a mid-session tailscale drop (stays tailscale-mode w/ stale IP) — local fallback is startup-only; auto-upgrade on reconnect works. REMAINING deferrals: M-41 (notif delivery win/linux, needs those platforms), M-45 (non-admin macsys, env-only). **Phase 172 (Hub-card layout & badge refinement) CREATED 2026-07-05** (`/gsd-phase add`; frontend-only, Depends on: None — independent of Funnel 170/171). NEXT = user wants 2-3 throwaway HTML mockups (frontend-design / /gsd-sketch) BEFORE `/gsd-plan-phase 172`. Design critique captured: the Hub session card (image ref) uses THREE inconsistent metadata treatments — `Running`/`Local` = icon+plain-text, `/bin/zsh` = outlined pill, `INTERNET` = filled green pill on its own row — loosely stacked with no grouping. Direction: consolidate into ONE consistent chip row (agent · origin · exposure) with tighter vertical rhythm, while KEEPING the INTERNET chip the one deliberately-prominent colored/filled chip (it's a security-exposure signal that must stay unmissable + colorblind-safe per [[user_colorblind]]; making others quieter/outlined makes INTERNET pop MORE by contrast). Frontend-only (Hub card component + style.css); no backend. User wants 2-3 throwaway HTML mockups (frontend-design skill) BEFORE touching code. This is a v4.2 phase (milestone reopened). To add: `/gsd-phase add ...` (will become 172).
-Last activity: 2026-07-08 — Phase 172 execution started
+Last activity: 2026-07-08 — Phase 172 complete
 
 ```
 v4.2 Progress: [█████████████████░░░] 86% (6/7 phases — 165 ✅, 166 ✅ (+2 modal fixes 2026-07-05), 167 ✅ (M-41 deferred), 168 ✅, 169 ✅ (M-45 deferred), 170 ✅ (M-46 live UAT PASSED 2026-07-06, fix 5a92ddae); 171 ⬜ spec-first)
