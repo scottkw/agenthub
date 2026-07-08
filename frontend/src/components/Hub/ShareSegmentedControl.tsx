@@ -53,6 +53,7 @@ export function ShareSegmentedControl({
   onSelect,
 }: ShareSegmentedControlProps): React.ReactElement {
   const enabledTabs = tabs.filter((t) => !t.disabled)
+  const btnRefs = React.useRef<Record<string, HTMLButtonElement | null>>({})
 
   function moveSelection(delta: 1 | -1): void {
     if (enabledTabs.length === 0) return
@@ -60,7 +61,10 @@ export function ShareSegmentedControl({
     const fromIdx = currentIdx === -1 ? 0 : currentIdx
     const nextIdx = (fromIdx + delta + enabledTabs.length) % enabledTabs.length
     const next = enabledTabs[nextIdx]
-    if (next) onSelect(next.id)
+    if (next) {
+      onSelect(next.id)
+      btnRefs.current[next.id]?.focus()
+    }
   }
 
   return (
@@ -71,6 +75,9 @@ export function ShareSegmentedControl({
         return (
           <button
             key={t.id}
+            ref={(el) => {
+              btnRefs.current[t.id] = el
+            }}
             type="button"
             role="tab"
             aria-selected={isActive}
