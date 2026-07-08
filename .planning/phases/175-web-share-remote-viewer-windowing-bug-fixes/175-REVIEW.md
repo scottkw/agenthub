@@ -25,7 +25,20 @@ findings:
   warning: 2
   info: 2
   total: 6
-status: issues_found
+status: resolved
+resolution:
+  resolved: 2026-07-08
+  note: >-
+    CR-01 (emulator never resized) fixed via resizeLiveEmulator, propagated from
+    ResizeClient after hub.mu is released (emuMu-only, no lock inversion). WR-01
+    closed with TestLiveEmulatorFollowsResize (proven RED without the fix, GREEN with).
+    CR-02/IN-01 doc overclaim corrected (strip-pattern, not goroutine isolation, is the
+    anti-hang mechanism). A THIRD bug found during fix verification — CR-03: the
+    EnsureLiveEmulator bootstrap raced the live feed, double-counting a boundary frame
+    (TestHub_TwoClientsFanOut "hello worldhello world"; stable pre-175, ~50% flaky after
+    175-04) — fixed by making scrollback-append + emulator-feed atomic under emuMu
+    (recordFrame). Verified: fan-out test 0/50 failures (was ~50%), full relay+webserver
+    -race clean, full go test ./... green. IN-02 remains informational.
 ---
 
 # Phase 175: Code Review Report
@@ -33,7 +46,7 @@ status: issues_found
 **Reviewed:** 2026-07-08
 **Depth:** standard (with vendored-dependency tracing for the concurrency-sensitive BUG-04 emulator work, per explicit focus-area request)
 **Files Reviewed:** 16
-**Status:** issues_found
+**Status:** resolved (CR-01, WR-01, CR-02/IN-01 fixed; CR-03 found+fixed during verification; IN-02 informational)
 
 ## Summary
 
