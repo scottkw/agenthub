@@ -5,8 +5,8 @@ milestone_name: Funnel Sharing & Polish
 current_phase: 172
 current_phase_name: Hub-card layout & badge refinement
 status: verifying
-stopped_at: Completed 171-04-PLAN.md
-last_updated: "2026-07-08T00:39:30.419Z"
+stopped_at: Phase 172 context gathered
+last_updated: "2026-07-08T01:24:45.560Z"
 last_activity: 2026-07-08
 last_activity_desc: Phase 171 complete, transitioned to Phase 172
 progress:
@@ -145,9 +145,9 @@ v4.2 Progress: [█████████████████░░░] 86
 
 ## Session Continuity
 
-Last session: 2026-07-07T22:07:17.755Z
-Stopped at: Completed 171-04-PLAN.md
-Resume file: None
+Last session: 2026-07-08T01:24:45.543Z
+Stopped at: Phase 172 context gathered
+Resume file: .planning/phases/172-hub-card-layout-badge-refinement/172-CONTEXT.md
 Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 phase — FIX-05: non-admin macOS accounts report Tailscale "installed but not Connected" because `macsys` `sameuserproof` is unreadable; add a CLI `status` fallback. Run `/gsd-plan-phase 169` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
 
 ## Decisions (carry-forward from v4.1 — architecture reference)
