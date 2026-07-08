@@ -586,16 +586,16 @@ Human-intervention items that cannot be automated. Run before each tagged releas
 
 ### Category P — Terminal Screen-Share Garble (Issue #109, Phase 157)
 
-The VIEW-01..05 behavioral proof for the web guest and the desktop guest relies on live multi-window rendering that vitest/Playwright cannot exercise. The web `terminal.js` viewer (Plan 03) is a vendored asset outside the vitest suite; its structural changes are validated by `node --check` + grep gates. The items below are the manual complement required by ROADMAP success criterion 6.
+The VIEW-01..05 behavioral proof for the web guest and the desktop guest relies on live multi-window rendering that vitest/Playwright cannot exercise. **Reconciled Phase 175-07 (v4.2):** since the Phase 159 `/sessions/{id}` → `/app/` redirect, the reachable web guest surface is the `/app/` React SPA (`WebShareSessionView.tsx` → `TerminalPanel.tsx`, real xterm.js) — the standalone vendored `web/assets/terminal.js` viewer this category originally described (Phase 157) is now **dead code**, unreachable by any live share URL. The items below are the manual complement required by ROADMAP success criterion 6.
 
 - **M-27** Issue #109 two-surface garble check — host PTY + smaller-windowed web guest, no garble:
   1. Start a local session as host. Enable web-share and copy the RW share URL.
-  2. Open the share URL in a browser window **smaller** than the host terminal (e.g. resize the browser to 80 columns × 24 rows while the host runs at 120 × 30 or wider).
+  2. Open the share URL in a browser window **smaller** than the host terminal (e.g. resize the browser to 80 columns × 24 rows while the host runs at 120 × 30 or wider). The URL redirects (Phase 159) to `/app/?session=…&cap=…`.
   3. Run a full-screen TUI in the host PTY (e.g. `htop` or `vim`).
   4. **Confirm guest:** no overlapping or doubled characters (no "garble" as shown in Issue #109 screenshot). The guest terminal is downscaled via CSS `transform: scale(...)` so the 120×30 grid fits the 80×24 viewport — no character wrapping or line-overrun.
   5. **Confirm host:** the host PTY grid (cols/rows) is unchanged by the guest window size. `echo ${COLUMNS}×${LINES}` in the host PTY reports the host-window dimensions, not the guest's.
   6. **Confirm downscale cap:** resize the browser guest window to be LARGER than the host terminal. Confirm the guest shows no upscale (the terminal does not stretch beyond its natural pixel size; `scale(s)` has `s ≤ 1.0`); excess space is blank padding.
-  - _Why not automatable:_ Live multi-window xterm.js render required; `transform: scale(...)` pixel output is not unit-assertable. The web `terminal.js` viewer is a vendored asset outside the vitest suite (Plan 03 VIEW-04/05 structural gates verify it at source level, not at render time).
+  - _Why not automatable:_ Live multi-window xterm.js render required; `transform: scale(...)` pixel output is not unit-assertable. The reachable web guest surface is the `/app/` React SPA (`TerminalPanel.tsx`, real xterm.js) since the Phase 159 redirect; `web/assets/terminal.js` is dead code and is no longer the viewer under test here (reconciled Phase 175-07 — see also the BUG-01 readability-floor extension to this same scale pipeline in M-48/Category Z).
   - _Source:_ Phase 157 Issue #109; 157-VALIDATION.md Manual-Only Verifications row 1 + row 2; VIEW-01..05 criteria 1 and 4.
 
 - **M-28** Cross-surface parity — desktop guest scale matches web guest, no PTY interference:
@@ -800,6 +800,40 @@ The alias-set wire contract, client-side validateAlias, alias-control component 
   7. Confirm the Share modal UI reflects the teardown: `funnelWriteActive` flips false, the `.hub-fullaccess-badge`/`.tab__fullaccess-icon` FULL ACCESS indicators clear, and the read `.hub-internet-badge`/`.tab__internet-icon` indicators remain present (independent clearing, D-10).
   - _Why not automatable:_ requires a real Funnel-granted tailnet plus at least two (ideally three) off-tailnet devices to exercise the actual public write-redemption flow, PTY-level command execution, and single-use/revoke semantics end-to-end; the automated suite proves the enforcement primitives at the unit/integration boundary (`TestHandleWSSRelay_WriteCap_RequiresGate` — the real WS-upgrade grant-gating proof; `TestJoinCodeManager_IssueSingleUseWithTTL*` — single-use atomicity under concurrent redeem; `TestDisableFunnelWrite_RevokesGrantOnly` — surgical teardown; `TestFunnelWriteGate_TerminalOnlyScope` — Perms scope) and the UI gesture/state-machine at the component level (`SessionSharePanel.test.tsx`/`SessionCard.share.test.tsx`) — but none of these substitute for a genuine off-tailnet device redeeming a real single-use code against a real PTY, which is the true closed-perimeter acceptance gate given the RCE severity of this surface.
   - _Source:_ Phase 171 (FNL-09, v4.2) — 171-SECURITY.md (T-171-14, the live off-tailnet acceptance gate CI cannot cover); 171-01/171-02/171-03-SUMMARY.md traceability rows (FNL-09).
+
+### Category Z — Web-Share, Remote-Viewer & Windowing Bug Fixes (BUG-01..04)
+
+- **M-48** Live mobile-viewport readability floor (BUG-01, #128): the 80-col grid stays legible on a real narrow phone viewport instead of shrinking to unreadable text.
+  1. Start a local session as host and enable web-share; copy the share URL.
+  2. Open the share URL on a real phone (or a real browser's device-emulation mode at a narrow width, e.g. 375px) — the URL redirects (Phase 159) to `/app/?session=…&cap=…`.
+  3. Confirm the terminal text stays legible — the guest scale clamps at the `DEFAULT_GUEST_MIN_SCALE=0.7` readability floor (`computeGuestViewport`) instead of continuing to shrink; confirm the container gains horizontal scroll (`.terminal-guest--scroll-x`, `overflow-x: auto`) once the floor is hit, rather than clipping content.
+  4. Confirm the host PTY grid (cols/rows) is unaffected by the phone viewport (guest-only clamp; no `sendResize` from the guest path, D-03 invariant).
+  - _Why not automatable:_ jsdom performs no real layout — `clientWidth`/`clientHeight` are always 0, so a real narrow-viewport visual legibility check cannot be asserted in vitest. The floor-clamp math (`computeGuestViewport`) and the guest/host CSS-class isolation are unit-tested; only the on-screen legibility on a genuine narrow viewport is manual.
+  - _Source:_ Phase 175-03 (BUG-01, #128); 175-03-SUMMARY.md D4 (deferred live-verification rationale); 175-VALIDATION.md Manual-Only Verifications.
+
+- **M-49** Live owner-ends-session disconnect notice (BUG-02, #125): a guest sees an accessible disconnect banner, not a frozen terminal, when the owner stops the shared session.
+  1. Start a local session as host, enable web-share, and open the share URL as a guest in a real browser (or a second desktop client as a remote guest).
+  2. On the owner's machine, stop/end the shared session (kill the session, or toggle web-share off).
+  3. Confirm the guest's terminal does NOT go silently frozen. Confirm a visible disconnect banner appears with the fixed text "Session ended — the owner stopped this session.", `role="status"`, and `aria-live="polite"` (screen-reader announced).
+  4. Confirm the banner never displays raw server-side close-reason text or any session-owner-controlled string — only the fixed generic copy.
+  5. Confirm no auto-reconnect occurs (the banner is dismiss-only; dismissing it does not reopen the connection) — this is the intended phase-locked behavior, not a bug.
+  - _Why not automatable:_ requires a live daemon + a real WebSocket session-end event delivered to a real browser guest; the accessibility contract (`role="status"`/`aria-live="polite"`) and the hostile-string injection guard are unit-tested in `SessionEndedBanner.test.tsx`, but the live owner-ends-session → guest-sees-banner integration (and the absence of a frozen/silent terminal) requires human observation.
+  - _Source:_ Phase 175-06 (BUG-02, #125); 175-06-SUMMARY.md D4 rationale (`human_judgment: true`); 175-VALIDATION.md Manual-Only Verifications.
+
+- **M-50** BUG-03 (#126) exited-shared-session tab-close — standing regression watch, NOT a currently-reproducing behavior:
+  - **This is not a fresh live-repro checklist.** 175-01 already ran the mandatory timed live reproduction (baseline unshared exit, a shared session that lived **>5 minutes** then exited, and a shared session that exited **<5 minutes**) against a live app + real daemon and recorded the result in `175-01-DIAGNOSIS.md`: **VERDICT: DISPROVED** — all three cases auto-closed their tab correctly; the fixed 300s exit-poll deadline (`app.go:386`/`shouldContinuePolling`) is NOT BUG-03's root cause, and BUG-03 did not reproduce in that session. Per that diagnosis, 175-05 shipped diagnostic-logging instrumentation around the exit-detection/tab-close path (`handleCloseTab`/`ToggleWebServing`/`KillSession`, the `session:exit` emit site, and the un-timeout'd `internal/daemon/client.go:37` `http.Client` candidate hang site) rather than a behavior change, since there was no confirmed bug to fix.
+  1. Record/confirm the 175-01 non-reproduction result stands (baseline, >5-min shared, <5-min shared — all three auto-close correctly); do not re-run the full timed matrix unless BUG-03 is reported to recur.
+  2. If a user reports BUG-03 recurring (a shared session's tab fails to auto-close after exit) on a signed production build, capture the app's log output (Console.app/stderr) around the failure and confirm the 175-05 diagnostic log lines (naming which branch of the exit-detection path was reached, or the daemon-client stall candidate) are present — this is what makes a future recurrence diagnosable instead of a black box, which is the actual deliverable of 175-05.
+  - _Why not automatable:_ the timed real-daemon exit-detection race requires wall-clock time + a live daemon + real PTY exit; it has already been run once live and disproven (`175-01-DIAGNOSIS.md`). This item exists as a standing watch for the diagnostic instrumentation, not a repeatable failing-behavior assertion.
+  - _Source:_ 175-01-DIAGNOSIS.md (VERDICT: DISPROVED); 175-05-SUMMARY.md (diagnostic-instrumentation-only branch, no behavior change).
+
+- **M-51** Live two-client alt-screen reconnect (BUG-04, #119 Problem 2): a late-joining or reconnecting guest sees the current screen, not a blank/garbled window, after the raw scrollback ring has wrapped past alt-screen entry.
+  1. Start a local session as host and run a full-screen TUI agent (e.g. `htop`, `vim`, or an interactive coding agent) long enough that the raw 256 KiB scrollback ring wraps past the `ESC[?1049h` alt-screen-enter sequence (generate enough terminal output/redraws).
+  2. Join as a guest (web-share URL, or a remote peer opening the session in an in-app tab) AFTER the wrap has occurred, and/or force a guest reconnect (close and reopen the tab/browser).
+  3. Confirm the guest sees the CURRENT live screen content in the correct alt-screen mode — not a blank window, not garbled/stale content, and not the pre-alt-screen scrollback.
+  4. Repeat with the host exiting the alt-screen TUI (returning to the normal buffer) and reconnecting a guest again; confirm the guest correctly reflects normal-buffer mode.
+  - _Why not automatable:_ requires a live daemon, a real long-running full-screen TUI to force an actual ring wrap, and a late-joining/reconnecting guest exercising the real timing — the emulator/`RenderSnapshot()` reconstruction logic is unit-tested in `internal/relay/scrollback_altscreen_test.go`, but the live end-to-end wrap-then-reconnect race is not.
+  - _Source:_ Phase 175-04 (BUG-04, #119 Problem 2); 175-04-SUMMARY.md D4 rationale (`human_judgment: true`); 175-VALIDATION.md Manual-Only Verifications.
 
 ---
 
