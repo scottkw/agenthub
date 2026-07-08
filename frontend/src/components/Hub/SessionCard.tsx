@@ -249,7 +249,7 @@ export function SessionCard({
   // so formatUptime would show "0m" for ~29s then reset on the next 30s remote poll.
   // Omit uptime for remote sessions entirely — there is no reliable createdAt from the wire.
   const timeText =
-    hostname && hostname !== ''
+    !isLocal
       ? '' // remote session — no reliable createdAt; omit rather than show misleading "0m"
       : session.state === 'stopped' && duration !== undefined && duration !== null
       ? formatDuration(duration)
