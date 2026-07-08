@@ -899,7 +899,11 @@ func (h *Hub) EnsureLiveEmulator() {
 //
 // Callers MUST call EnsureLiveEmulator before RenderSnapshot — this method
 // does not construct the emulator itself. Returns nil if no emulator has
-// been constructed yet.
+// been constructed yet, OR if there is genuinely nothing to show (fresh
+// session, no PTY output at all, main screen) — matching the pre-existing
+// scrollback-replay contract's `len(snapshot) > 0` guard at both call sites,
+// so connecting to a brand-new session does not emit a spurious empty
+// preamble frame ahead of the first real PTY output.
 func (h *Hub) RenderSnapshot() []byte {
 	h.emuMu.Lock()
 	defer h.emuMu.Unlock()
@@ -907,8 +911,22 @@ func (h *Hub) RenderSnapshot() []byte {
 		return nil
 	}
 
-	content := h.liveEmu.Render()
-	if h.liveEmu.IsAltScreen() {
+	// Render() pads every row up to the emulator's full height (default 50 —
+	// Hub.Rows()'s fallback) with trailing blank lines. Trim them so a normal
+	// (non-alt-screen) session's preamble is byte-identical to what raw PTY
+	// output would have produced, matching the pre-existing scrollback-replay
+	// contract for ordinary (non-wrapped, non-full-screen) sessions. Mirrors
+	// GetSessionStyledTailLines' own "trim trailing blank rows" convention
+	// (internal/daemon/engine.go).
+	content := strings.TrimRight(h.liveEmu.Render(), "\n")
+	altScreen := h.liveEmu.IsAltScreen()
+	if content == "" && !altScreen {
+		// Nothing to show yet, and no mode marker to reconstruct — sending an
+		// empty frame would be pure overhead and would break the "no data
+		// received before real output arrives" contract callers rely on.
+		return nil
+	}
+	if altScreen {
 		content = altScreenEnterSeq + content
 	}
 	return MakeOutputFrame([]byte(content))

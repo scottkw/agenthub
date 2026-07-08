@@ -1481,8 +1481,16 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Replay scrollback snapshot to bring the client up to date.
-	if snapshot := hub.ScrollbackSnapshot(); len(snapshot) > 0 {
+	// Phase 175-04 (BUG-04, #119): emit an emulator-derived current-screen
+	// preamble instead of the raw scrollback snapshot — the raw 256 KiB ring
+	// may have wrapped past a full-screen TUI's one-time ESC[?1049h
+	// (alt-screen enter) sequence, leaving alt-screen CONTENT with no
+	// mode-switch marker, which xterm.js paints into the wrong buffer. The
+	// live per-hub emulator (continuously fed by Hub.Run) never loses this
+	// state to ring truncation. EnsureLiveEmulator is idempotent — a no-op
+	// after the first connection to this hub.
+	hub.EnsureLiveEmulator()
+	if snapshot := hub.RenderSnapshot(); len(snapshot) > 0 {
 		if err := conn.Write(ctx, websocket.MessageBinary, snapshot); err != nil {
 			return
 		}
