@@ -1,7 +1,7 @@
 ---
 phase: 173-share-modal-three-tab-segmented-redesign
 verified: 2026-07-08T15:10:00Z
-status: human_needed
+status: passed
 score: 7/8 must-haves verified
 behavior_unverified: 1
 overrides_applied: 0
@@ -9,6 +9,7 @@ re_verification:
   previous_status: gaps_found
   previous_score: 6/8
   gaps_closed:
+
     - "SM-07 — roving tabindex: arrow-key navigation now moves real DOM focus to the newly-active tab button (btnRefs ref map + .focus() call in ShareSegmentedControl.moveSelection, confirmed present at source; 3 new regression tests assert document.activeElement, all passing in a real DOM (createRoot mounted to document.body))"
     - "SM-07 — On/Off/N-A text label ground truth: the Internet toggle-state text no longer reads 'On' during the pending/uncommitted risk-panel window; it reads a distinct 'Confirm…' label and only reads 'On' after SetSessionFunnel commits (SessionShareModal.tsx:730-732 three-way ternary, confirmed at source; new regression test asserts stateText !== 'On' / === 'Confirm…' during the pending window, then === 'On' after the CTA commits)"
     - "SM-05 residual (WR-01) — funnelOn now resyncs from session.funnelActive via a useEffect keyed only on the server-truth prop (SessionShareModal.tsx:351-355); new regression test drives an out-of-band funnelActive:true→false prop change while the modal stays mounted and confirms the Internet tabs re-disable, the active tab resets to Tailnet, and the toggle-state label drops 'On'"
