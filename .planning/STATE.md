@@ -5,15 +5,15 @@ milestone_name: Funnel Sharing & Polish
 current_phase: 175
 current_phase_name: web-share-remote-viewer-windowing-bug-fixes
 status: executing
-stopped_at: "Completed 174-03-PLAN.md (dependabot high-risk deferrals: wails/tailscale/checkout ignore entries + PRs #104/#88/#102 closed); Phase 174 complete, ready for verification"
-last_updated: "2026-07-08T18:45:10.875Z"
+stopped_at: Completed 175-04-PLAN.md (BUG-04 live per-hub VT emulator + RenderSnapshot reconnect preamble, both WS replay sites wired); 175-05/06/07 remaining
+last_updated: "2026-07-08T19:15:30.710Z"
 last_activity: 2026-07-08
 progress:
   total_phases: 12
   completed_phases: 10
   total_plans: 55
-  completed_plans: 50
-  percent: 83
+  completed_plans: 52
+  percent: 95
 ---
 
 # Project State
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 ## Current Position
 
 Phase: 175 (web-share-remote-viewer-windowing-bug-fixes) — EXECUTING
-Plan: 2 of 7
-Status: Ready to execute
+Plan: 4 of 7
+Status: 175-04 complete (BUG-04 live emulator + reconnect preamble); 175-05/06/07 remaining
 
 ### Roadmap Evolution
 
@@ -156,10 +156,10 @@ v4.2 Progress: [█████████████████░░░] 86
 
 ## Session Continuity
 
-Last session: 2026-07-08T18:45:05.724Z
-Stopped at: Completed 174-03-PLAN.md (dependabot high-risk deferrals: wails/tailscale/checkout ignore entries + PRs #104/#88/#102 closed); Phase 174 complete, ready for verification
+Last session: 2026-07-08T19:15:30.704Z
+Stopped at: Completed 175-04-PLAN.md (BUG-04 live per-hub VT emulator + RenderSnapshot reconnect preamble, both WS replay sites wired); 175-05/06/07 remaining
 Resume file: None
-Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 phase — FIX-05: non-admin macOS accounts report Tailscale "installed but not Connected" because `macsys` `sameuserproof` is unreadable; add a CLI `status` fallback. Run `/gsd-plan-phase 169` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
+Next action: Phase 175 (web-share-remote-viewer-windowing-bug-fixes) plans 01-04 complete (01: BUG-03 live diagnosis — deadline not root cause; 02: RED test scaffolding for BUG-02/BUG-04; 03: BUG-01 web-share readability floor; 04: BUG-04 live per-hub VT emulator + reconnect preamble). Continue with 175-05 (BUG-03 fix, gated on the 175-01 live diagnosis), 175-06 (BUG-02 WS close-reason, unskips session_ended_test.go), 175-07 (final wave: TESTING.md reconciliation + new M-NN manual UAT items, including 175-04's deferred live two-client alt-screen reconnect UAT and the pre-existing Suite Manifest gap logged in 175's deferred-items.md). Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
 
 ## Decisions (carry-forward from v4.1 — architecture reference)
 
@@ -262,6 +262,7 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 | Phase 174 P02 | 8min | 3 tasks | 2 files |
 | Phase 174 P03 | 1min | 3 tasks | 1 files |
 | Phase 175 P03 | 8min | 2 tasks | 5 files |
+| Phase 175 P04 | 25min | 3 tasks | 4 files |
 
 ## Decisions
 
@@ -350,6 +351,8 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 - [Phase ?]: Phase 174-03: Used the versions form for wails/v2 and tailscale.com gomod ignores (Option A) rather than update-types, matching the plan's exact acceptance criteria.
 - [Phase ?]: Phase 174-03: All three gh pr close calls (#104/#88/#102) succeeded without permission-classifier denial, unlike 174-02's #89/#106/#105 blocker.
 - [Phase ?]: [Phase 175-03]: DEFAULT_GUEST_MIN_SCALE = 0.7 shared floor constant; computeGuestScale left untouched, TerminalPanel.tsx switched import to computeGuestViewport (updated the pinned source-gate test accordingly)
+- [Phase 175]: Phase 175-04: live per-hub VT emulator constructed lazily on EnsureLiveEmulator's first call (in practice, the loopback relay/server.go connection almost always constructs it at session-open time); bootstrapped once from ScrollbackSnapshot, then continuously fed by Run() so RenderSnapshot() never re-derives from a later-wrapped raw scrollback ring
+- [Phase 175]: Phase 175-04: RenderSnapshot() trims Render()'s full-height trailing blank-row padding and returns nil when content is empty and not alt-screen, to preserve the pre-existing "no frame before real PTY output" contract several webserver/relay tests depend on
 
 ### Blockers
 
