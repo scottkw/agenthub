@@ -108,13 +108,16 @@ type Hub struct {
 	// liveEmu is nil until EnsureLiveEmulator's first call (lazy — T-175-04-01:
 	// never constructed for a session that never gets a shared viewer). Once
 	// constructed it lives for the rest of the hub's life, continuously fed by
-	// Run()'s drain loop via feedLiveEmulator, so its state survives any later
-	// wrap of the raw scrollback ring — RenderSnapshot() never re-derives from
-	// the (possibly truncated) ring (RESEARCH "Pitfall 3").
+	// Run()'s drain loop via recordFrame, so its state survives any later wrap
+	// of the raw scrollback ring — RenderSnapshot() never re-derives from the
+	// (possibly truncated) ring (RESEARCH "Pitfall 3").
 	//
-	// emuMu is a SEPARATE lock from mu (T-175-04-02): a slow/stuck emulator
-	// write must never stall the PTY-drain/broadcast loop or contend with
-	// subscriber fan-out.
+	// emuMu is a SEPARATE lock from mu (T-175-04-02). Note the anti-hang
+	// guarantee comes from liveEmuQueryStripPattern (which lets emu.Write return
+	// synchronously — see recordFrame), NOT from goroutine isolation: recordFrame
+	// runs INLINE in the drain goroutine, so an unstripped query sequence would
+	// stall the drain loop. emuMu only keeps the emulator's own state consistent
+	// (append+feed vs bootstrap vs resize) without contending on the fan-out mu.
 	emuMu   sync.Mutex
 	liveEmu *xvt.Emulator
 }
