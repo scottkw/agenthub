@@ -143,3 +143,7 @@ None - no external service configuration required.
 ---
 *Phase: 175-web-share-remote-viewer-windowing-bug-fixes*
 *Completed: 2026-07-08*
+
+## Self-Check: PASSED
+
+All 5 declared files_modified exist on disk; all 3 commits (`0ba4e579`, `775fb8c6`, `7b3f9413`) verified present in `git log`.
