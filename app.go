@@ -376,6 +376,19 @@ func (a *App) CreateSession(cli, name, workDir string, args []string, cols, rows
 	return id, nil
 }
 
+// shouldContinuePolling is the pure, injectable-clock deadline check driving
+// pollSessionStatus's loop. It returns true while now is still within
+// maxWindow of pollStart, matching the original inline
+// `time.Now().Before(deadline)` semantics exactly (deadline == pollStart +
+// maxWindow). Extracted as a side-effect-free helper (175-02 Task 1 / BUG-03
+// Wave 0 scaffolding) so the exit-poll deadline math is unit-testable without
+// a live daemon or wall-clock sleeps; 175-05 is the plan that may change the
+// semantics (e.g. re-arming the deadline) — this extraction is
+// behavior-preserving only.
+func shouldContinuePolling(pollStart, now time.Time, maxWindow time.Duration) bool {
+	return now.Before(pollStart.Add(maxWindow))
+}
+
 // pollSessionStatus polls the daemon for status changes on a newly created
 // session and emits Wails "session:status" events. Also detects natural exit
 // (State == "stopped") and emits "session:exit". Replaces the onStatus
@@ -383,8 +396,9 @@ func (a *App) CreateSession(cli, name, workDir string, args []string, cols, rows
 func (a *App) pollSessionStatus(sessionID string) {
 	var last string
 	var consecutiveErrors int
-	deadline := time.Now().Add(300 * time.Second) // extended to 5min for long-running agents
-	for time.Now().Before(deadline) {
+	pollStart := time.Now()
+	const maxPollWindow = 300 * time.Second // extended to 5min for long-running agents
+	for shouldContinuePolling(pollStart, time.Now(), maxPollWindow) {
 		sessions, err := a.client.ListSessions()
 		if err != nil {
 			consecutiveErrors++
