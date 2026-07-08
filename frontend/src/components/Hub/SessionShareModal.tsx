@@ -329,11 +329,30 @@ export function SessionShareModal({
 
   // ---- Funnel (internet share) state (Phase 166 FUI-01/02/06/D-15) ----
   // funnelOn: whether the session is actually exposed to the internet (server truth,
-  //   seeded from session.funnelActive; Plan 05's poll keeps it live via the sync effect).
+  //   seeded from session.funnelActive; the resync effect below keeps it live —
+  //   see WR-01 / SM-05 residual, 173-08).
   // riskPanelOpen: the two-step gesture guard — toggle ON reveals the panel but does NOT
   //   commit; only the explicit "Enable internet share" CTA calls SetSessionFunnel (D-02).
   // warmingUp: placeholder flag consumed by Plan 05's warm-up UX (surfaced as a data attr).
   const [funnelOn, setFunnelOn] = useState(session.funnelActive)
+
+  // WR-01 / SM-05 residual (173-08): resync funnelOn from server truth when it
+  // diverges — e.g. an out-of-band Funnel disable/expiry while the modal is
+  // open. Dependency array is keyed ONLY on session.funnelActive (not
+  // funnelOn) — the effect must not re-fire on the optimistic local
+  // setFunnelOn(true) inside handleFunnelEnable, which happens before the
+  // server confirms and session.funnelActive catches up on the next poll;
+  // re-running on every funnelOn change would immediately stomp that
+  // optimistic enable back to false. The existing prevFunnelOnRef transition
+  // effect below already resets `tab` back to 'tailnet' whenever funnelOn
+  // flips false, so this resync alone restores both the Internet
+  // tab-availability gating and the toggle-state label to server truth; it
+  // does not duplicate that tab reset.
+  useEffect(() => {
+    if (session.funnelActive === funnelOn) return
+    setFunnelOn(session.funnelActive)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.funnelActive])
   const [riskPanelOpen, setRiskPanelOpen] = useState(false)
   const [expirySeconds, setExpirySeconds] = useState(3600) // D-05 default: 1 hour
   const [funnelError, setFunnelError] = useState<string | null>(null)
@@ -700,8 +719,16 @@ export function SessionShareModal({
                 <span className="settings-panel__toggle-thumb" />
               </span>
               <span className="settings-panel__toggle-label">Enable internet sharing</span>
+              {/* SM-07 gap #2 / WR-02 (173-08, T-173-08-01): the 'On' text is the
+                  colorblind ground-truth signal and must reflect committed state,
+                  not pending intent — gate it strictly on funnelOn. The pending,
+                  uncommitted risk-panel window renders a distinct 'Confirm…' label
+                  instead of reusing toggleStateLabel's On/Off/N-A pair, so it can
+                  never be mistaken for 'On'. Checkbox checked/aria-checked above
+                  intentionally still reflects funnelOn || riskPanelOpen (the
+                  "about to enable" affordance) — only this text label changes. */}
               <span className="settings-panel__toggle-state">
-                {toggleStateLabel(funnelOn || riskPanelOpen, funnelDisabled)}
+                {funnelDisabled ? 'N/A' : funnelOn ? 'On' : riskPanelOpen ? 'Confirm…' : 'Off'}
               </span>
             </label>
             {funnelDisabled && (
