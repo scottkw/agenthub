@@ -5114,6 +5114,7 @@ textarea {
   align-items: center;
   gap: 8px;
   margin-top: 4px;
+  margin-bottom: 8px; /* Phase 172 UAT: separation between the Open/Share row and the mini-preview window below */
 }
 
 .hub-card__open {
