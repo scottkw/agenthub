@@ -48,7 +48,7 @@ created: 2026-07-08
 | 174-01-04 | 01 | A | DEP-01 (#85 pnpm/action-setup, 3 files) | — | workflows parse | build | `actionlint .github/workflows/*.yml` | ✅ | ⬜ pending |
 | 174-02-01 | 02 | B | DEP-01 (#89 coder/websocket 1.8.15) | — | webserver+relay behavior unchanged | unit | `go test ./internal/webserver/... ./internal/relay/...` | ✅ | ⬜ pending |
 | 174-02-02 | 02 | B | DEP-01 (#106 x/term 0.44.0) | — | build+full test green | unit | `go build ./... && go test ./...` | ✅ | ⬜ pending |
-| 174-02-03 | 02 | B | DEP-01 (#105 nfpm/v2 2.47.0) | — | deb packaging still builds | build | `goreleaser build --snapshot --clean` (or CI package job) | ✅ | ⬜ pending |
+| 174-02-03 | 02 | B | DEP-01 (#105 nfpm/v2 2.47.0) | — | deb packaging still builds | build | `nfpm package --packager deb --config <scratch>/nfpm.yaml --target <scratch>/agenthub.deb && test -s <scratch>/agenthub.deb` | ✅ | ⬜ pending |
 | 174-03-01 | 03 | C | DEP-02 (#104 wails defer) | — | ignore entry blocks 2.12.0 bump only | build | `yq '.updates[].ignore' .github/dependabot.yml` | ✅ | ⬜ pending |
 | 174-03-02 | 03 | C | DEP-02 (#88 tailscale defer) | — | ignore entry blocks 1.100.0 bump only | build | `yq '.updates[].ignore' .github/dependabot.yml` | ✅ | ⬜ pending |
 | 174-03-03 | 03 | C | DEP-02 (#102 checkout v7 defer) | — | ignore entry blocks v7 major only | build | `yq '.updates[].ignore' .github/dependabot.yml` | ✅ | ⬜ pending |
