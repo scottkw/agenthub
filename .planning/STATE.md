@@ -4,16 +4,16 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 174
 current_phase_name: dependency-updates-dependabot-hygiene
-status: executing
-stopped_at: Completed 174-01-PLAN.md (4 low-risk CI-action Dependabot bumps applied + PRs closed); next = 174-02
-last_updated: "2026-07-08T16:26:02.416Z"
+status: verifying
+stopped_at: "Completed 174-03-PLAN.md (dependabot high-risk deferrals: wails/tailscale/checkout ignore entries + PRs #104/#88/#102 closed); Phase 174 complete, ready for verification"
+last_updated: "2026-07-08T16:32:46.138Z"
 last_activity: 2026-07-08
 progress:
   total_phases: 12
-  completed_phases: 9
+  completed_phases: 10
   total_plans: 48
-  completed_plans: 47
-  percent: 75
+  completed_plans: 48
+  percent: 83
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 Phase: 174 (dependency-updates-dependabot-hygiene) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 
 ### Roadmap Evolution
 
@@ -156,8 +156,8 @@ v4.2 Progress: [█████████████████░░░] 86
 
 ## Session Continuity
 
-Last session: 2026-07-08T16:26:02.406Z
-Stopped at: Completed 174-01-PLAN.md (4 low-risk CI-action Dependabot bumps applied + PRs closed); next = 174-02
+Last session: 2026-07-08T16:32:46.132Z
+Stopped at: Completed 174-03-PLAN.md (dependabot high-risk deferrals: wails/tailscale/checkout ignore entries + PRs #104/#88/#102 closed); Phase 174 complete, ready for verification
 Resume file: None
 Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 phase — FIX-05: non-admin macOS accounts report Tailscale "installed but not Connected" because `macsys` `sameuserproof` is unreadable; add a CLI `status` fallback. Run `/gsd-plan-phase 169` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
 
@@ -260,6 +260,7 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 | Phase 173 P08 | 4min | 3 tasks | 5 files |
 | Phase 174 P01 | 5min | 3 tasks | 3 files |
 | Phase 174 P02 | 8min | 3 tasks | 2 files |
+| Phase 174 P03 | 1min | 3 tasks | 1 files |
 
 ## Decisions
 
@@ -345,6 +346,8 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 - [Phase 174]: Phase 174-01: Applied 4 low-risk CI-action Dependabot bumps (setup-go, pnpm/action-setup, attest-build-provenance, action-gh-release) directly on v4.2-funnel-sharing rather than merging Dependabot PRs into main; closed PRs #114/#113/#103/#85 citing Phase 174.
 - [Phase ?]: Phase 174-02: Committed Task 1 (coder/websocket) and Task 2 (x/term + nfpm) as two separate atomic commits rather than the plan's suggested single Task-3 combined commit, for independent bisectability.
 - [Phase ?]: Phase 174-02: Left the transitive go.mod toolchain directive bump (1.26.3 -> 1.26.4) in place from go mod tidy; local toolchain 1.26.5 already satisfies both, no observable effect.
+- [Phase ?]: Phase 174-03: Used the versions form for wails/v2 and tailscale.com gomod ignores (Option A) rather than update-types, matching the plan's exact acceptance criteria.
+- [Phase ?]: Phase 174-03: All three gh pr close calls (#104/#88/#102) succeeded without permission-classifier denial, unlike 174-02's #89/#106/#105 blocker.
 
 ### Blockers
 
