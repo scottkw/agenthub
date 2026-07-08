@@ -570,15 +570,19 @@ export function SessionCard({
         )}
       </div>
 
-      {/* Phase 172 / D-06: muted meta line — uptime · viewers · Connected/Available. */}
-      <div className="hub-card__meta">
-        {metaItems.map((item, i) => (
-          <React.Fragment key={i}>
-            {i > 0 && <span className="hub-card__meta-dot" aria-hidden="true">·</span>}
-            {item}
-          </React.Fragment>
-        ))}
-      </div>
+      {/* Phase 172 / D-06: muted meta line — uptime · viewers · Connected/Available.
+          WR-02: only render the wrapper when it has content, otherwise .hub-card__meta's
+          min-height + margin-bottom reserves an empty ~24px strip (regression in vertical rhythm). */}
+      {metaItems.length > 0 && (
+        <div className="hub-card__meta">
+          {metaItems.map((item, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <span className="hub-card__meta-dot" aria-hidden="true">·</span>}
+              {item}
+            </React.Fragment>
+          ))}
+        </div>
+      )}
 
       {/* ROW 5: actions — Open (re-attach terminal tab; LOCAL live sessions only, WR-01,
           Phase 131 UAT follow-up) and Share, side by side as real bordered buttons.
