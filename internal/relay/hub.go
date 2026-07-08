@@ -399,6 +399,10 @@ func (h *Hub) ResizeClient(sub *Subscriber, cols, rows int) error {
 	if needResize {
 		// VIEW-01: broadcast the new authoritative grid to all subscribers.
 		h.broadcastResize(uint16(pc), uint16(pr))
+		// CR-01: keep the live emulator's geometry in lockstep with the PTY so a
+		// later reconnect preamble (RenderSnapshot) is not mis-dimensioned. Safe
+		// here — hub.mu is already released (resizeLiveEmulator takes only emuMu).
+		h.resizeLiveEmulator(pc, pr)
 		if h.resizeFn != nil {
 			return h.resizeFn(minCols, minRows)
 		}
@@ -442,11 +446,12 @@ func (h *Hub) Run() {
 			// Copy the live slice before broadcasting — each frame allocation
 			// is independent so slow subscribers cannot corrupt fast ones.
 			frame := MakeOutputFrame(buf[:n])
-			h.scrollback.Append(frame)
-			// T-175-04-01/02: no-op when liveEmu is nil (no shared viewer has
-			// ever connected); guarded by its own emuMu (never hub.mu), so a
-			// slow/stuck emulator write can never stall this drain loop.
-			h.feedLiveEmulator(buf[:n])
+			// CR-03 (code review): append to scrollback AND feed the live
+			// emulator as ONE atomic step under emuMu — see recordFrame. This
+			// prevents a boundary frame being counted twice (once by
+			// EnsureLiveEmulator's bootstrap ScrollbackSnapshot, once by the live
+			// feed), the TestHub_TwoClientsFanOut "hello worldhello world" race.
+			h.recordFrame(frame, buf[:n])
 			h.broadcast(frame)
 		}
 		if err != nil {
@@ -455,18 +460,53 @@ func (h *Hub) Run() {
 	}
 }
 
-// feedLiveEmulator writes a stripped copy of raw (pre-framing) PTY bytes into
-// the live emulator, if one has been constructed. Called from Run()'s drain
-// loop immediately after the PTY Read returns, OUTSIDE hub.mu — emuMu is a
-// completely separate lock (T-175-04-02).
-func (h *Hub) feedLiveEmulator(raw []byte) {
+// recordFrame appends the framed bytes to the scrollback ring AND feeds the raw
+// (pre-framing) PTY bytes to the live emulator (if one has been built) as ONE
+// atomic step under emuMu. Called from Run()'s drain loop immediately after the
+// PTY Read returns, OUTSIDE hub.mu (emuMu is a separate lock, T-175-04-02).
+//
+// Atomicity vs EnsureLiveEmulator's bootstrap is REQUIRED (CR-03, code review):
+// EnsureLiveEmulator builds the emulator and bootstraps it once from
+// ScrollbackSnapshot() while holding emuMu. If the scrollback append and the
+// live feed were separate operations, a frame could be appended to scrollback,
+// picked up by a concurrent bootstrap, and THEN fed again by the live feed —
+// double-counting it (the TestHub_TwoClientsFanOut "hello worldhello world"
+// race). Holding emuMu across both here guarantees each frame is captured
+// exactly once: either it is already in the scrollback the bootstrap reads (and
+// the nil-guarded feed below no-ops because liveEmu is not yet set) OR it
+// arrives after liveEmu is set (and only the live feed applies it).
+//
+// The anti-hang mechanism for the emulator write is liveEmuQueryStripPattern
+// (not goroutine isolation): stripping the query/response sequences lets
+// emu.Write return synchronously with no drain goroutine — the proven engine.go
+// #96/#100 mitigation. A query sequence NOT covered by that pattern would block
+// emu.Write and therefore this drain loop.
+func (h *Hub) recordFrame(frame, raw []byte) {
 	h.emuMu.Lock()
 	defer h.emuMu.Unlock()
+	h.scrollback.Append(frame)
 	if h.liveEmu == nil {
 		return
 	}
 	clean := liveEmuQueryStripPattern.ReplaceAll(raw, nil)
 	h.liveEmu.Write(clean) //nolint:errcheck // emulator Write never returns a meaningful error
+}
+
+// resizeLiveEmulator propagates an authoritative PTY resize to the live per-hub
+// VT emulator (CR-01). EnsureLiveEmulator builds the emulator once at the
+// initial PTY size and it would otherwise never follow later resizes, leaving
+// RenderSnapshot's reconnect preamble mis-dimensioned after a guest-driven grid
+// change (the core BUG-04 multi-viewer path via ResizeClient's min-arbiter).
+// Takes ONLY emuMu (never hub.mu): EnsureLiveEmulator acquires emuMu→hub.mu, so
+// this MUST be called after hub.mu is released, or the reverse lock order would
+// deadlock. No-op until the emulator exists.
+func (h *Hub) resizeLiveEmulator(cols, rows int) {
+	h.emuMu.Lock()
+	defer h.emuMu.Unlock()
+	if h.liveEmu == nil {
+		return
+	}
+	h.liveEmu.Resize(cols, rows)
 }
 
 // broadcast sends frame to all current subscribers using a non-blocking send.

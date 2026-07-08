@@ -114,3 +114,59 @@ func TestScrollbackAltScreenReplay(t *testing.T) {
 			reconnectPreamble)
 	}
 }
+
+// TestLiveEmulatorFollowsResize is the CR-01 regression guard (code review
+// 175-REVIEW.md): the live per-hub VT emulator is built once at the initial PTY
+// size in EnsureLiveEmulator and must follow later authoritative PTY resizes,
+// or RenderSnapshot's reconnect preamble is mis-dimensioned after a guest joins
+// with a smaller viewport (ResizeClient's host-authority min-arbiter shrinks the
+// PTY — the core BUG-04 multi-viewer path). Without resizeLiveEmulator this test
+// fails: the emulator stays at the 220x50 fallback geometry after the resize.
+func TestLiveEmulatorFollowsResize(t *testing.T) {
+	r, w := io.Pipe()
+	hub := NewHub("resize-follow-test", r, w, DefaultScrollbackBytes, nil)
+
+	done := make(chan struct{})
+	go func() {
+		hub.Run()
+		close(done)
+	}()
+	defer func() {
+		_ = w.Close()
+		<-done
+	}()
+
+	// Some initial PTY output, then build the emulator. No ResizeClient has run
+	// yet, so it is built at the Cols()/Rows() fallback geometry (220x50).
+	if _, err := w.Write([]byte("initial output\r\n")); err != nil {
+		t.Fatalf("write initial output: %v", err)
+	}
+	hub.EnsureLiveEmulator()
+
+	// Read geometry under emuMu — the drain goroutine mutates liveEmu under the
+	// same lock, so an unguarded read would race (-race).
+	readGeom := func() (int, int) {
+		hub.emuMu.Lock()
+		defer hub.emuMu.Unlock()
+		return hub.liveEmu.Width(), hub.liveEmu.Height()
+	}
+
+	if gotW, gotH := readGeom(); gotW != 220 || gotH != 50 {
+		t.Fatalf("pre-resize emulator geometry = %dx%d, want 220x50 (fallback)", gotW, gotH)
+	}
+
+	// A local-origin subscriber joins reporting a small viewport. ResizeClient's
+	// min-arbiter makes 40x10 the authoritative PTY grid and (with the fix)
+	// propagates it to the live emulator. resizeFn is nil here, which is fine —
+	// ResizeClient still runs broadcastResize + resizeLiveEmulator.
+	sub := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "local"}
+	hub.Subscribe(sub)
+	if err := hub.ResizeClient(sub, 40, 10); err != nil {
+		t.Fatalf("ResizeClient: %v", err)
+	}
+
+	if gotW, gotH := readGeom(); gotW != 40 || gotH != 10 {
+		t.Errorf("post-resize emulator geometry = %dx%d, want 40x10 — the live emulator did "+
+			"not follow the PTY resize (CR-01: RenderSnapshot would be mis-dimensioned)", gotW, gotH)
+	}
+}
