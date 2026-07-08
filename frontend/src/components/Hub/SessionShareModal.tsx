@@ -21,6 +21,15 @@ import { InternetFullAccessTab } from '../SessionShare/InternetFullAccessTab'
 // ('/bin/zsh'), so isShellCli() normalizes to basename before matching.
 import { isShellCli } from '../../lib/shellCli'
 
+// Phase 173 (D-07/SM-07) — colorblind-safe toggle state text. Owner is
+// colorblind (project memory): every toggle must read its state as text, not
+// just knob position/track color. 'N/A' covers the not-applicable/disabled
+// case (Browse toggle when !shareEnabled; Internet toggle when funnelDisabled).
+function toggleStateLabel(checked: boolean, disabled: boolean): string {
+  if (disabled) return 'N/A'
+  return checked ? 'On' : 'Off'
+}
+
 // ---- Types ----
 
 interface ShareSession {
@@ -83,7 +92,8 @@ export interface SessionShareModalProps {
  * SessionShareModal — per-card Share modal for the Hub (Phase 137 / SHARE-01/02/04/05/06).
  *
  * Two-toggle design (D-10):
- *   1. "Share the session" — calls ToggleWebServing; on ON, issues caps + reveals SessionSharePanel
+ *   1. "Share the session" — calls ToggleWebServing; on ON, issues caps + reveals the
+ *      three-tab segmented panel (Phase 173: TailnetTab/InternetReadOnlyTab/InternetFullAccessTab)
  *   2. "Enable remote file browsing" — disabled when sharing OFF; calls SetSessionBrowse then
  *      re-issues caps so the RO/RW URLs reflect the new browse perm matrix (D-03/D-04).
  *
@@ -586,7 +596,6 @@ export function SessionShareModal({
           {/* SHARE-01: "Share the session" toggle */}
           <label
             className={`settings-panel__toggle-row${shareEnabled ? ' settings-panel__toggle-row--checked' : ''}`}
-            style={{ cursor: 'pointer' }}
           >
             <input
               type="checkbox"
@@ -601,12 +610,13 @@ export function SessionShareModal({
               <span className="settings-panel__toggle-thumb" />
             </span>
             <span className="settings-panel__toggle-label">Share the session</span>
+            <span className="settings-panel__toggle-state">{toggleStateLabel(shareEnabled, false)}</span>
           </label>
 
           {/* LAN password (SHARE-04): shown in local mode */}
           {webServerMode === 'local' && webServerRunning && lanPassword && (
-            <div className="hub-share-modal__lan-creds" style={{ margin: '8px 0', fontSize: 12 }}>
-              <span style={{ fontWeight: 600 }}>LAN password:</span>{' '}
+            <div className="hub-share-modal__lan-creds">
+              <span className="hub-share-modal__lan-creds-label">LAN password:</span>{' '}
               <code>
                 {lanPassword}
               </code>
@@ -622,13 +632,9 @@ export function SessionShareModal({
 
           {/* SHARE-02: "Enable remote file browsing" toggle.
               Disabled/no-op when sharing is OFF (Pitfall 1 guard). */}
-          <div
-            aria-disabled={!shareEnabled}
-            style={!shareEnabled ? { opacity: 0.6, pointerEvents: 'none' } : undefined}
-          >
+          <div className="hub-share-modal__toggle-wrap" aria-disabled={!shareEnabled}>
             <label
               className={`settings-panel__toggle-row${browseEnabled ? ' settings-panel__toggle-row--checked' : ''}`}
-              style={{ cursor: shareEnabled ? 'pointer' : 'not-allowed' }}
             >
               <input
                 type="checkbox"
@@ -644,6 +650,7 @@ export function SessionShareModal({
                 <span className="settings-panel__toggle-thumb" />
               </span>
               <span className="settings-panel__toggle-label">Enable remote file browsing</span>
+              <span className="settings-panel__toggle-state">{toggleStateLabel(browseEnabled, !shareEnabled)}</span>
             </label>
           </div>
 
@@ -675,11 +682,9 @@ export function SessionShareModal({
             className="hub-funnel-toggle-section"
             aria-disabled={funnelDisabled}
             data-funnel-warming={warmingUp ? 'true' : undefined}
-            style={funnelDisabled ? { opacity: 0.6, pointerEvents: 'none' } : undefined}
           >
             <label
               className={`settings-panel__toggle-row${funnelOn || riskPanelOpen ? ' settings-panel__toggle-row--checked' : ''}`}
-              style={{ cursor: funnelDisabled ? 'not-allowed' : 'pointer' }}
             >
               <input
                 type="checkbox"
@@ -695,12 +700,12 @@ export function SessionShareModal({
                 <span className="settings-panel__toggle-thumb" />
               </span>
               <span className="settings-panel__toggle-label">Enable internet sharing</span>
+              <span className="settings-panel__toggle-state">
+                {toggleStateLabel(funnelOn || riskPanelOpen, funnelDisabled)}
+              </span>
             </label>
             {funnelDisabled && (
-              <div
-                className="hub-funnel-toggle-section__note"
-                style={{ fontSize: 'var(--hub-font-size-sm)', color: 'var(--hub-text-muted)', marginTop: 4 }}
-              >
+              <div className="hub-funnel-toggle-section__note">
                 Internet sharing requires Tailscale
               </div>
             )}
