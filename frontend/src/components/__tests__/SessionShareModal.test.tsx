@@ -18,11 +18,24 @@
  *   SET-01: non-shell session → banner NOT shown; ToggleWebServing called immediately
  *   SET-01: confirming banner calls onShellWebShareConfirm + enables share
  *   SET-01: cancelling banner calls onShellWebShareCancel, share stays OFF
+ *
+ * Phase 173 (three-tab segmented redesign) additions — all attribute/text/
+ * role/class based, never computed color (owner is colorblind; verify at
+ * source, per project memory):
+ *   SM-01: fixed control strip — toggle rows keep DOM order across a toggle flip
+ *   SM-02: .hub-share-modal__tabpanel is the nested scroll region (structural + source-level)
+ *   SM-03: segmented control is a real tablist (role="tablist"/"tab", aria-selected)
+ *   SM-05: Internet tabs aria-disabled until confirmed; default tab = Internet·Read-only
+ *          on confirm; disabling internet resets the active tab to Tailnet
+ *   SM-07: On/Off/N-A toggle state text labels
+ *   SM-08: modal width source string (min(520px, calc(100vw - 48px)))
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { flushSync } from 'react-dom'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
 
 // Mock Wails runtime + bindings (must be before component import)
 vi.mock('../../wailsjs/wailsjs/runtime/runtime', () => ({
@@ -482,8 +495,32 @@ describe('SessionShareModal — SET-01: shell warning interception on Hub Share 
 
 // ---------------------------------------------------------------------------
 // Phase 166 — FUI-01/FUI-02/FUI-06/D-15 — Funnel enable flow
+// Phase 173 (D-05): the transient confirm view (repurposed FunnelRiskPanel)
+// only renders when `shareEnabled && riskPanelOpen` — sharing must be ON
+// first. All tests below that open the risk panel now seed with
+// webEnabled: true (and await the seeding tick) to match the new gate.
 // ---------------------------------------------------------------------------
 const mockedSetSessionFunnel = SetSessionFunnel as ReturnType<typeof vi.fn>
+
+async function tick(): Promise<void> {
+  await new Promise<void>((r) => setTimeout(r, 0))
+}
+
+async function enableFunnel(c: HTMLElement): Promise<void> {
+  await flushSync(() => { findFunnelToggle(c)!.click() })
+  const cta = findByText(c, 'Enable internet share')!
+  // Phase 173: the CTA click kicks off an async SetSessionFunnel round-trip
+  // whose continuation flips funnelOn and (via the SM-05/Pitfall 4 passive
+  // effect) the active tab to Internet·RO. A bare setTimeout(0) tick does not
+  // reliably flush that passive effect (timing depends on the surrounding
+  // test run, not just this click) — wrapping in React.act() forces React to
+  // flush pending effects deterministically before the click is considered
+  // "done", regardless of run order.
+  await React.act(async () => {
+    cta.click()
+    await tick()
+  })
+}
 
 describe('SessionShareModal — FUI-01: risk panel on every enable (Tailscale mode)', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -493,12 +530,17 @@ describe('SessionShareModal — FUI-01: risk panel on every enable (Tailscale mo
     expect(findFunnelToggle(c)).not.toBeNull()
   })
 
-  it('flipping the Funnel toggle ON opens the risk panel and does NOT call SetSessionFunnel', async () => {
-    const { container: c } = renderModal({ webServerMode: 'tailscale' })
+  it('flipping the Funnel toggle ON opens the risk panel (replacing the segmented panel, not injected above it, D-05) and does NOT call SetSessionFunnel', async () => {
+    const { container: c } = renderModal({ webEnabled: true, webServerMode: 'tailscale' })
+    await tick() // seeding IssueCapabilities -> cachedShare
     const toggle = findFunnelToggle(c)!
     await flushSync(() => { toggle.click() })
     const panel = c.querySelector('.hub-funnel-risk-panel--open')
     expect(panel).not.toBeNull()
+    // D-05: the confirm view REPLACES the segmented control region — it is
+    // never shown alongside the tabs/link content.
+    expect(c.querySelector('.share-segbar')).toBeNull()
+    expect(c.querySelector('.hub-share-modal__tabpanel')).toBeNull()
     // The risk statement is visible
     expect(c.textContent).toMatch(/reachable from the public internet/i)
     // Toggle ON must NOT commit — only the explicit CTA commits (D-02)
@@ -510,28 +552,31 @@ describe('SessionShareModal — FUI-02: explicit CTA commits with the selected p
   beforeEach(() => vi.clearAllMocks())
 
   it('"Enable internet share" calls SetSessionFunnel(id, true, 3600) for the default', async () => {
-    const { container: c } = renderModal({ webServerMode: 'tailscale' })
+    const { container: c } = renderModal({ webEnabled: true, webServerMode: 'tailscale' })
+    await tick()
     await flushSync(() => { findFunnelToggle(c)!.click() })
     const cta = findByText(c, 'Enable internet share')!
     await flushSync(() => { cta.click() })
-    await new Promise<void>((r) => setTimeout(r, 0))
+    await tick()
     expect(mockedSetSessionFunnel).toHaveBeenCalledWith('sess-1', true, 3600)
   })
 
   it('changing the expiry preset commits the selected value', async () => {
-    const { container: c } = renderModal({ webServerMode: 'tailscale' })
+    const { container: c } = renderModal({ webEnabled: true, webServerMode: 'tailscale' })
+    await tick()
     await flushSync(() => { findFunnelToggle(c)!.click() })
     const select = c.querySelector('.hub-funnel-risk-panel select') as HTMLSelectElement
     select.value = '14400'
     flushSync(() => { select.dispatchEvent(new Event('change', { bubbles: true })) })
     const cta = findByText(c, 'Enable internet share')!
     await flushSync(() => { cta.click() })
-    await new Promise<void>((r) => setTimeout(r, 0))
+    await tick()
     expect(mockedSetSessionFunnel).toHaveBeenCalledWith('sess-1', true, 14400)
   })
 
   it('"Keep local only" collapses the panel with no API call', async () => {
-    const { container: c } = renderModal({ webServerMode: 'tailscale' })
+    const { container: c } = renderModal({ webEnabled: true, webServerMode: 'tailscale' })
+    await tick()
     await flushSync(() => { findFunnelToggle(c)!.click() })
     expect(c.querySelector('.hub-funnel-risk-panel--open')).not.toBeNull()
     const cancel = findByText(c, 'Keep local only')!
@@ -563,7 +608,8 @@ describe('SessionShareModal — FUI-06: Help cross-link', () => {
 
   it('the risk-panel Help link invokes the onOpenHelp callback', async () => {
     const onOpenHelp = vi.fn()
-    const { container: c } = renderModal({ webServerMode: 'tailscale', onOpenHelp })
+    const { container: c } = renderModal({ webEnabled: true, webServerMode: 'tailscale', onOpenHelp })
+    await tick()
     await flushSync(() => { findFunnelToggle(c)!.click() })
     const helpLink = Array.from(c.querySelectorAll('button')).find((b) =>
       /See the Sharing Guide/i.test(b.textContent ?? ''),
@@ -576,21 +622,11 @@ describe('SessionShareModal — FUI-06: Help cross-link', () => {
 
 // ---------------------------------------------------------------------------
 // Phase 166 — FUI-05 warm-up state machine + FUI-04 disable (Plan 05)
-// Share must be ON (webEnabled) so the SessionSharePanel — which hosts the
-// Internet (public) section — is rendered.
+// Share must be ON (webEnabled) so the three-tab segmented panel (Phase 173:
+// ShareSegmentedControl + TailnetTab/InternetReadOnlyTab/InternetFullAccessTab)
+// — which hosts the Internet (public) section — is rendered.
 // ---------------------------------------------------------------------------
 const mockedIssueCapabilitiesForFunnel = IssueCapabilities as ReturnType<typeof vi.fn>
-
-async function tick(): Promise<void> {
-  await new Promise<void>((r) => setTimeout(r, 0))
-}
-
-async function enableFunnel(c: HTMLElement): Promise<void> {
-  await flushSync(() => { findFunnelToggle(c)!.click() })
-  const cta = findByText(c, 'Enable internet share')!
-  await flushSync(() => { cta.click() })
-  await tick()
-}
 
 describe('SessionShareModal — FUI-05: warm-up → live URL', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -608,8 +644,12 @@ describe('SessionShareModal — FUI-05: warm-up → live URL', () => {
     await enableFunnel(c)
     const callsBefore = mockedIssueCapabilitiesForFunnel.mock.calls.length
     // Simulate the HubPanel 3s-poll sync delivering funnelActive=true.
+    // Wrapped in React.act() (not bare flushSync+tick): the warm-up-completion
+    // effect this triggers does an async IssueCapabilities round-trip of its
+    // own, and act() is what deterministically flushes it before we assert —
+    // a bare setTimeout(0) tick races with it under load (Phase 173 timing).
     const session = makeSession({ webEnabled: true, funnelActive: true })
-    flushSync(() => {
+    await React.act(async () => {
       r.render(
         React.createElement(SessionShareModal, {
           session,
@@ -618,8 +658,8 @@ describe('SessionShareModal — FUI-05: warm-up → live URL', () => {
           onClose: vi.fn(),
         }),
       )
+      await tick()
     })
-    await tick()
     expect(mockedIssueCapabilitiesForFunnel.mock.calls.length).toBeGreaterThan(callsBefore)
     expect(c.textContent).toMatch(/Public URL \(read-only\)/)
     expect(c.textContent).not.toMatch(/Starting up/)
@@ -635,7 +675,7 @@ describe('SessionShareModal — FUI-04: one-click disable', () => {
     await enableFunnel(c)
     // Advance to the active state so the disable button sits in the live section.
     const session = makeSession({ webEnabled: true, funnelActive: true })
-    flushSync(() => {
+    await React.act(async () => {
       r.render(
         React.createElement(SessionShareModal, {
           session,
@@ -644,11 +684,13 @@ describe('SessionShareModal — FUI-04: one-click disable', () => {
           onClose: vi.fn(),
         }),
       )
+      await tick()
     })
-    await tick()
     const disableBtn = findByText(c, 'Disable internet share')!
-    await flushSync(() => { disableBtn.click() })
-    await tick()
+    await React.act(async () => {
+      disableBtn.click()
+      await tick()
+    })
     expect(mockedSetSessionFunnel).toHaveBeenCalledWith('sess-1', false, 0)
   })
 })
@@ -808,5 +850,154 @@ describe('SessionShareModal — WR-03: single issuance for Funnel sessions', () 
     })
     await new Promise<void>((r) => setTimeout(r, 0))
     expect(mockedIssueCapabilities).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Phase 173 — three-tab segmented redesign structural assertions
+// ---------------------------------------------------------------------------
+
+function findToggleRow(c: HTMLElement, label: string): HTMLElement {
+  const row = Array.from(c.querySelectorAll('.settings-panel__toggle-row')).find(
+    (r) => r.querySelector('.settings-panel__toggle-label')?.textContent === label,
+  ) as HTMLElement | undefined
+  if (!row) throw new Error(`toggle row not found: ${label}`)
+  return row
+}
+
+describe('SessionShareModal — SM-01: fixed control strip does not reflow on toggle', () => {
+  it('the three toggle rows keep their DOM order across a "Share the session" toggle flip', async () => {
+    const { container: c } = renderModal({ webServerMode: 'tailscale' })
+    const labelsBefore = Array.from(c.querySelectorAll('.settings-panel__toggle-label')).map(
+      (el) => el.textContent,
+    )
+    expect(labelsBefore).toEqual([
+      'Share the session',
+      'Enable remote file browsing',
+      'Enable internet sharing',
+    ])
+    const shareToggle = findToggleRow(c, 'Share the session').querySelector('input') as HTMLElement
+    // handleShareToggle awaits ToggleWebServing before setShareEnabled — wrap
+    // in React.act() so the state update is deterministically flushed.
+    await React.act(async () => {
+      shareToggle.click()
+      await tick()
+    })
+    const labelsAfter = Array.from(c.querySelectorAll('.settings-panel__toggle-label')).map(
+      (el) => el.textContent,
+    )
+    // Same three rows, same order — toggling never reflows the control strip.
+    expect(labelsAfter).toEqual(labelsBefore)
+  })
+})
+
+describe('SessionShareModal — SM-02: single scroll region', () => {
+  it('.hub-share-modal__tabpanel is nested inside .hub-share-modal__body, not the same element', async () => {
+    const { container: c } = renderModal({ webEnabled: true, webServerMode: 'tailscale' })
+    await tick()
+    const body = c.querySelector('.hub-share-modal__body')
+    const tabpanel = c.querySelector('.hub-share-modal__tabpanel')
+    expect(body).not.toBeNull()
+    expect(tabpanel).not.toBeNull()
+    expect(body!.contains(tabpanel)).toBe(true)
+    expect(tabpanel).not.toBe(body)
+  })
+
+  it('style.css documents .hub-share-modal__tabpanel as the scrolling region (source-level — jsdom has no layout)', () => {
+    const css = readFileSync(resolve(__dirname, '../../style.css'), 'utf-8')
+    const block = css.match(/\.hub-share-modal__tabpanel\s*\{[^}]*\}/)?.[0] ?? ''
+    expect(block).toMatch(/overflow-y:\s*auto/)
+  })
+})
+
+describe('SessionShareModal — SM-03: segmented control is a real tablist', () => {
+  it('renders role="tablist" with three role="tab" segments, exactly one aria-selected', async () => {
+    const { container: c } = renderModal({ webEnabled: true, webServerMode: 'tailscale' })
+    await tick()
+    expect(c.querySelector('[role="tablist"]')).not.toBeNull()
+    const tabs = Array.from(c.querySelectorAll('[role="tab"]'))
+    expect(tabs).toHaveLength(3)
+    const selected = tabs.filter((t) => t.getAttribute('aria-selected') === 'true')
+    expect(selected).toHaveLength(1)
+    expect(selected[0]?.textContent).toMatch(/Tailnet/)
+  })
+})
+
+describe('SessionShareModal — SM-05: tab availability, default, and reset', () => {
+  it('Internet tabs are aria-disabled until confirmed; confirming defaults to Internet·Read-only; disabling resets to Tailnet', async () => {
+    const { container: c } = renderModal({ webEnabled: true, webServerMode: 'tailscale' })
+    await tick()
+
+    const tabsBefore = Array.from(c.querySelectorAll('[role="tab"]'))
+    const internetTabsBefore = tabsBefore.filter((t) => /Internet/.test(t.textContent ?? ''))
+    expect(internetTabsBefore).toHaveLength(2)
+    for (const t of internetTabsBefore) {
+      expect(t.getAttribute('aria-disabled')).toBe('true')
+    }
+
+    await enableFunnel(c)
+
+    const tabsAfterConfirm = Array.from(c.querySelectorAll('[role="tab"]'))
+    const internetTabsAfterConfirm = tabsAfterConfirm.filter((t) => /Internet/.test(t.textContent ?? ''))
+    for (const t of internetTabsAfterConfirm) {
+      expect(t.getAttribute('aria-disabled')).toBe('false')
+    }
+    // D-05: default-to-Read-only-on-confirm — the active tab is Internet·Read-only.
+    const activeAfterConfirm = tabsAfterConfirm.find((t) => t.getAttribute('aria-selected') === 'true')
+    expect(activeAfterConfirm?.textContent).toMatch(/Read-only/)
+
+    // D-05: disabling internet resets the active tab to Tailnet.
+    const disableBtn = findByText(c, 'Disable internet share')!
+    await React.act(async () => {
+      disableBtn.click()
+      await tick()
+    })
+    const tabsAfterDisable = Array.from(c.querySelectorAll('[role="tab"]'))
+    const activeAfterDisable = tabsAfterDisable.find((t) => t.getAttribute('aria-selected') === 'true')
+    expect(activeAfterDisable?.textContent).toMatch(/Tailnet/)
+    const internetTabsAfterDisable = tabsAfterDisable.filter((t) => /Internet/.test(t.textContent ?? ''))
+    for (const t of internetTabsAfterDisable) {
+      expect(t.getAttribute('aria-disabled')).toBe('true')
+    }
+  })
+})
+
+describe('SessionShareModal — SM-07: On/Off/N-A toggle state labels', () => {
+  it('"Share the session" reads Off, then On after toggling', async () => {
+    const { container: c } = renderModal({ webServerMode: 'tailscale' })
+    expect(findToggleRow(c, 'Share the session').querySelector('.settings-panel__toggle-state')?.textContent).toBe(
+      'Off',
+    )
+    const shareToggle = findToggleRow(c, 'Share the session').querySelector('input') as HTMLElement
+    // handleShareToggle awaits ToggleWebServing before setShareEnabled — wrap
+    // in React.act() so the state update is deterministically flushed.
+    await React.act(async () => {
+      shareToggle.click()
+      await tick()
+    })
+    expect(findToggleRow(c, 'Share the session').querySelector('.settings-panel__toggle-state')?.textContent).toBe(
+      'On',
+    )
+  })
+
+  it('"Enable remote file browsing" reads N/A while sharing is off', () => {
+    const { container: c } = renderModal({ webEnabled: false })
+    expect(
+      findToggleRow(c, 'Enable remote file browsing').querySelector('.settings-panel__toggle-state')?.textContent,
+    ).toBe('N/A')
+  })
+
+  it('"Enable internet sharing" reads N/A in local (non-Tailscale) mode', () => {
+    const { container: c } = renderModal({ webServerMode: 'local' })
+    expect(
+      findToggleRow(c, 'Enable internet sharing').querySelector('.settings-panel__toggle-state')?.textContent,
+    ).toBe('N/A')
+  })
+})
+
+describe('SessionShareModal — SM-08: modal width source string', () => {
+  it('style.css documents the widened .hub-share-modal clamp (min(520px, calc(100vw - 48px)))', () => {
+    const css = readFileSync(resolve(__dirname, '../../style.css'), 'utf-8')
+    expect(css).toMatch(/width:\s*min\(520px,\s*calc\(100vw - 48px\)\)/)
   })
 })
