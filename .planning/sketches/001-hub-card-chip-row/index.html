@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sketch 001 — Hub Card Chip Row</title>
+<link rel="stylesheet" href="../themes/default.css">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 96px 24px 48px;
+    background: var(--hub-bg);
+    color: var(--hub-text-primary);
+    font-family: var(--hub-font-ui);
+    -webkit-font-smoothing: antialiased;
+  }
+  h2.section {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--hub-text-muted);
+    margin: 4px 0 4px;
+  }
+  p.note {
+    font-size: 12.5px;
+    color: var(--hub-text-secondary);
+    max-width: 760px;
+    margin: 0 0 14px;
+    line-height: 1.5;
+  }
+  p.note b { color: var(--hub-text-primary); }
+
+  /* ===== variant tab bar ===== */
+  #variant-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+    background: var(--hub-surface); border-bottom: 1px solid var(--hub-border);
+    padding: 10px 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    font-family: var(--hub-font-ui);
+  }
+  #variant-nav .brand { font-weight: 700; font-size: 13px; margin-right: 8px; color: var(--hub-text-primary); }
+  .variant-tab {
+    background: transparent; border: 1px solid var(--hub-border); color: var(--hub-text-secondary);
+    border-radius: 999px; padding: 5px 14px; font-size: 12.5px; cursor: pointer;
+    font-family: inherit; transition: all 0.15s ease;
+  }
+  .variant-tab:hover { border-color: var(--hub-border-hover); color: var(--hub-text-primary); }
+  .variant-tab.active { background: var(--hub-accent); border-color: var(--hub-accent); color: #fff; }
+
+  /* ===== card grid (mirrors .hub__card-row) ===== */
+  .hub__card-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 300px));
+    gap: 12px;
+    padding: 8px 0 24px;
+  }
+  .variant { display: none; }
+  .variant.active { display: block; }
+
+  /* ===== SESSION CARD (ported from .hub-card) ===== */
+  .card {
+    min-width: 240px; max-width: 360px;
+    border: 1px solid var(--hub-border);
+    border-radius: 16px;
+    padding: 10px 16px 12px;
+    background: var(--hub-surface);
+    position: relative;
+    transition: border-color 100ms ease, background 100ms ease;
+  }
+  .card:hover { border-color: var(--hub-border-hover); background: var(--hub-surface-elevated); }
+  .card[data-agent="claude"]  { border-left: 3px solid #7aa2f7; }
+  .card[data-agent="shell"]   { border-left: 3px solid #89ddff; }
+  .card[data-agent="codex"]   { border-left: 3px solid #bb9af7; }
+  .card[data-agent="gemini"]  { border-left: 3px solid #2ac3de; }
+  .card[data-agent="aider"]   { border-left: 3px solid #f7768e; }
+  .card--dim { opacity: var(--hub-dim-opacity); background: var(--hub-card-dim-bg); }
+
+  .card__header {
+    display: flex; justify-content: center; align-items: center;
+    min-height: 20px; padding: 0 22px; margin-bottom: 10px;
+  }
+  .card__name {
+    font-size: 14px; font-weight: 600; line-height: 1.3; color: var(--hub-text-primary);
+    max-width: 100%; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ROW 1 — STATUS stays the primary top-line signal (D-03) */
+  .card__status {
+    display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+  }
+  .card__status-icon { width: 20px; height: 20px; flex-shrink: 0; }
+  .card__status-icon--spin { animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .card__status-label { font-size: 13px; font-weight: 600; color: var(--hub-text-primary); }
+
+  /* ===== THE NEW CONSOLIDATED CHIP ROW (agent · origin · exposure) ===== */
+  .chiprow {
+    display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    border: 1px solid var(--hub-border);
+    background: transparent;
+    color: var(--hub-text-muted);
+    font-size: 11px;
+    padding: 1px 7px;
+    flex-shrink: 0;
+    line-height: 1.5;
+  }
+  .chip svg { width: 12px; height: 12px; flex-shrink: 0; }
+  .chip--agent { font-family: var(--hub-font-mono); }
+  /* agent-color tint on the agent chip (matches left spine + tab dot) */
+  .card[data-agent="claude"] .chip--agent { color: #7aa2f7; border-color: rgba(122,162,247,0.45); }
+  .card[data-agent="shell"]  .chip--agent { color: #89ddff; border-color: rgba(137,221,255,0.45); }
+  .card[data-agent="codex"]  .chip--agent { color: #bb9af7; border-color: rgba(187,154,247,0.45); }
+  .card[data-agent="gemini"] .chip--agent { color: #2ac3de; border-color: rgba(42,195,222,0.45); }
+  .card[data-agent="aider"]  .chip--agent { color: #f7768e; border-color: rgba(247,118,142,0.45); }
+
+  /* exposure cluster — the only FILLED chips; pushed to the right end */
+  .exposure { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+
+  .badge-internet {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--hub-internet-badge-bg);
+    border-radius: var(--hub-radius-pill);
+    padding: 2px 8px;
+  }
+  .badge-internet svg { width: 12px; height: 12px; color: var(--hub-internet-badge-text); }
+  .badge-internet .lbl {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--hub-internet-badge-text);
+  }
+  /* FULL ACCESS — load-bearing notched clip-path + heavier weight (Phase 171 colorblind guarantee) */
+  .badge-fullaccess {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--hub-fullaccess-badge-bg);
+    clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%, 0 6px);
+    padding: 3px 10px 3px 8px;
+  }
+  .badge-fullaccess svg { width: 12px; height: 12px; color: var(--hub-fullaccess-badge-text); }
+  .badge-fullaccess .lbl {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--hub-fullaccess-badge-text);
+  }
+
+  /* ===== muted META line (uptime · viewers · Connected) (D-06) ===== */
+  .card__meta {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    font-size: 11px; color: var(--hub-text-muted);
+    margin-bottom: 10px; min-height: 14px;
+  }
+  .card__meta .dot { opacity: 0.5; }
+  .card__meta .mi { display: inline-flex; align-items: center; gap: 3px; }
+  .card__meta .mi svg { width: 11px; height: 11px; }
+  .card__meta .mi--conn { color: var(--hub-accent); }
+
+  /* exit chip (stopped-err) */
+  .card__exit {
+    display: inline-flex; align-items: center; font-size: 11px; padding: 1px 7px;
+    border: 1px solid var(--hub-destructive); color: var(--hub-destructive);
+    border-radius: 999px; margin-bottom: 8px;
+  }
+
+  /* ===== actions row (Open / Share) ===== */
+  .card__actions { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+  .btn {
+    background: transparent; border: 1px solid var(--hub-border); border-radius: var(--hub-radius-sm);
+    color: var(--hub-text-primary); font-size: 12.5px; padding: 4px 12px; min-height: 28px;
+    cursor: pointer; font-family: inherit; transition: all 0.15s ease;
+  }
+  .btn:hover { border-color: var(--hub-border-hover); background: var(--hub-surface-elevated); }
+
+  /* mini preview stub (just to preserve card proportions) */
+  .card__preview {
+    margin-top: 10px; border-radius: 8px; background: var(--hub-bg);
+    border: 1px solid var(--hub-border); padding: 8px 10px;
+    font-family: var(--hub-font-mono); font-size: 10.5px; color: var(--hub-text-muted);
+    line-height: 1.5; white-space: pre; overflow: hidden; height: 58px;
+  }
+
+  /* ============================================================
+     VARIANT-SPECIFIC OVERRIDES (all share the outlined-pill direction)
+     ============================================================ */
+
+  /* A — Pill radius, wrap-as-unit, muted origin, tight gap */
+  .v-a .chip { border-radius: 999px; }
+  .v-a .chiprow { flex-wrap: wrap; }
+  .v-a .exposure { flex-wrap: wrap; justify-content: flex-end; }
+
+  /* B — Rounded-rect radius, roomier, exposure forced onto its OWN line */
+  .v-b .chip { border-radius: 7px; padding: 2px 8px; }
+  .v-b .chiprow { gap: 8px; flex-wrap: wrap; }
+  .v-b .exposure { flex-basis: 100%; margin-left: 0; margin-top: 2px; justify-content: flex-end; }
+
+  /* C — Pill radius, single line NEVER wraps, origin truncates + keeps color-coded text */
+  .v-c .chip { border-radius: 999px; }
+  .v-c .chiprow { flex-wrap: nowrap; }
+  .v-c .chip--origin { min-width: 0; max-width: 118px; }
+  .v-c .chip--origin .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .v-c .card[data-origin="local"]  .chip--origin { color: #9ece6a; border-color: rgba(158,206,106,0.45); }
+  .v-c .card[data-origin="remote"] .chip--origin { color: var(--hub-accent); border-color: color-mix(in srgb, var(--hub-accent) 45%, transparent); }
+  .theme-light .v-c .card[data-origin="local"] .chip--origin { color: #1a7f37; border-color: rgba(26,127,55,0.45); }
+
+  /* ===== sketch toolbar ===== */
+  #sketch-tools {
+    position: fixed; bottom: 12px; right: 12px; z-index: 9999; font-family: system-ui; font-size: 12px;
+    background: rgba(0,0,0,0.72); color: #fff; padding: 8px 12px; border-radius: 8px;
+    opacity: 0.45; transition: opacity 0.2s; display: flex; gap: 10px; align-items: center;
+  }
+  #sketch-tools:hover { opacity: 1; }
+  #sketch-tools button { background: #2a2a33; color: #fff; border: 1px solid #444; border-radius: 5px; padding: 3px 8px; cursor: pointer; font-size: 11px; }
+  #sketch-tools button.on { background: #7aa2f7; border-color: #7aa2f7; color: #fff; }
+</style>
+</head>
+<body>
+
+<div id="variant-nav">
+  <span class="brand">Sketch 001 · Hub Card Chip Row</span>
+  <button class="variant-tab" data-v="a" onclick="showVariant('a', this)">A: Pill · wrap-as-unit</button>
+  <button class="variant-tab active" data-v="b" onclick="showVariant('b', this)">B: Rounded-rect · own line ★ Selected</button>
+  <button class="variant-tab" data-v="c" onclick="showVariant('c', this)">C: Pill · truncate 1-line</button>
+</div>
+
+<div id="variant-a" class="variant">
+  <h2 class="section">Variant A — Pill · wrap-as-unit · muted origin</h2>
+  <p class="note">Full-pill chips (reuses today's <b>.hub-card__badge</b> geometry exactly — path of least resistance). Origin goes fully <b>muted</b>. Row <b>wraps</b>; the filled exposure cluster stays glued together (<code>margin-left:auto</code>) and wraps as one unit to line 2 when the card is narrow. Watch the long-hostname card and the INTERNET+FULL&nbsp;ACCESS card wrap.</p>
+  <div class="hub__card-row v-a" data-grid></div>
+</div>
+
+<div id="variant-b" class="variant active">
+  <h2 class="section">Variant B — Rounded-rect · dedicated exposure line · roomier &nbsp;★ WINNER</h2>
+  <p class="note">Chips are <b>rounded-rect</b> (7px) instead of full pills, with more padding and an 8px gap. The exposure cluster is <b>forced onto its own line</b> (right-aligned) so the quiet <code>agent · origin</code> pills always share one clean line — most predictable when a hostname is long or both badges coexist.</p>
+  <div class="hub__card-row v-b" data-grid></div>
+</div>
+
+<div id="variant-c" class="variant">
+  <h2 class="section">Variant C — Pill · single line, never wraps · color-coded origin</h2>
+  <p class="note">Full-pill chips on a <b>nowrap</b> row: the origin pill <b>truncates with an ellipsis</b> so everything (incl. the exposure cluster) stays on one line — most compact, most stable height. Origin keeps its <b>color-coded text</b> (green local / blue remote) as colorblind reinforcement. Hover a truncated hostname pill for the full name.</p>
+  <div class="hub__card-row v-c" data-grid></div>
+</div>
+
+<div id="sketch-tools">
+  <span>theme</span>
+  <button id="btn-dark" class="on" onclick="setTheme('dark')">Dark</button>
+  <button id="btn-light" onclick="setTheme('light')">Light</button>
+</div>
+
+<script>
+/* ---- heroicons v2 outline path data (24x24, stroke) ---- */
+const ICON = {
+  arrowPath: 'M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99',
+  pauseCircle: 'M14.25 9v6m-4.5 0V9M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+  checkCircle: 'M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+  exclamationCircle: 'M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z',
+  computer: 'M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25',
+  globe: 'M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418',
+  lockOpen: 'M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z',
+  eye1: 'M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z',
+  eye2: 'M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
+  link: 'M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244',
+};
+function svg(paths) {
+  const p = (Array.isArray(paths) ? paths : [paths]).map(d => `<path stroke-linecap="round" stroke-linejoin="round" d="${d}"/>`).join('');
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">${p}</svg>`;
+}
+
+const STATUS = {
+  running:  { icon: ICON.arrowPath,        label: 'Running',     spin: true,  dot: 'var(--st-running)' },
+  idle:     { icon: ICON.checkCircle,      label: 'Idle',        spin: false, dot: 'var(--st-idle)' },
+  waiting:  { icon: ICON.pauseCircle,      label: 'Needs input', spin: false, dot: 'var(--st-waiting)' },
+  errored:  { icon: ICON.exclamationCircle,label: 'Error',       spin: false, dot: 'var(--st-errored)' },
+  'stopped-err': { icon: ICON.exclamationCircle, label: 'Exited', spin: false, dot: 'var(--st-exit)' },
+};
+
+/* real-ish session states — the 5th matches the critique image (shell · Local · /bin/zsh · INTERNET) */
+const CARDS = [
+  { name: 'api-refactor',   agent: 'shell',  cli: '/bin/zsh', status: 'running', origin: 'local',
+    internet: true,  write: false, uptime: '2h 14m', viewers: 3 },
+  { name: 'oauth-rework',   agent: 'claude', cli: 'claude',   status: 'running', origin: 'local',
+    internet: true,  write: true,  uptime: '41m', viewers: 1 },
+  { name: 'db-migration',   agent: 'gemini', cli: 'gemini',   status: 'idle',    origin: 'remote',
+    hostname: 'studio-galactica.tail9c2f1.ts.net', connected: true },
+  { name: 'log-triage',     agent: 'codex',  cli: 'codex',    status: 'waiting', origin: 'local',
+    uptime: '8m' },
+  { name: 'nightly-build',  agent: 'aider',  cli: 'aider',    status: 'stopped-err', origin: 'local',
+    exit: 1 },
+];
+
+function renderCard(c) {
+  const st = STATUS[c.status];
+  const dim = c.status === 'stopped-err' ? '' : '';
+  const originLabel = c.origin === 'local' ? 'Local' : c.hostname;
+  const originIcon  = c.origin === 'local' ? ICON.computer : ICON.globe;
+
+  const exposure = (c.internet || c.write) ? `
+    <span class="exposure">
+      ${c.internet ? `<span class="badge-internet">${svg(ICON.globe)}<span class="lbl">Internet</span></span>` : ''}
+      ${c.write ? `<span class="badge-fullaccess">${svg(ICON.lockOpen)}<span class="lbl">Full Access</span></span>` : ''}
+    </span>` : '';
+
+  const meta = [];
+  if (c.uptime)  meta.push(`<span class="mi">${c.uptime}</span>`);
+  if (c.viewers) meta.push(`<span class="mi">${svg([ICON.eye1, ICON.eye2])}${c.viewers} ${c.viewers === 1 ? 'viewer' : 'viewers'}</span>`);
+  if (c.connected) meta.push(`<span class="mi mi--conn">${svg(ICON.link)}Connected</span>`);
+  const metaLine = meta.length
+    ? `<div class="card__meta">${meta.join('<span class="dot">·</span>')}</div>`
+    : `<div class="card__meta"></div>`;
+
+  const exitChip = c.status === 'stopped-err'
+    ? `<span class="card__exit">Exited ${c.exit}</span>` : '';
+
+  const statusLabel = c.status === 'stopped-err' ? `Exited ${c.exit}` : st.label;
+
+  const preview = c.status === 'stopped-err'
+    ? `$ make build\n  ✗ link error: undefined symbol\n  make: *** [build] Error 1`
+    : `$ ${c.cli === '/bin/zsh' ? 'git status' : c.cli}\n  ~ working tree clean\n  ● ${statusLabel.toLowerCase()}…`;
+
+  return `
+  <article class="card ${dim}" data-agent="${c.agent}" data-origin="${c.origin}">
+    <div class="card__header"><span class="card__name">${c.name}</span></div>
+
+    <div class="card__status" style="--dot:${st.dot}">
+      <span style="color:${st.dot}">${svg(st.icon).replace('<svg', `<svg class="card__status-icon${st.spin ? ' card__status-icon--spin' : ''}"`)}</span>
+      <span class="card__status-label">${statusLabel}</span>
+    </div>
+
+    ${exitChip}
+
+    <div class="chiprow">
+      <span class="chip chip--agent"><span class="lbl">${c.cli}</span></span>
+      <span class="chip chip--origin">${svg(originIcon)}<span class="lbl" title="${originLabel}">${originLabel}</span></span>
+      ${exposure}
+    </div>
+
+    ${metaLine}
+
+    <div class="card__actions">
+      <button class="btn">Open</button>
+      <button class="btn">Share</button>
+    </div>
+
+    <div class="card__preview">${preview}</div>
+  </article>`;
+}
+
+document.querySelectorAll('[data-grid]').forEach(grid => {
+  grid.innerHTML = CARDS.map(renderCard).join('');
+});
+
+function showVariant(id, btn) {
+  document.querySelectorAll('.variant').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.variant-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('variant-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function setTheme(mode) {
+  document.body.classList.toggle('theme-light', mode === 'light');
+  document.getElementById('btn-dark').classList.toggle('on', mode === 'dark');
+  document.getElementById('btn-light').classList.toggle('on', mode === 'light');
+}
+</script>
+</body>
+</html>
