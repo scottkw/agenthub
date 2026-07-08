@@ -5,14 +5,14 @@ milestone_name: Funnel Sharing & Polish
 current_phase: 175
 current_phase_name: web-share-remote-viewer-windowing-bug-fixes
 status: executing
-stopped_at: Completed 175-05-PLAN.md (BUG-03 DISPROVED-branch diagnostics; deadline unchanged); 175-06/07 remaining
-last_updated: "2026-07-08T19:26:09.869Z"
+stopped_at: Completed 175-06-PLAN.md (BUG-02 WS close-reason + colorblind-safe disconnect banner); 175-07 remaining
+last_updated: "2026-07-08T19:41:37.812Z"
 last_activity: 2026-07-08
 progress:
   total_phases: 12
   completed_phases: 10
   total_plans: 55
-  completed_plans: 53
+  completed_plans: 54
   percent: 83
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 ## Current Position
 
 Phase: 175 (web-share-remote-viewer-windowing-bug-fixes) — EXECUTING
-Plan: 5 of 7
+Plan: 6 of 7
 Status: 175-04 complete (BUG-04 live emulator + reconnect preamble); 175-05/06/07 remaining
 
 ### Roadmap Evolution
@@ -156,8 +156,8 @@ v4.2 Progress: [█████████████████░░░] 86
 
 ## Session Continuity
 
-Last session: 2026-07-08T19:26:09.863Z
-Stopped at: Completed 175-05-PLAN.md (BUG-03 DISPROVED-branch diagnostics; deadline unchanged); 175-06/07 remaining
+Last session: 2026-07-08T19:41:37.805Z
+Stopped at: Completed 175-06-PLAN.md (BUG-02 WS close-reason + colorblind-safe disconnect banner); 175-07 remaining
 Resume file: None
 Next action: Phase 175 (web-share-remote-viewer-windowing-bug-fixes) plans 01-04 complete (01: BUG-03 live diagnosis — deadline not root cause; 02: RED test scaffolding for BUG-02/BUG-04; 03: BUG-01 web-share readability floor; 04: BUG-04 live per-hub VT emulator + reconnect preamble). Continue with 175-05 (BUG-03 fix, gated on the 175-01 live diagnosis), 175-06 (BUG-02 WS close-reason, unskips session_ended_test.go), 175-07 (final wave: TESTING.md reconciliation + new M-NN manual UAT items, including 175-04's deferred live two-client alt-screen reconnect UAT and the pre-existing Suite Manifest gap logged in 175's deferred-items.md). Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
 
@@ -264,6 +264,7 @@ Next action: Phase 175 (web-share-remote-viewer-windowing-bug-fixes) plans 01-04
 | Phase 175 P03 | 8min | 2 tasks | 5 files |
 | Phase 175 P04 | 25min | 3 tasks | 4 files |
 | Phase 175 P05 | 6min | 2 tasks | 1 files |
+| Phase 175 P06 | 11min | 2 tasks | 7 files |
 
 ## Decisions
 
@@ -355,6 +356,9 @@ Next action: Phase 175 (web-share-remote-viewer-windowing-bug-fixes) plans 01-04
 - [Phase 175]: Phase 175-04: live per-hub VT emulator constructed lazily on EnsureLiveEmulator's first call (in practice, the loopback relay/server.go connection almost always constructs it at session-open time); bootstrapped once from ScrollbackSnapshot, then continuously fed by Run() so RenderSnapshot() never re-derives from a later-wrapped raw scrollback ring
 - [Phase 175]: Phase 175-04: RenderSnapshot() trims Render()'s full-height trailing blank-row padding and returns nil when content is empty and not alt-screen, to preserve the pre-existing "no frame before real PTY output" contract several webserver/relay tests depend on
 - [Phase 175-05]: Implemented the 175-01 DISPROVED branch for BUG-03: kept the fixed 300s exit-poll deadline unchanged; added slog diagnostics around the suspect daemon-client stall path and every non-session:exit terminal branch of pollSessionStatus — 175-01 live diagnosis showed a >5min shared session still auto-closed its tab; the CONFIRMED (deadline-removal) branch was never implemented
+- [Phase 175]: Phase 175-06: Both WS write pumps hub.Done() branch calls conn.Close(StatusNormalClosure, "session ended") — fixed literal, mirrors IN-01 no-leak convention
+- [Phase 175]: Phase 175-06: SessionEndedBanner accepts reason only for logging/branching, never rendered — verified via a hostile-string injection test (T-175-06-02)
+- [Phase 175]: Phase 175-06: Banner shown only on the guest path (isGuest = remote || !!wsURL); no auto-reconnect wired anywhere
 
 ### Blockers
 
