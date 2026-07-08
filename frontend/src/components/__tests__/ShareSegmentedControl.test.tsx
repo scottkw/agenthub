@@ -165,6 +165,47 @@ describe('ShareSegmentedControl — arrow-key navigation (SM-07)', () => {
     })
     expect(onSelect).toHaveBeenCalledWith('internet-fa')
   })
+
+  it('ArrowRight moves real DOM focus to the newly-active tab button (roving tabindex focus-follow, 173-08)', () => {
+    const c = renderControl({ tabs: TABS_POST_CONFIRM, active: 'tailnet' })
+    const tabs = Array.from(c.querySelectorAll('[role="tab"]')) as HTMLButtonElement[]
+    const activeTab = tabs.find((t) => t.getAttribute('aria-selected') === 'true')!
+    activeTab.focus()
+    flushSync(() => {
+      activeTab.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
+      )
+    })
+    const nextTab = tabs.find((t) => t.textContent?.includes('Read-only'))!
+    expect(document.activeElement).toBe(nextTab)
+  })
+
+  it('ArrowLeft moves real DOM focus to the wrapped-to-last tab button (roving tabindex focus-follow, 173-08)', () => {
+    const c = renderControl({ tabs: TABS_POST_CONFIRM, active: 'tailnet' })
+    const tabs = Array.from(c.querySelectorAll('[role="tab"]')) as HTMLButtonElement[]
+    const activeTab = tabs.find((t) => t.getAttribute('aria-selected') === 'true')!
+    activeTab.focus()
+    flushSync(() => {
+      activeTab.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }),
+      )
+    })
+    const nextTab = tabs.find((t) => t.textContent?.includes('Full access'))!
+    expect(document.activeElement).toBe(nextTab)
+  })
+
+  it('ArrowRight in the pre-confirm single-enabled-tab case keeps focus on the tailnet button (no escape to a disabled tab)', () => {
+    const c = renderControl({ tabs: TABS_PRE_CONFIRM, active: 'tailnet' })
+    const tabs = Array.from(c.querySelectorAll('[role="tab"]')) as HTMLButtonElement[]
+    const activeTab = tabs.find((t) => t.getAttribute('aria-selected') === 'true')!
+    activeTab.focus()
+    flushSync(() => {
+      activeTab.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
+      )
+    })
+    expect(document.activeElement).toBe(activeTab)
+  })
 })
 
 describe('ShareSegmentedControl — colorblind-safe danger cue (SM-07)', () => {
