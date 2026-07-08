@@ -50,6 +50,17 @@ Frontend-only visual refinement of the Hub session card (`frontend/src/component
 - `frontend/src/components/Hub/SessionCard.tsx` — the card component. Current row structure: header (name + ChatBadge) → row1 (status indicator + `.hub-card__badge` agent chip pushed right) → row2 (origin + row2-meta uptime/viewers) → row2b (remote conn) → row4 (exit chip) → `.hub-internet-badge` → `.hub-fullaccess-badge` → row5 (Open/Share) → MiniPreview.
 - `frontend/src/style.css` — chip/badge/row styles. Key anchors: `.hub-card__row1` (~4987), `.hub-card__row2`/`__row2-meta` (~4994–5017), `.hub-card__badge` + `[data-agent]` tints (~5132–5154), `.hub-card__origin` (~5157), `.hub-card__conn` (~5177), `.hub-internet-badge` (~7194), `.hub-fullaccess-badge` (~7509). Both dark and light theme token sets (`--hub-internet-badge-bg/-text`, `--hub-fullaccess-badge-bg/-text`) must stay verified.
 
+### Design mockup — WINNER (build against this)
+- `.planning/sketches/001-hub-card-chip-row/index.html` — throwaway HTML mockup, 3 variants, opens on the winner. **Winner = Variant B** (`.v-b` rules). Built with the real hub tokens/class names/badge geometry so it maps straight to code.
+- `.planning/sketches/001-hub-card-chip-row/README.md` — winner rationale + the pinned discretionary decisions (below).
+- **Pinned by the sketch (resolves the D-07 / Claude's-Discretion open items):**
+  - Quiet chips = **rounded-rect, `border-radius: 7px`** (NOT full pill) — the load-bearing distinction from the pill/notch exposure badges.
+  - Chip **gap `8px`**, chip padding **`2px 8px`**, `1px` border.
+  - **Exposure cluster forced onto its OWN line** below the `agent · origin` line (`flex-basis:100%`, right-aligned, `margin-left:0`) — quiet chips always share one clean line; predictable when a hostname is long or INTERNET + FULL ACCESS coexist. (Chosen over pill/wrap-as-unit and over nowrap/truncate — nowrap CLIPPED FULL ACCESS on a narrow card.)
+  - **Origin pill = fully muted** (`--hub-text-muted` text + `--hub-border`); color-coded origin was rejected. Color reinforcement now lives only on the filled exposure badges + the agent chip's per-agent tint.
+  - Muted **meta line below** the chip row: `uptime · viewers · Connected` at 11px `--hub-text-muted` (D-06).
+  - Long remote hostname sits alone on its origin line (own row via the dedicated-exposure-line layout) — no truncation needed; do NOT ellipsis-clip it.
+
 ### Design intent record
 - `.planning/STATE.md` — Phase 172 entry captures the full critique (three inconsistent treatments) + direction (one chip row, INTERNET stays prominent). Origin: commit `4402b44e`.
 - ROADMAP.md Phase 172 section — goal statement + approach note (mockups-first).
