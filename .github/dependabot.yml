@@ -13,6 +13,12 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+    ignore:
+      # Defer the actions/checkout v7 major (fork-PR checkout + ESM/runtime
+      # change) until it's evaluated in a throwaway branch; v6 patch/minor
+      # security updates still flow. (Phase 174 / DEP-02, #102)
+      - dependency-name: "actions/checkout"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
@@ -30,3 +36,15 @@ updates:
       # break wails' own desktop/windows/frontend.go on the Windows build.
       # Bump only together with a compatible wails/v2 upgrade. (Phase 145)
       - dependency-name: "github.com/wailsapp/go-webview2"
+      # Defer wails/v2 2.12.0 — it transitively requires go-webview2 v1.0.22,
+      # but the build pins v1.0.19 (>=1.0.20 breaks the Windows build, Phase
+      # 145). The go-webview2 pin above is the actual guard; this entry only
+      # stops Dependabot re-opening the PR. Remove when a coordinated, tested
+      # webview2 upgrade lands. (Phase 174 / DEP-02, #104)
+      - dependency-name: "github.com/wailsapp/wails/v2"
+        versions: [">=2.11.0"]
+      # Defer tailscale.com 1.100.0 — the Funnel feature was built + live-
+      # UAT'd on 1.98.3; revisit post-ship with a full off-tailnet re-UAT.
+      # Allows 1.98.x/1.99.x patches. (Phase 174 / DEP-02, #88)
+      - dependency-name: "tailscale.com"
+        versions: [">=1.100.0"]
