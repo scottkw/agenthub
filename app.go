@@ -417,6 +417,11 @@ func (a *App) pollSessionStatus(sessionID string) {
 		if err != nil {
 			consecutiveErrors++
 			if consecutiveErrors >= 5 {
+				// Terminal exit without session:exit — Task 2 (175-05): make the
+				// silent-give-up failure mode that made BUG-03 hard to diagnose
+				// observable in logs.
+				slog.Warn("pollSessionStatus: stopping watch, daemon unreachable",
+					"sessionId", sessionID, "reason", "daemon-gone", "consecutiveErrors", consecutiveErrors, "lastErr", err)
 				return // daemon is gone — stop polling
 			}
 			time.Sleep(500 * time.Millisecond)
@@ -446,11 +451,21 @@ func (a *App) pollSessionStatus(sessionID string) {
 			}
 		}
 		if !found {
-			// Session removed from daemon (killed externally) — stop polling
+			// Session removed from daemon (killed externally) — stop polling.
+			// Terminal exit without session:exit — see Task 2 note above.
+			slog.Warn("pollSessionStatus: stopping watch, session no longer present",
+				"sessionId", sessionID, "reason", "session-removed")
 			return
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
+	// Loop condition (shouldContinuePolling) went false — the exit-poll
+	// deadline expired without ever observing a "stopped" state or the
+	// session disappearing. DISPROVED branch only: the deadline itself was
+	// kept (175-01 verdict), but its expiry is now a logged, non-silent
+	// terminal exit rather than a bare implicit return (Task 2 / 175-05).
+	slog.Warn("pollSessionStatus: stopping watch, exit-poll deadline expired",
+		"sessionId", sessionID, "reason", "deadline-expiry", "window", maxPollWindow)
 }
 
 // emitExitEvent sends the session:exit Wails event to the frontend.
