@@ -546,6 +546,31 @@ describe('SessionShareModal — FUI-01: risk panel on every enable (Tailscale mo
     // Toggle ON must NOT commit — only the explicit CTA commits (D-02)
     expect(mockedSetSessionFunnel).not.toHaveBeenCalled()
   })
+
+  it('173-08 (SM-07 gap #2 / WR-02): the toggle-state text is a distinct pending label — never "On" — while the risk panel is open and uncommitted, then reads "On" only after the CTA commits', async () => {
+    const { container: c } = renderModal({ webEnabled: true, webServerMode: 'tailscale' })
+    await tick() // seeding IssueCapabilities -> cachedShare
+    await flushSync(() => { findFunnelToggle(c)!.click() })
+    // Pending window: risk panel open, SetSessionFunnel not yet called.
+    expect(c.querySelector('.hub-funnel-risk-panel--open')).not.toBeNull()
+    expect(mockedSetSessionFunnel).not.toHaveBeenCalled()
+    const stateText = findToggleRow(c, 'Enable internet sharing').querySelector(
+      '.settings-panel__toggle-state',
+    )?.textContent
+    expect(stateText).not.toBe('On')
+    expect(stateText).toBe('Confirm…')
+
+    // Commit via the CTA — only now does the label read 'On'.
+    const cta = findByText(c, 'Enable internet share')!
+    await React.act(async () => {
+      cta.click()
+      await tick()
+    })
+    expect(mockedSetSessionFunnel).toHaveBeenCalledWith('sess-1', true, 3600)
+    expect(
+      findToggleRow(c, 'Enable internet sharing').querySelector('.settings-panel__toggle-state')?.textContent,
+    ).toBe('On')
+  })
 })
 
 describe('SessionShareModal — FUI-02: explicit CTA commits with the selected preset', () => {
@@ -959,6 +984,52 @@ describe('SessionShareModal — SM-05: tab availability, default, and reset', ()
     for (const t of internetTabsAfterDisable) {
       expect(t.getAttribute('aria-disabled')).toBe('true')
     }
+  })
+})
+
+describe('SessionShareModal — SM-05 residual (WR-01, 173-08): funnelOn resyncs from session.funnelActive', () => {
+  it('an out-of-band session.funnelActive flip to false resyncs funnelOn — Internet tabs re-disable, active tab resets to Tailnet, and the toggle-state label drops "On"', async () => {
+    const { container: c, root: r } = renderModal({ webEnabled: true, webServerMode: 'tailscale', funnelActive: true })
+    await tick() // seeding + warm-up-completion effect (session.funnelActive already true on mount)
+
+    // Sanity: Internet tabs are enabled and the toggle-state label reads 'On' while funnelActive.
+    const internetTabsBefore = Array.from(c.querySelectorAll('[role="tab"]')).filter((t) =>
+      /Internet/.test(t.textContent ?? ''),
+    )
+    for (const t of internetTabsBefore) {
+      expect(t.getAttribute('aria-disabled')).toBe('false')
+    }
+    expect(
+      findToggleRow(c, 'Enable internet sharing').querySelector('.settings-panel__toggle-state')?.textContent,
+    ).toBe('On')
+
+    // Out-of-band server-truth change: Funnel disabled/expired externally (new session prop, no user action).
+    const session = makeSession({ webEnabled: true, webServerMode: 'tailscale', funnelActive: false })
+    await React.act(async () => {
+      r.render(
+        React.createElement(SessionShareModal, {
+          session,
+          webServerMode: 'tailscale',
+          webServerRunning: true,
+          onClose: vi.fn(),
+        }),
+      )
+      await tick()
+    })
+
+    expect(
+      findToggleRow(c, 'Enable internet sharing').querySelector('.settings-panel__toggle-state')?.textContent,
+    ).not.toBe('On')
+    const internetTabsAfter = Array.from(c.querySelectorAll('[role="tab"]')).filter((t) =>
+      /Internet/.test(t.textContent ?? ''),
+    )
+    for (const t of internetTabsAfter) {
+      expect(t.getAttribute('aria-disabled')).toBe('true')
+    }
+    const activeAfter = Array.from(c.querySelectorAll('[role="tab"]')).find(
+      (t) => t.getAttribute('aria-selected') === 'true',
+    )
+    expect(activeAfter?.textContent).toMatch(/Tailnet/)
   })
 })
 
