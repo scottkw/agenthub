@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Funnel Sharing & Polish
-current_phase: 173
-current_phase_name: share-modal-three-tab-segmented-redesign
-status: milestone-ready
-stopped_at: Phase 173 UAT VERIFIED 3/3 (2026-07-08) — SM-02 scroll confinement, SM-07 colorblind-safe inset ring, SM-07 prefers-reduced-motion hold fallback all passed via live dev-browser component harness + owner manual sign-off; 173-VERIFICATION.md status=passed. 173 is the LAST v4.2 phase. All 9 phases (165-173) now code+UAT complete — fixed a STALE ROADMAP checkbox (168-09 was executed/verified 2026-07-02 but its box was never flipped [ ]→[x]; not a real gap). Did NOT auto-fire /gsd-complete-milestone (deferred to explicit user go). NEXT = ship v4.2 (/gsd-ship or /gsd-complete-milestone). Live-UAT deferrals still open (need signed prod builds / specific envs): M-37..M-40, M-41, M-45.
-last_updated: "2026-07-08T16:12:00.000Z"
+current_phase: 174
+current_phase_name: dependency-updates-dependabot-hygiene
+status: ready-to-plan
+stopped_at: Phase 173 verified 3/3 + all 9 original v4.2 phases (165-173) complete. Then EXPANDED v4.2 with 3 new phases before ship (user directive 2026-07-08 — sweep the bug backlog + Dependabot PRs): 174 Dependency Updates & Dependabot Hygiene (merge 7 low-risk PRs, defer #104 Wails/#88 Tailscale/#102 checkout-v7 with ignore rules), 175 Web-share/Remote-viewer/Windowing bug fixes (#128/#125/#126/#119), 176 Platform & Hardening bug fixes (#124/#123/#127). Closed #120 (Phase 169 shipped the feasible fix). NEXT = /gsd-plan-phase 174 (then 175, 176; all independent). Ship v4.2 only after these land.
+last_updated: "2026-07-08T16:30:00.000Z"
 last_activity: 2026-07-08
-last_activity_desc: Phase 173 UAT verified 3/3 + v4.2 all phases complete (fixed stale 168-09 checkbox)
+last_activity_desc: Expanded v4.2 with phases 174-176 (deps + bug backlog); closed #120
 progress:
-  total_phases: 9
+  total_phases: 12
   completed_phases: 9
   total_plans: 45
   completed_plans: 45
-  percent: 100
+  percent: 75
 ---
 
 # Project State
@@ -24,13 +24,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 173 — share-modal-three-tab-segmented-redesign
+**Current focus:** Phase 174 — dependency-updates-dependabot-hygiene (v4.2 expanded with 174-176 before ship)
 
 ## Current Position
 
-Phase: 173 (share-modal-three-tab-segmented-redesign) — ✅ UAT VERIFIED 3/3 (2026-07-08), VERIFICATION status=passed
-Plan: 8 of 8
-Status: Phase 173 complete & verified — LAST v4.2 phase. All 9 phases (165-173) code+UAT complete; v4.2 ready to ship. (Fixed a stale 168-09 checkbox that was never flipped after its 2026-07-02 verify.) Milestone-completion deferred to explicit user go.
+Phase: 174 (dependency-updates-dependabot-hygiene) — added 2026-07-08, NOT YET PLANNED
+Plan: none yet — run `/gsd-plan-phase 174`
+Status: v4.2 EXPANDED before ship (user directive) with 3 independent phases — 174 (deps/Dependabot), 175 (web-share/remote/windowing bugs #128/#125/#126/#119), 176 (platform/hardening bugs #124/#123/#127). Phases 165-173 all complete+verified. Closed #120. NEXT = plan 174 (then 175, 176 — all `Depends on: None`, can be planned/executed in any order or parallel).
+
+### Roadmap Evolution
+- 2026-07-08 — Phase 174 added: Dependency Updates & Dependabot Hygiene (merge 7 low-risk Dependabot PRs; defer #104 Wails / #88 Tailscale / #102 checkout-v7 with dependabot.yml ignore rules + PR-close rationale).
+- 2026-07-08 — Phase 175 added: Web-share, Remote-viewer & Windowing Bug Fixes (#128 mobile scaling, #125 disconnect notice, #126 exited-session tab, #119 host/guest empty-window — re-verify #119 vs 168-03 first).
+- 2026-07-08 — Phase 176 added: Platform & Hardening Bug Fixes (#124 Linux GUI segfault/DMABUF, #123 /app/ CSP header, #127 Hub preview char-per-row wrapping).
+- 2026-07-08 — Issue #120 closed (Phase 169 shipped the feasible honest-detection fix; true auto-connect needs a privileged helper, out of scope).
 
 - **170 Public Share Access Codes (read)** — reusable share-lifetime join code for the INTERNET (PUBLIC) link (FNL-08). UAT found the public link shows no join code (unlike RO/Full) → typing the URL dead-ends on a code page with no code. Root cause: join codes are 5-min single-use (`api.go:259`), wrong for a public share → needs per-code TTL + reusable semantics tied to funnel expiry, read-only only. **170-01 EXECUTED 2026-07-05** (commits 70f2f8ad/fa35b928/1618255b/cc864779/eb119e4c): `JoinCodeManager.IssueReusable`/`Revoke` + reusable-conditional `Exchange` delete, proven at unit layer (4 new tests, 6 pre-existing untouched) AND at the public `/join/exchange` HTTP boundary (new `internal/webserver/join_test.go` — reusable read code resolves twice, single-use code still fails on 2nd try). **170-02 EXECUTED 2026-07-05** (commits 3cb05dea/5f0bb981/d38a9689/835bbaa4, RED/GREEN TDD): `issueCapabilitiesForSession` mints the reusable public read code from the read-only `rTok` ONLY (never `wTok`), caches it per session (idempotent — no rotation on re-issue), and surfaces it on `IssueCapabilitiesResponse.PublicReadCode` (`""` for non-Funnel sessions); `handleSetSessionFunnel` captures `min(ExpiresIn, 8h)` as the per-code TTL; `disableFunnelForSession` (the single teardown chokepoint) revokes the cached code on all 4 in-process triggers (toggle-off, web-share-off, session-exit, auto-expiry timer — daemon-stop intentionally excluded, bypasses this chokepoint by design). Wails TS binding (`models.ts`) regenerated for Wave 3. **170-03 EXECUTED 2026-07-06** (commits b05e22ce/3c93ec57/e10b6067/2ec5c1c5/7b5cfa54): Share modal INTERNET (PUBLIC) section renders `<CodeDisplay label="Public join code (reusable):" code={publicReadCode} />`; `SessionShareModal` threads `resp.publicReadCode` from the existing warm-up round-trip and clears it on disable. Deviation: the type field went into the *actually-imported* hand-authored stub `frontend/src/wailsjs/go/main/App.d.ts` (not just the unused generated `models.ts`) — required for `tsc --noEmit` to pass. Frontend gate: `tsc --noEmit` clean + `vite build` OK + 2335 vitest pass. **170-04 EXECUTED 2026-07-06** (commits 805dbf87/d1c8ddda): TESTING.md reconciled — counts already correct (528 total: 375 Go/142 vitest/9 PW/2 build), added Section-5 category with **M-46** live off-tailnet reusable-code-join + teardown item; `check-traceability-paths.sh` exits 0. **PHASE VERIFIED (code) 2026-07-06** — gsd-verifier: 14/14 must-haves VERIFIED including the security-critical read-only-only mint (`IssueReusable(rTok, …)`, never `wTok`); status `human_needed`, sole open item = M-46 (needs real Funnel tailnet + 2 off-tailnet devices). ROADMAP/REQUIREMENTS completion markers reverted to pending per user (keep-pending-UAT). NEXT = `/gsd-verify-work 170` (record live M-46 pass → phase complete).
 - **171 Public Full-Access (RW) Sharing** — opt-in public read-write behind a hard consent gate + single-use write code (FNL-09). Supersedes today's ACCIDENTAL public write (issueCapabilitiesForSession rebases both read+write caps to the funnel base by timing; funnel exposes whole mux, no read-only downgrade). **SPEC-FIRST** (internet RCE): `/gsd-spec-phase 171` → discuss → `/gsd-secure-phase` → plan.

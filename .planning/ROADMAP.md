@@ -30,7 +30,7 @@
 - ✅ **v3.6 Hub (Session Grid / Control Room)** — Phases 131-135 (shipped 2026-06-19, closes Issue #78)
 - ✅ **v4.0 Hub-First Consolidation & UI/UX Overhaul** — Phases 136-150 (shipped 2026-06-23, closes #51, #65, #68, #69, #96, #97, #98, #100, #101; #99 not-planned; 151 cancelled)
 - ✅ **v4.1 Session Chat** — Phases 151-164 (shipped 2026-06-29, closes #79, #108, #109)
-- **v4.2 Funnel Sharing & Polish** — Phases 165-171 (closes #107, #110, #112, #115, #116, #117, #118, #120, #121; **reopened 2026-07-05**: 165-169 done, +170 public read code / +171 public full-access sharing added after live UAT — Funnel access methods expanded beyond read-only)
+- **v4.2 Funnel Sharing & Polish** — Phases 165-176 (closes #107, #110, #112, #115, #116, #117, #118, #119, #120, #121, #123, #124, #125, #126, #127, #128, #129; **reopened 2026-07-05**: 165-169 done, +170 public read code / +171 public full-access sharing added after live UAT — Funnel access methods expanded beyond read-only; **expanded again 2026-07-08** after 172/173 UI polish: +174 dependency updates & Dependabot hygiene, +175 web-share/remote-viewer/windowing bug fixes, +176 platform & hardening bug fixes — sweeping the outstanding bug backlog + Dependabot PRs before ship)
 
 ## Phases
 
@@ -693,6 +693,39 @@ Plans:
 **Gap closure** *(verifier score 6/8 → close two SM-07 defects; independent wave 1)*
 
 - [x] 173-08-PLAN.md — Roving-tabindex focus-follow in ShareSegmentedControl (WR-03) + pending-aware Internet toggle label (WR-02) + funnelOn server-truth resync (WR-01) + 2 regression tests + TESTING.md reconcile (SM-07/SM-05)
+
+### Phase 174: Dependency Updates & Dependabot Hygiene
+
+**Goal:** Bring the dependency tree current without risking the Windows build, the Funnel feature, or CI — merge the low-risk Dependabot bumps behind a full build+test gate, and formally DEFER the three high-risk upgrades via `.github/dependabot.yml` ignore rules + PR-close rationale so they stop re-opening.
+**Requirements**: DEP-01 (merge low-risk Dependabot PRs, each verified green: go build/vet/test + `tsc && vite build` + deb/rpm packaging still builds — CI actions #114 attest-build-provenance 4.1.0→4.1.1, #113 setup-go 6.4.0→6.5.0, #103 action-gh-release 3.0.0→3.0.1, #85 pnpm/action-setup 6.0.8→6.0.9; Go modules #89 coder/websocket 1.8.14→1.8.15 [gate on webserver/relay tests], #106 golang.org/x/term 0.43.0→0.44.0, #105 goreleaser/nfpm/v2 2.46.3→2.47.0), DEP-02 (defer high-risk upgrades with documented rationale + `dependabot.yml` ignore entries + close the PRs citing this phase — #104 wailsapp/wails v2 2.10.2→2.12.0 [coupled to the pinned go-webview2 v1.0.19 Windows-build constraint; bump only with a coordinated, tested webview2 upgrade], #88 tailscale.com 1.98.3→1.100.0 [entire Funnel feature built + live-UAT'd on 1.98.3; revisit post-ship with full off-tailnet re-UAT], #102 actions/checkout v6→v7 [major; evaluate in a branch])
+**Depends on:** None (independent — dependency/CI hygiene; no code dependency on 173/175/176)
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 174 to break down)
+
+### Phase 175: Web-share, Remote-viewer & Windowing Bug Fixes
+
+**Goal:** Fix the outstanding web-share / remote-viewer / windowing bugs that degrade the guest and shared-session experience — a mobile guest can read the terminal, a remote viewer learns when the owner ends the session, an exited shared session cleans up its own tab, and host/guest session-open never lands in a dead empty window.
+**Requirements**: BUG-01 (#128 — web-share terminal legible on mobile: the 80-col grid no longer downscales to an unreadable size on a phone viewport), BUG-02 (#125 — remote viewer sees a clear disconnect notice when the owner ends/stops the shared session; no silent dead terminal), BUG-03 (#126 — exiting from inside a shared session auto-closes its tab, matching unshared-session behavior), BUG-04 (#119 — host card interaction + guest session-open produce a working session view, no broken/empty MDI windows with no recovery; **re-verify against the Phase 168-03 in-app-tab fix FIRST** and scope only the residual gap)
+**Depends on:** None (168 web-share/remote-open plumbing already shipped; independent of 174/176)
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 175 to break down)
+
+### Phase 176: Platform & Hardening Bug Fixes
+
+**Goal:** Close the remaining cross-cutting platform and hardening bugs — the Linux GUI launches and renders, the `/app/` route carries a CSP header, and the Hub card mini-preview wraps long lines correctly.
+**Requirements**: BUG-05 (#124 — Linux GUI launches without the macOS-role-menu segfault and the webview renders with no DMABUF freeze; both fixable in `main.go`), BUG-06 (#123 — the `/app/` route serves a Content-Security-Policy header, currently none; carried over from the Phase 168-02 #123 follow-up), BUG-07 (#127 — Hub card mini-preview wraps long lines correctly instead of stacking one character per row / styled-tail preview wrapping)
+**Depends on:** None (independent of 174/175)
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 176 to break down)
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
