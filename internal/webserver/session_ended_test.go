@@ -34,8 +34,6 @@ import (
 )
 
 func TestSessionEnd_HubDone_CarriesCloseReason(t *testing.T) {
-	t.Skip("RED until 175-06 sends a close reason on hub.Done() — BUG-02")
-
 	sessionID := "session-ended-test"
 
 	// --- Set up hub manager with a synthetic PTY (no real process needed;
@@ -88,20 +86,26 @@ func TestSessionEnd_HubDone_CarriesCloseReason(t *testing.T) {
 	}
 	hub.Shutdown()
 
-	// --- Assert the client's next Read observes a CloseError carrying the
-	// expected code + reason (not a bare abrupt close). ---
+	// --- Assert the client eventually observes a CloseError carrying the
+	// expected code + reason (not a bare abrupt close). The initial
+	// MsgMeta/MsgPresence frames (sent right after Subscribe, before this
+	// test ever reads) may still be buffered ahead of the close on the
+	// wire, so drain ordinary data frames (nil err) until Read surfaces the
+	// close itself — a single Read is not guaranteed to observe it directly. ---
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, _, err = conn.Read(ctx)
-	if err == nil {
-		t.Fatalf("conn.Read: expected close error after hub.Shutdown(), got nil error")
-	}
-
 	var closeErr websocket.CloseError
-	if !errors.As(err, &closeErr) {
-		t.Fatalf("conn.Read error = %v (%T), want a *websocket.CloseError (BUG-02: session-end "+
-			"close must carry a code + reason, not an abrupt/abnormal close)", err, err)
+	for {
+		_, _, err = conn.Read(ctx)
+		if err == nil {
+			continue // discard a buffered pre-shutdown data frame, keep reading
+		}
+		if !errors.As(err, &closeErr) {
+			t.Fatalf("conn.Read error = %v (%T), want a *websocket.CloseError (BUG-02: session-end "+
+				"close must carry a code + reason, not an abrupt/abnormal close)", err, err)
+		}
+		break
 	}
 
 	if closeErr.Code != websocket.StatusNormalClosure {

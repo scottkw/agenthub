@@ -1605,6 +1605,13 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 		case <-ctx.Done():
 			return
 		case <-hub.Done():
+			// BUG-02 (#125): the owner ended/stopped the session — tell every
+			// connected viewer instead of a bare return (which the deferred
+			// conn.CloseNow() would then turn into a silent abnormal close
+			// with no code/reason). Fixed generic reason only — never a raw
+			// Go error string or a user-set session name (IN-01 convention,
+			// T-175-06-01).
+			conn.Close(websocket.StatusNormalClosure, "session ended")
 			return
 		case <-readDone:
 			return
