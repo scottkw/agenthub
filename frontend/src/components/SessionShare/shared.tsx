@@ -27,6 +27,15 @@ export function HoldToConfirmButton({
   disabled: boolean
   onConfirm: () => void
 }): React.ReactElement {
+  // Phase 173 / SM-07/D-07 — ADDITIVE reduced-motion fallback. D-09 preserves
+  // the 3s hold-to-confirm SAFETY GATE CONTRACT as-is below; this branch never
+  // touches HOLD_DURATION_MS or the timed path. Guarded for non-browser/test
+  // environments where matchMedia may be absent.
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
   const [holding, setHolding] = useState(false)
   const [progress, setProgress] = useState(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -69,6 +78,27 @@ export function HoldToConfirmButton({
   }
 
   useEffect(() => clearTimers, [])
+
+  // Reduced-motion fallback: a plain single-click confirm — still a
+  // deliberate arming action, no timed fill / no setInterval. The safety
+  // gate's purpose (require a deliberate action to arm public write) is
+  // preserved; only the animated hold gesture is removed (SM-07/D-07).
+  if (prefersReducedMotion) {
+    return (
+      <button
+        type="button"
+        className="hub-funnel-write-gate__hold-btn hub-funnel-write-gate__hold-btn--reduced-motion"
+        disabled={disabled}
+        aria-disabled={disabled}
+        onClick={() => {
+          if (disabled) return
+          onConfirm()
+        }}
+      >
+        <span className="hub-funnel-write-gate__hold-label">Confirm</span>
+      </button>
+    )
+  }
 
   return (
     <button
