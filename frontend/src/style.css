@@ -6471,6 +6471,23 @@ textarea {
   gap: 12px;
 }
 
+/* Phase 173 (D-01/SM-01) — divider between the fixed control strip (toggles)
+   and the swappable panel region below it (empty hint / confirm view /
+   segmented control + tab body). */
+.hub-share-modal__rule {
+  border: none;
+  border-top: 1px solid var(--hub-border);
+  margin: 0;
+  flex-shrink: 0;
+}
+
+/* Phase 173 (SM-05) — empty-state hint shown when sharing is off. */
+.hub-share-modal__empty-hint {
+  margin: 0;
+  font-size: var(--hub-font-size-sm);
+  color: var(--hub-text-muted);
+}
+
 /* LAN credential block */
 .hub-share-modal__lan-creds {
   font-size: 12px;

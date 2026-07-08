@@ -10,10 +10,13 @@ import {
   GetLocalNetworkPassword,
   DisconnectViewers,
 } from '../../wailsjs/go/main/App'
-import { SessionSharePanel } from '../SessionSharePanel'
 import { HomeDirWriteWarning } from '../HomeDirWriteWarning'
 import { ShellWebShareBanner } from '../ShellWebShareBanner'
 import { FunnelRiskPanel } from './FunnelRiskPanel'
+import { ShareSegmentedControl, type ShareTab } from './ShareSegmentedControl'
+import { TailnetTab } from '../SessionShare/TailnetTab'
+import { InternetReadOnlyTab } from '../SessionShare/InternetReadOnlyTab'
+import { InternetFullAccessTab } from '../SessionShare/InternetFullAccessTab'
 // Phase 150 SET-01 — shared shell-detection authority. `cli` may be a full path
 // ('/bin/zsh'), so isShellCli() normalizes to basename before matching.
 import { isShellCli } from '../../lib/shellCli'
@@ -335,6 +338,23 @@ export function SessionShareModal({
   // Funnel-scoped state, distinct from the single-use RO/Full-Access cachedShare.
   const [publicReadCode, setPublicReadCode] = useState<string | null>(null)
   const warmupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // ---- Phase 173 / SM-03/SM-05: three-tab segmented control state ----
+  // Defaults to the safer Internet·Read-only landing when the session is
+  // already Funnel-active on open (mount-time decision); otherwise Tailnet.
+  // The confirm/reset effect below reacts only to *transitions* of funnelOn
+  // (RESEARCH Pitfall 4) — it never fires on mount, so it never fights this
+  // initial value.
+  const [tab, setTab] = useState<ShareTab>(session.funnelActive ? 'internet-ro' : 'tailnet')
+  const prevFunnelOnRef = useRef(funnelOn)
+  useEffect(() => {
+    if (funnelOn && !prevFunnelOnRef.current) {
+      setTab('internet-ro') // D-05: default to the safer landing on confirm
+    } else if (!funnelOn && prevFunnelOnRef.current) {
+      setTab('tailnet') // D-05: reset to Tailnet when internet is disabled
+    }
+    prevFunnelOnRef.current = funnelOn
+  }, [funnelOn])
 
   // D-15: fail closed — Funnel requires the web server to be in Tailscale mode.
   const funnelDisabled = webServerMode !== 'tailscale'
@@ -686,45 +706,105 @@ export function SessionShareModal({
             )}
           </div>
 
-          {/* Inline risk panel — mounted only in Tailscale mode; `open` drives the
-              max-height expand (motion-guarded in style.css). */}
-          {!funnelDisabled && (
-            <FunnelRiskPanel
-              open={riskPanelOpen}
-              expirySeconds={expirySeconds}
-              onExpiryChange={setExpirySeconds}
-              onEnable={() => void handleFunnelEnable()}
-              onCancel={handleFunnelCancel}
-              onOpenHelp={handleOpenHelp}
-            />
-          )}
-          {funnelError && (
-            <div className="hub-share-internet-section__error">{funnelError}</div>
+          {/* Phase 173 (D-01): divider marks the boundary between the fixed,
+              pinned control strip above and the swappable panel region below
+              — SM-01: toggling a control never reflows content already on
+              screen; only the region below the divider changes shape. */}
+          <hr className="hub-share-modal__rule" />
+
+          {/* Phase 173 (SM-05): tab state machine + transient confirm view.
+              (a) !shareEnabled -> empty hint, no tabs.
+              (b) shareEnabled && riskPanelOpen -> FunnelRiskPanel REPLACES
+                  this region (not injected above the links) as the transient
+                  confirm view; funnelError (SetSessionFunnel failures) renders
+                  alongside it (RESEARCH A3).
+              (c) shareEnabled && cachedShare && !riskPanelOpen -> segmented
+                  control + active tab body in the single scrolling
+                  .hub-share-modal__tabpanel region. */}
+          {!shareEnabled && (
+            <p className="hub-share-modal__empty-hint">
+              Turn on &quot;Share the session&quot; to get a link.
+            </p>
           )}
 
-          {/* Share panel: shown only when sharing is ON and caps are available.
-              D-11: simplified SessionSharePanel (CAP-05 two-gate stripped). */}
-          {shareEnabled && cachedShare && (
-            <SessionSharePanel
-              sessionId={session.id}
-              readURL={cachedShare.readURL}
-              writeURL={cachedShare.writeURL}
-              readCode={cachedShare.readCode}
-              writeCode={cachedShare.writeCode}
-              browseEnabled={browseEnabled}
-              funnelActive={session.funnelActive}
-              funnelUrl={funnelUrl}
-              warmingUp={warmingUp}
-              warmupTimedOut={warmupTimedOut}
-              onDisableFunnel={() => void handleDisableFunnel()}
-              publicReadCode={publicReadCode}
-              onGateConfirm={(expirySeconds) => void handleGateConfirm(expirySeconds)}
-              writeGateUrl={writeGateUrl}
-              writeGateCode={writeGateCode}
-              writeGateExpiresAt={writeGateExpiresAt}
-              writeGateUsed={writeGateUsed}
-              onDisableGateWrite={() => void handleDisableGateWrite()}
-            />
+          {shareEnabled && riskPanelOpen && (
+            <>
+              <FunnelRiskPanel
+                open={riskPanelOpen}
+                expirySeconds={expirySeconds}
+                onExpiryChange={setExpirySeconds}
+                onEnable={() => void handleFunnelEnable()}
+                onCancel={handleFunnelCancel}
+                onOpenHelp={handleOpenHelp}
+              />
+              {funnelError && (
+                <div className="hub-share-internet-section__error">{funnelError}</div>
+              )}
+            </>
+          )}
+
+          {shareEnabled && cachedShare && !riskPanelOpen && (
+            <>
+              <ShareSegmentedControl
+                active={tab}
+                onSelect={setTab}
+                tabs={[
+                  { id: 'tailnet', main: 'Tailnet', sub: 'Private' },
+                  {
+                    id: 'internet-ro',
+                    main: 'Internet',
+                    sub: 'Read-only',
+                    disabled: !funnelOn || funnelDisabled,
+                  },
+                  {
+                    id: 'internet-fa',
+                    main: 'Internet',
+                    sub: 'Full access',
+                    disabled: !funnelOn || funnelDisabled,
+                    danger: true,
+                  },
+                ]}
+              />
+              <div className="hub-share-modal__tabpanel">
+                {/* Full-access gate-confirm failures (handleGateConfirm) share
+                    the same funnelError slot but surface here — case (b)'s
+                    confirm view isn't reachable once past confirm. */}
+                {funnelError && (
+                  <div className="hub-share-internet-section__error">{funnelError}</div>
+                )}
+                {tab === 'tailnet' && (
+                  <TailnetTab
+                    readURL={cachedShare.readURL}
+                    writeURL={cachedShare.writeURL}
+                    readCode={cachedShare.readCode}
+                    writeCode={cachedShare.writeCode}
+                    browseEnabled={browseEnabled}
+                  />
+                )}
+                {tab === 'internet-ro' && (
+                  <InternetReadOnlyTab
+                    funnelActive={session.funnelActive}
+                    funnelUrl={funnelUrl}
+                    warmingUp={warmingUp}
+                    warmupTimedOut={warmupTimedOut}
+                    publicReadCode={publicReadCode}
+                    onDisableFunnel={() => void handleDisableFunnel()}
+                  />
+                )}
+                {tab === 'internet-fa' && (
+                  <InternetFullAccessTab
+                    funnelActive={session.funnelActive}
+                    warmingUp={warmingUp}
+                    onGateConfirm={(expirySeconds) => void handleGateConfirm(expirySeconds)}
+                    writeGateUrl={writeGateUrl}
+                    writeGateCode={writeGateCode}
+                    writeGateExpiresAt={writeGateExpiresAt}
+                    writeGateUsed={writeGateUsed}
+                    onDisableGateWrite={() => void handleDisableGateWrite()}
+                  />
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>
