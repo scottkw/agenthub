@@ -5,10 +5,10 @@ milestone_name: Funnel Sharing & Polish
 current_phase: 174
 current_phase_name: dependency-updates-dependabot-hygiene
 status: ready-to-plan
-stopped_at: Phase 173 verified 3/3 + all 9 original v4.2 phases (165-173) complete. Then EXPANDED v4.2 with 3 new phases before ship (user directive 2026-07-08 — sweep the bug backlog + Dependabot PRs): 174 Dependency Updates & Dependabot Hygiene (merge 7 low-risk PRs, defer #104 Wails/#88 Tailscale/#102 checkout-v7 with ignore rules), 175 Web-share/Remote-viewer/Windowing bug fixes (#128/#125/#126/#119), 176 Platform & Hardening bug fixes (#124/#123/#127). Closed #120 (Phase 169 shipped the feasible fix). NEXT = /gsd-plan-phase 174 (then 175, 176; all independent). Ship v4.2 only after these land.
-last_updated: "2026-07-08T16:30:00.000Z"
+stopped_at: "Phase 173 verified 3/3 + all 9 original v4.2 phases (165-173) complete. Then EXPANDED v4.2 with 3 new phases before ship (user directive 2026-07-08 — sweep the bug backlog + Dependabot PRs): 174 Dependency Updates & Dependabot Hygiene (merge 7 low-risk PRs, defer #104 Wails/#88 Tailscale/#102 checkout-v7 with ignore rules), 175 Web-share/Remote-viewer/Windowing bug fixes (#128/#125/#126/#119), 176 Platform & Hardening bug fixes (#124/#123/#127). Closed #120 (Phase 169 shipped the feasible fix). NEXT = /gsd-plan-phase 174 (then 175, 176; all independent). Ship v4.2 only after these land."
+last_updated: "2026-07-08T15:58:43.914Z"
 last_activity: 2026-07-08
-last_activity_desc: Expanded v4.2 with phases 174-176 (deps + bug backlog); closed #120
+last_activity_desc: Phase 173 execution started
 progress:
   total_phases: 12
   completed_phases: 9
@@ -33,6 +33,7 @@ Plan: none yet — run `/gsd-plan-phase 174`
 Status: v4.2 EXPANDED before ship (user directive) with 3 independent phases — 174 (deps/Dependabot), 175 (web-share/remote/windowing bugs #128/#125/#126/#119), 176 (platform/hardening bugs #124/#123/#127). Phases 165-173 all complete+verified. Closed #120. NEXT = plan 174 (then 175, 176 — all `Depends on: None`, can be planned/executed in any order or parallel).
 
 ### Roadmap Evolution
+
 - 2026-07-08 — Phase 174 added: Dependency Updates & Dependabot Hygiene (merge 7 low-risk Dependabot PRs; defer #104 Wails / #88 Tailscale / #102 checkout-v7 with dependabot.yml ignore rules + PR-close rationale).
 - 2026-07-08 — Phase 175 added: Web-share, Remote-viewer & Windowing Bug Fixes (#128 mobile scaling, #125 disconnect notice, #126 exited-session tab, #119 host/guest empty-window — re-verify #119 vs 168-03 first).
 - 2026-07-08 — Phase 176 added: Platform & Hardening Bug Fixes (#124 Linux GUI segfault/DMABUF, #123 /app/ CSP header, #127 Hub preview char-per-row wrapping).

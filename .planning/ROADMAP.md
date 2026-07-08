@@ -702,9 +702,16 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
+**Wave 1**
 
 - [ ] 174-01-PLAN.md — DEP-01 CI-action SHA bumps (#114 attest-provenance, #113 setup-go, #103 gh-release, #85 pnpm) + close PRs
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 174-02-PLAN.md — DEP-01 Go-module bumps (#89 coder/websocket, #106 x/term, #105 nfpm/v2) each gated + close PRs
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 174-03-PLAN.md — DEP-02 defer wails/tailscale/checkout via surgical dependabot.yml ignores + close #104/#88/#102
 
 ### Phase 175: Web-share, Remote-viewer & Windowing Bug Fixes
