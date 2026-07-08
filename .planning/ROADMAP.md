@@ -665,13 +665,26 @@ Plans:
 **Approach note:** GitHub #129 is a full design spec — the chosen three-tab segmented layout was selected from four reviewed candidates and an interactive mockup was built + reviewed before the spec was written. Components: `ShareSegmentedControl` (new), `ShareLinkCard` (new/extracted), `SessionShareModal.tsx` shell (owns tab/confirm state), `SessionSharePanel.tsx` refactored into `TailnetTab` / `InternetReadOnlyTab` / `InternetFullAccessTab`; preserve `HoldToConfirmButton` + `CodeDisplay` + `FunnelRiskPanel` (latter becomes the transient confirm view). CSS extends `frontend/src/style.css` — migrate inline `style={}` layout to classes. RESEARCH corrected stale spec refs: reuse existing `riskPanelOpen`/`funnelOn` state (not new `internetEnabled`/`internetConfirmed`); tokens are `--hub-*` (both theme blocks), not the spec's literals; `.hub-share-modal` at style.css ~`:6391`. 5 waves: (1) CSS foundation + shared-component hoist, (2) ShareSegmentedControl + ShareLinkCard, (3) three tab bodies, (4) shell wiring + modal tests, (5) TESTING.md reconcile + gate.
 
 Plans:
+**Wave 1**
 
 - [ ] 173-01-PLAN.md — CSS foundation: width bump min(520px), single inner scroll region, `.share-seg*`/`.share-linkcard*` classes + new `--hub-*` token in both themes (SM-02/03/06/07/08)
 - [ ] 173-02-PLAN.md — Hoist CodeDisplay + HoldToConfirmButton to shared module + add prefers-reduced-motion plain-confirm fallback (SM-07/08)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 173-03-PLAN.md — New `ShareSegmentedControl` (role=tablist, roving tabindex, arrow-nav, ⚠ danger glyph) + a11y tests (SM-03/07)
 - [ ] 173-04-PLAN.md — New reusable `ShareLinkCard` (title·URL·Copy/Open/QR·join·desc, QR→join URL) + tests (SM-06)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 173-05-PLAN.md — Refactor `SessionSharePanel` into TailnetTab/InternetReadOnlyTab/InternetFullAccessTab; wall off public-write in Full-access tab + SM-04 negative test (SM-04/06)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 173-06-PLAN.md — Shell wiring: tab state machine (reuse riskPanelOpen/funnelOn) + transient confirm view + On/Off/N-A labels + delete SessionSharePanel + modal tests (SM-01/05/07/08)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 173-07-PLAN.md — TESTING.md Suite Manifest + Traceability reconcile + full vitest/build gate (SM-08)
 
 ---

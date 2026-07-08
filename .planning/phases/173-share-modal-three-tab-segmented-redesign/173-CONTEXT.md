@@ -19,19 +19,19 @@ Reorganize the session **Share** modal from a single growing column — where ev
 
 All decisions below are LOCKED by spec #129. Line refs are HEAD-relative starting points — verify before editing.
 
-### D-01 — Fixed control strip (SM-01)
+- **D-01 — Fixed control strip (SM-01)**
 The three toggles (Share the session / Enable remote file browsing / Enable internet sharing) + the divider live at the top of `.hub-share-modal__body` as a **non-scrolling control strip**. Toggling a control NEVER reflows or pushes down content already on screen — detail appears in the swappable panel region below, not injected above the toggles. `Enable remote file browsing` is disabled until `shareEnabled`.
 
-### D-02 — Bounded height, single scroll region (SM-02)
+- **D-02 — Bounded height, single scroll region (SM-02)**
 No state causes the **whole dialog** to scroll. The dialog fits `max-height: calc(100vh - 64px)`; any scroll is confined to one region (the active tab body), not the whole `.hub-share-modal__body`.
 
-### D-03 — Three-tab segmented control (SM-03)
+- **D-03 — Three-tab segmented control (SM-03)**
 New `ShareSegmentedControl` component rendered directly under the divider, shown only when `shareEnabled`. Three segments with stacked two-line labels: `Tailnet` / `Private`, `Internet` / `Read-only`, `Internet` / `⚠ Full access`. Selecting a tab **swaps the panel body** — it is the ONLY region that changes. CSS classes: `.share-segbar`, `.share-seg`, `.share-seg__main`, `.share-seg__sub`, `.share-seg.is-active`, `.share-seg.is-danger`.
 
-### D-04 — Full-access / command-execution flow walled off (SM-04)
+- **D-04 — Full-access / command-execution flow walled off (SM-04)**
 The public-write flow (terminal-exposure warning → "Enable public write access…" → hold-to-confirm gate with expiry select + `HoldToConfirmButton` → collapses to armed summary: write URL / single-use code / countdown / "Disable public write") lives **ONLY** in the Internet·⚠ Full-access tab (`InternetFullAccessTab`). Nothing about public write appears anywhere else in the modal.
 
-### D-05 — Tab state machine + transient confirm view (SM-05)
+- **D-05 — Tab state machine + transient confirm view (SM-05)**
 State inputs: `shareEnabled`, `internetEnabled`, `internetConfirmed`, `publicWriteArmed`.
 - `!shareEnabled` → no tabs; empty hint "Turn on 'Share the session' to get a link."
 - `shareEnabled && internetEnabled && !internetConfirmed` → **transient confirm view** (the repurposed `FunnelRiskPanel`: risk ack + auto-expire + "Keep local only" / "Enable internet share") REPLACES the panel — NOT injected above the links; no tabs shown.
@@ -39,20 +39,20 @@ State inputs: `shareEnabled`, `internetEnabled`, `internetConfirmed`, `publicWri
 
 Tab availability: Tailnet enabled when `shareEnabled`; both Internet tabs enabled only when `internetConfirmed` (else rendered as dimmed `aria-disabled` segments so the tier structure is visible before reachable). On successful internet confirm the active tab **defaults to Internet·Read-only** (safer landing; Full-access is always a deliberate second click). Disabling internet sharing **resets the active tab to Tailnet** and disables both Internet tabs.
 
-### D-06 — One reusable ShareLinkCard (SM-06)
+- **D-06 — One reusable ShareLinkCard (SM-06)**
 New/extracted `ShareLinkCard`: title · truncated URL (with full URL in `title=`) · Copy/Open/QR buttons · join code (wraps existing `CodeDisplay`) · scope description attached **directly beneath** the link it describes. Used by ALL tailnet + internet link rows (Read-Only, Full Access, Public URL). Replaces the four ad-hoc hand-laid rows. CSS: `.share-linkcard`, `__top`, `__title`, `__url`, `__actions`, `__join`, `__desc`.
 
-### D-07 — Colorblind-safe + keyboard-operable (SM-07)
+- **D-07 — Colorblind-safe + keyboard-operable (SM-07)**
 Owner is colorblind — state must NOT rely on hue.
 - Full-access tab distinguished by **⚠ glyph in label + red inset ring when active** (`box-shadow: inset 0 0 0 1px var(--danger-line)`), not color alone.
 - Toggles read state by knob position + an **"On/Off/N/A" text label**, not just track color.
 - Segmented control is a real `role="tablist"` with `role="tab"` / `aria-selected`, **arrow-key roving tabindex** (active tab `tabIndex=0`, others `-1`), and visible `:focus-visible` rings.
 - Hold-to-confirm keeps a text label and works under `prefers-reduced-motion` (falls back to a plain confirm rather than a timed fill).
 
-### D-08 — Modal width + preserved behavior + tests (SM-08)
+- **D-08 — Modal width + preserved behavior + tests (SM-08)**
 Widen `.hub-share-modal` from `width: min(480px, calc(100vw - 48px))` to **`width: min(520px, calc(100vw - 48px))`** (`style.css` ~`:6318`); verify the responsive override (~`:6405`) still clamps on narrow viewports. Capabilities / tokens / TTL / Funnel-teardown / 3s hold-gate all UNCHANGED. `SessionShareModal.test.tsx` + `SessionSharePanel.test.tsx` updated to the new structure with **attribute-based, non-hue assertions** (verify state via source/attributes like `aria-selected`, `aria-disabled`, text labels, class presence — never by computed color).
 
-### D-09 — Components & preservation
+- **D-09 — Components & preservation**
 - `SessionShareModal.tsx` (shell) — keeps the 3 toggles as the fixed control strip; owns tab/confirm state (`tab`, `internetConfirmed`, `publicWriteArmed`); renders `ShareSegmentedControl` + active-tab dispatch.
 - `ShareSegmentedControl` — NEW.
 - `ShareLinkCard` — NEW/extracted.
