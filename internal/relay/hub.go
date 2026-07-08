@@ -4,9 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
+
+	xvt "github.com/charmbracelet/x/vt"
 )
 
 // ErrReadOnly is returned by HandleInject when the subscriber has the read-only
@@ -100,6 +103,75 @@ type Hub struct {
 	// are both constructed. Nil-safe: HandleInject skips persist+broadcast when nil.
 	// Guarded by mu.
 	chatAppendFn func(ChatMessage) (ChatMessage, error)
+
+	// Phase 175-04 (BUG-04, #119): live per-hub VT emulator + its own guard.
+	// liveEmu is nil until EnsureLiveEmulator's first call (lazy — T-175-04-01:
+	// never constructed for a session that never gets a shared viewer). Once
+	// constructed it lives for the rest of the hub's life, continuously fed by
+	// Run()'s drain loop via feedLiveEmulator, so its state survives any later
+	// wrap of the raw scrollback ring — RenderSnapshot() never re-derives from
+	// the (possibly truncated) ring (RESEARCH "Pitfall 3").
+	//
+	// emuMu is a SEPARATE lock from mu (T-175-04-02): a slow/stuck emulator
+	// write must never stall the PTY-drain/broadcast loop or contend with
+	// subscriber fan-out.
+	emuMu   sync.Mutex
+	liveEmu *xvt.Emulator
+}
+
+// altScreenEnterSeq is the DEC private-mode sequence a full-screen TUI emits
+// exactly once on entering the alternate screen buffer (ESC[?1049h).
+// RenderSnapshot prefixes it onto the reconnect preamble whenever the live
+// emulator reports IsAltScreen(), so a reconnecting/late-joining client's
+// xterm.js re-enters the correct buffer before painting replayed content —
+// reconstructing the mode marker the raw 256 KiB scrollback ring may have
+// wrapped past (BUG-04, #119).
+const altScreenEnterSeq = "\x1b[?1049h"
+
+// liveEmulatorScrollbackLines bounds the live per-hub VT emulator's own
+// internal scrollback buffer (T-175-04-01). The emulator exists solely to
+// produce a current-screen RenderSnapshot() — it does not need real
+// scrollback depth — so this is deliberately small, mirroring the
+// emuRows=50 row bound GetSessionStyledTailLines (internal/daemon/engine.go)
+// uses for its own headless emulator.
+const liveEmulatorScrollbackLines = 50
+
+// liveEmuQueryStripPattern mirrors internal/daemon/engine.go's
+// queryStripPattern byte-for-byte. It strips terminal-query and in-band-
+// resize escape sequences that would otherwise elicit a blocking response
+// write into charmbracelet/x/vt's unbuffered response pipe (Emulator.pw) —
+// nothing ever drains Emulator.Read() on this feed path, so an unstripped
+// query would deadlock both EnsureLiveEmulator's bootstrap and Run()'s drain
+// loop (#96/#100). SGR/color sequences are deliberately preserved so styled
+// output survives.
+//
+// relay MUST NOT import internal/daemon (daemon already imports relay — an
+// import back the other way would be a cycle), so this pattern is
+// duplicated here rather than shared.
+var liveEmuQueryStripPattern = regexp.MustCompile(
+	`\x1b\[[0-9;]*c` + // DA1 (and any params before c)
+		`|\x1b\[>[0-9;]*c` + // DA2
+		`|\x1b\[[0-9;]*n` + // DSR (5n/6n and any CSI n)
+		`|\x1b\[\?[0-9;]*n` + // DECXCPR (ESC[?...n)
+		`|\x1b\[[0-9;]*\$p` + // DECRQM ANSI
+		`|\x1b\[\?[0-9;]*\$p` + // DECRQM DEC
+		`|\x1b\[\?2048[hl]` + // in-band resize set/reset (set triggers a pw write)
+		`|\x1b\]1[012];\?(?:\x07|\x1b\\)`, // OSC 10/11/12 color query, BEL- or ST-terminated
+)
+
+// stripMsgOutputBytes drops every relay.MsgOutput (0x01) framing byte from
+// data. Mirrors GetSessionStyledTailLines's inline strip: Hub.Run wraps each
+// PTY-read chunk in a MsgOutput frame via MakeOutputFrame BEFORE appending it
+// to scrollback, so ScrollbackSnapshot() interleaves this framing byte
+// throughout its contents.
+func stripMsgOutputBytes(data []byte) []byte {
+	stripped := make([]byte, 0, len(data))
+	for _, b := range data {
+		if b != MsgOutput {
+			stripped = append(stripped, b)
+		}
+	}
+	return stripped
 }
 
 // NewHub constructs a Hub for the given session.
@@ -371,12 +443,30 @@ func (h *Hub) Run() {
 			// is independent so slow subscribers cannot corrupt fast ones.
 			frame := MakeOutputFrame(buf[:n])
 			h.scrollback.Append(frame)
+			// T-175-04-01/02: no-op when liveEmu is nil (no shared viewer has
+			// ever connected); guarded by its own emuMu (never hub.mu), so a
+			// slow/stuck emulator write can never stall this drain loop.
+			h.feedLiveEmulator(buf[:n])
 			h.broadcast(frame)
 		}
 		if err != nil {
 			return
 		}
 	}
+}
+
+// feedLiveEmulator writes a stripped copy of raw (pre-framing) PTY bytes into
+// the live emulator, if one has been constructed. Called from Run()'s drain
+// loop immediately after the PTY Read returns, OUTSIDE hub.mu — emuMu is a
+// completely separate lock (T-175-04-02).
+func (h *Hub) feedLiveEmulator(raw []byte) {
+	h.emuMu.Lock()
+	defer h.emuMu.Unlock()
+	if h.liveEmu == nil {
+		return
+	}
+	clean := liveEmuQueryStripPattern.ReplaceAll(raw, nil)
+	h.liveEmu.Write(clean) //nolint:errcheck // emulator Write never returns a meaningful error
 }
 
 // broadcast sends frame to all current subscribers using a non-blocking send.
@@ -766,6 +856,62 @@ func InjectErrorReason(err error) string {
 // frames written between the snapshot and the first message in Msgs.
 func (h *Hub) ScrollbackSnapshot() []byte {
 	return h.scrollback.Snapshot()
+}
+
+// EnsureLiveEmulator lazily constructs the hub's live per-hub VT emulator on
+// first call (T-175-04-01 — never built for sessions that never get a shared
+// viewer) and bootstraps it once from the CURRENT ScrollbackSnapshot so its
+// state matches the live PTY before Run()'s drain loop starts feeding it
+// further frames. Idempotent: a second call is a no-op — once constructed,
+// the emulator is never rebuilt or re-bootstrapped from scrollback again, so
+// its state survives any later wrap of the raw 256 KiB ring (BUG-04, #119;
+// RESEARCH "Pitfall 3": must feed the LIVE stream continuously, never
+// reconstruct from the truncated ring).
+//
+// Callers (the WS handler sites) should call this once per new connection,
+// before RenderSnapshot, ahead of any reconnect preamble write.
+func (h *Hub) EnsureLiveEmulator() {
+	h.emuMu.Lock()
+	defer h.emuMu.Unlock()
+	if h.liveEmu != nil {
+		return
+	}
+
+	cols, rows := h.Cols(), h.Rows()
+	emu := xvt.NewEmulator(cols, rows)
+	// T-175-04-01: bound the emulator's own scrollback — it is only ever used
+	// to render the CURRENT screen, never scrolled through.
+	emu.SetScrollbackSize(liveEmulatorScrollbackLines)
+
+	bootstrap := stripMsgOutputBytes(h.ScrollbackSnapshot())
+	clean := liveEmuQueryStripPattern.ReplaceAll(bootstrap, nil)
+	emu.Write(clean) //nolint:errcheck // emulator Write never returns a meaningful error
+
+	h.liveEmu = emu
+}
+
+// RenderSnapshot returns the live emulator's current screen as a
+// MsgOutput-framed reconnect preamble (BUG-04, #119): when the emulator
+// reports IsAltScreen(), altScreenEnterSeq is prefixed so a reconnecting or
+// late-joining client's xterm.js re-enters alternate-screen mode BEFORE
+// painting the replayed content — reconstructing the mode marker the raw
+// scrollback ring may have wrapped past.
+//
+// Callers MUST call EnsureLiveEmulator before RenderSnapshot — this method
+// does not construct the emulator itself. Returns nil if no emulator has
+// been constructed yet.
+func (h *Hub) RenderSnapshot() []byte {
+	h.emuMu.Lock()
+	defer h.emuMu.Unlock()
+	if h.liveEmu == nil {
+		return nil
+	}
+
+	content := h.liveEmu.Render()
+	if h.liveEmu.IsAltScreen() {
+		content = altScreenEnterSeq + content
+	}
+	return MakeOutputFrame([]byte(content))
 }
 
 // Cols returns the current PTY column width as set by the host-authority resize
