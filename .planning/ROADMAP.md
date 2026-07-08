@@ -722,13 +722,20 @@ Plans:
 **Plans:** 7 plans
 
 Plans:
+**Wave 1**
 
 - [ ] 175-01-PLAN.md — Wave 0: BUG-03 live timed diagnostic (confirm/disprove the app.go:386 deadline)
 - [ ] 175-02-PLAN.md — Wave 0: test scaffolds — deadline-helper extraction + RED Go tests for BUG-02/BUG-04
 - [ ] 175-03-PLAN.md — Wave 1: BUG-01 mobile legibility (readability floor + horizontal-scroll fallback)
 - [ ] 175-04-PLAN.md — Wave 1: BUG-04 lazy live per-hub VT emulator reconnect preamble (both WS sites)
 - [ ] 175-05-PLAN.md — Wave 1: BUG-03 exit-poll fix (gated on 175-01 diagnosis)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 175-06-PLAN.md — Wave 2: BUG-02 disconnect notice (WS close reason + colorblind-safe banner)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 175-07-PLAN.md — Wave 3: TESTING.md reconciliation (manifest, traceability, M-NN, Category P)
 
 ### Phase 176: Platform & Hardening Bug Fixes
