@@ -4,16 +4,15 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 174
 current_phase_name: dependency-updates-dependabot-hygiene
-status: ready-to-plan
-stopped_at: "Phase 173 verified 3/3 + all 9 original v4.2 phases (165-173) complete. Then EXPANDED v4.2 with 3 new phases before ship (user directive 2026-07-08 — sweep the bug backlog + Dependabot PRs): 174 Dependency Updates & Dependabot Hygiene (merge 7 low-risk PRs, defer #104 Wails/#88 Tailscale/#102 checkout-v7 with ignore rules), 175 Web-share/Remote-viewer/Windowing bug fixes (#128/#125/#126/#119), 176 Platform & Hardening bug fixes (#124/#123/#127). Closed #120 (Phase 169 shipped the feasible fix). NEXT = /gsd-plan-phase 174 (then 175, 176; all independent). Ship v4.2 only after these land."
-last_updated: "2026-07-08T15:58:43.914Z"
+status: executing
+stopped_at: Completed 174-01-PLAN.md (4 low-risk CI-action Dependabot bumps applied + PRs closed); next = 174-02
+last_updated: "2026-07-08T16:15:45.478Z"
 last_activity: 2026-07-08
-last_activity_desc: Phase 173 execution started
 progress:
   total_phases: 12
   completed_phases: 9
-  total_plans: 45
-  completed_plans: 45
+  total_plans: 48
+  completed_plans: 46
   percent: 75
 ---
 
@@ -24,13 +23,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 174 — dependency-updates-dependabot-hygiene (v4.2 expanded with 174-176 before ship)
+**Current focus:** Phase 174 — dependency-updates-dependabot-hygiene
 
 ## Current Position
 
-Phase: 174 (dependency-updates-dependabot-hygiene) — added 2026-07-08, NOT YET PLANNED
-Plan: none yet — run `/gsd-plan-phase 174`
-Status: v4.2 EXPANDED before ship (user directive) with 3 independent phases — 174 (deps/Dependabot), 175 (web-share/remote/windowing bugs #128/#125/#126/#119), 176 (platform/hardening bugs #124/#123/#127). Phases 165-173 all complete+verified. Closed #120. NEXT = plan 174 (then 175, 176 — all `Depends on: None`, can be planned/executed in any order or parallel).
+Phase: 174 (dependency-updates-dependabot-hygiene) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
 
 ### Roadmap Evolution
 
@@ -43,7 +42,7 @@ Status: v4.2 EXPANDED before ship (user directive) with 3 independent phases —
 - **171 Public Full-Access (RW) Sharing** — opt-in public read-write behind a hard consent gate + single-use write code (FNL-09). Supersedes today's ACCIDENTAL public write (issueCapabilitiesForSession rebases both read+write caps to the funnel base by timing; funnel exposes whole mux, no read-only downgrade). **SPEC-FIRST** (internet RCE): `/gsd-spec-phase 171` → discuss → `/gsd-secure-phase` → plan.
 
 **Live UAT of 165-169 (2026-07-05, prod build on real Funnel tailnet) — Phase 166 Funnel UAT NOW COMPLETE, all 4 PASS (166-UAT.md status→passed):** M-37 (off-tailnet phone QR loads read-only session; public URL 200 off-host), M-38 (daemon 60s auto-expiry → torn down, URL HTTP 000, badge cleared, no manual disable), M-39 (globe + INTERNET badge appears/clears), M-40 (stop tailscale + restart daemon → local mode → toggle greyed + "requires Tailscale" + backend 400 fail-closed; reconnect auto-upgrades → toggle re-enables). **2 Share-modal layout bugs found + fixed live (commit 27d398e7):** (1) `.hub-share-modal` had no height bound → overflowed viewport/clipped; fixed with max-height. (2) that max-height made `__body` a constrained flex column and the risk panel's `overflow:hidden` let flexbox shrink it 202px→39px, clipping the Auto-expire select + Enable CTA → Funnel uncommittable via UI; fixed with `flex-shrink:0`. Both root-caused via dev-browser CSS harness, verified live. OBSERVATION (not blocking, maybe file): daemon does NOT live-downgrade to local mode on a mid-session tailscale drop (stays tailscale-mode w/ stale IP) — local fallback is startup-only; auto-upgrade on reconnect works. REMAINING deferrals: M-41 (notif delivery win/linux, needs those platforms), M-45 (non-admin macsys, env-only). **Phase 172 (Hub-card layout & badge refinement) CREATED 2026-07-05** (`/gsd-phase add`; frontend-only, Depends on: None — independent of Funnel 170/171). NEXT = user wants 2-3 throwaway HTML mockups (frontend-design / /gsd-sketch) BEFORE `/gsd-plan-phase 172`. Design critique captured: the Hub session card (image ref) uses THREE inconsistent metadata treatments — `Running`/`Local` = icon+plain-text, `/bin/zsh` = outlined pill, `INTERNET` = filled green pill on its own row — loosely stacked with no grouping. Direction: consolidate into ONE consistent chip row (agent · origin · exposure) with tighter vertical rhythm, while KEEPING the INTERNET chip the one deliberately-prominent colored/filled chip (it's a security-exposure signal that must stay unmissable + colorblind-safe per [[user_colorblind]]; making others quieter/outlined makes INTERNET pop MORE by contrast). Frontend-only (Hub card component + style.css); no backend. User wants 2-3 throwaway HTML mockups (frontend-design skill) BEFORE touching code. This is a v4.2 phase (milestone reopened). To add: `/gsd-phase add ...` (will become 172).
-Last activity: 2026-07-08 — Phase 173 execution started
+Last activity: 2026-07-08
 
 ```
 v4.2 Progress: [█████████████████░░░] 86% (6/7 phases — 165 ✅, 166 ✅ (+2 modal fixes 2026-07-05), 167 ✅ (M-41 deferred), 168 ✅, 169 ✅ (M-45 deferred), 170 ✅ (M-46 live UAT PASSED 2026-07-06, fix 5a92ddae); 171 ⬜ spec-first)
@@ -157,8 +156,8 @@ v4.2 Progress: [█████████████████░░░] 86
 
 ## Session Continuity
 
-Last session: 2026-07-08T14:11:36.270Z
-Stopped at: Completed 173-08-PLAN.md — SM-07 gap closure (focus-follow + pending toggle label) + SM-05/WR-01 funnelOn resync; Phase 173 gap-closure complete, ready for /gsd-verify-work 173
+Last session: 2026-07-08T16:15:45.468Z
+Stopped at: Completed 174-01-PLAN.md (4 low-risk CI-action Dependabot bumps applied + PRs closed); next = 174-02
 Resume file: None
 Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 phase — FIX-05: non-admin macOS accounts report Tailscale "installed but not Connected" because `macsys` `sameuserproof` is unreadable; add a CLI `status` fallback. Run `/gsd-plan-phase 169` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
 
@@ -259,6 +258,7 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 | Phase 173 P06 | 55min | 3 tasks | 5 files |
 | Phase 173 P07 | 12min | 2 tasks | 1 files |
 | Phase 173 P08 | 4min | 3 tasks | 5 files |
+| Phase 174 P01 | 5min | 3 tasks | 3 files |
 
 ## Decisions
 
@@ -341,3 +341,4 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 - [Phase ?]: Phase 173-07: check-traceability-paths.sh's grep -oP is unreliable on macOS BSD grep (false-OK, zero paths checked); validated path correctness manually via equivalent Python regex instead
 - [Phase ?]: Phase 173-08: funnelOn resync effect keyed only on session.funnelActive (not funnelOn) to avoid stomping handleFunnelEnable's optimistic setFunnelOn(true) during warm-up
 - [Phase ?]: Phase 173-08: Internet toggle checked/aria-checked stays funnelOn || riskPanelOpen; only the TEXT state label is gated strictly on funnelOn (pending window renders 'Confirm…')
+- [Phase 174]: Phase 174-01: Applied 4 low-risk CI-action Dependabot bumps (setup-go, pnpm/action-setup, attest-build-provenance, action-gh-release) directly on v4.2-funnel-sharing rather than merging Dependabot PRs into main; closed PRs #114/#113/#103/#85 citing Phase 174.
