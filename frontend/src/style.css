@@ -6581,6 +6581,72 @@ textarea {
   outline-offset: 2px;
 }
 
+/* =====================================================================
+   Phase 173 (SM-06) — Reusable link card (.share-linkcard*)
+   One layout for every access tier's link row (Tailnet RO/Full-Access,
+   Internet public URL). All colors via var(--hub-*) tokens only.
+   ===================================================================== */
+
+.share-linkcard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--hub-border);
+  border-radius: var(--hub-radius-md);
+  background: var(--hub-surface);
+}
+
+.share-linkcard__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.share-linkcard__title {
+  font-size: 13px;
+  font-weight: var(--hub-font-weight-emphasis);
+  color: var(--hub-text-primary);
+  flex-shrink: 0;
+}
+
+/* CSS truncation only — the full URL lives in the element's title= attribute
+   (D-06); no JS truncate helper. */
+.share-linkcard__url {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--hub-accent);
+  font-family: var(--hub-font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-linkcard__actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.share-linkcard__join {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--hub-text-muted);
+}
+
+/* Replaces the orphaned inline style={{...color:'#9aa5ce'}} scope paragraphs
+   (SessionSharePanel.tsx :467/:506) — description now attaches directly
+   beneath its own link card instead of floating between sections. */
+.share-linkcard__desc {
+  font-size: 11px;
+  color: var(--hub-text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Phase 154 — Chat UI: ChatMessage (chat-msg__*) BEM classes
    TOKEN RULE: no hardcoded hex — only var(--hub-*) tokens (except the
