@@ -699,11 +699,13 @@ Plans:
 **Goal:** Bring the dependency tree current without risking the Windows build, the Funnel feature, or CI — merge the low-risk Dependabot bumps behind a full build+test gate, and formally DEFER the three high-risk upgrades via `.github/dependabot.yml` ignore rules + PR-close rationale so they stop re-opening.
 **Requirements**: DEP-01 (merge low-risk Dependabot PRs, each verified green: go build/vet/test + `tsc && vite build` + deb/rpm packaging still builds — CI actions #114 attest-build-provenance 4.1.0→4.1.1, #113 setup-go 6.4.0→6.5.0, #103 action-gh-release 3.0.0→3.0.1, #85 pnpm/action-setup 6.0.8→6.0.9; Go modules #89 coder/websocket 1.8.14→1.8.15 [gate on webserver/relay tests], #106 golang.org/x/term 0.43.0→0.44.0, #105 goreleaser/nfpm/v2 2.46.3→2.47.0), DEP-02 (defer high-risk upgrades with documented rationale + `dependabot.yml` ignore entries + close the PRs citing this phase — #104 wailsapp/wails v2 2.10.2→2.12.0 [coupled to the pinned go-webview2 v1.0.19 Windows-build constraint; bump only with a coordinated, tested webview2 upgrade], #88 tailscale.com 1.98.3→1.100.0 [entire Funnel feature built + live-UAT'd on 1.98.3; revisit post-ship with full off-tailnet re-UAT], #102 actions/checkout v6→v7 [major; evaluate in a branch])
 **Depends on:** None (independent — dependency/CI hygiene; no code dependency on 173/175/176)
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 174 to break down)
+- [ ] 174-01-PLAN.md — DEP-01 CI-action SHA bumps (#114 attest-provenance, #113 setup-go, #103 gh-release, #85 pnpm) + close PRs
+- [ ] 174-02-PLAN.md — DEP-01 Go-module bumps (#89 coder/websocket, #106 x/term, #105 nfpm/v2) each gated + close PRs
+- [ ] 174-03-PLAN.md — DEP-02 defer wails/tailscale/checkout via surgical dependabot.yml ignores + close #104/#88/#102
 
 ### Phase 175: Web-share, Remote-viewer & Windowing Bug Fixes
 
