@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
@@ -398,8 +399,21 @@ func (a *App) pollSessionStatus(sessionID string) {
 	var consecutiveErrors int
 	pollStart := time.Now()
 	const maxPollWindow = 300 * time.Second // extended to 5min for long-running agents
+	// slowCallThreshold flags ListSessions round-trips that take unusually
+	// long over what should be a near-instant local Unix-socket call. 175-01
+	// DIAGNOSIS (VERDICT: DISPROVED — the fixed deadline is NOT BUG-03's root
+	// cause) flags the un-timeout'd http.Client in internal/daemon/client.go
+	// as the candidate hang site; this instruments the call at its app.go
+	// call site (this plan's declared files_modified does not include
+	// client.go) so a future stall is directly observable instead of silent.
+	const slowCallThreshold = 2 * time.Second
 	for shouldContinuePolling(pollStart, time.Now(), maxPollWindow) {
+		callStart := time.Now()
 		sessions, err := a.client.ListSessions()
+		if elapsed := time.Since(callStart); elapsed > slowCallThreshold {
+			slog.Warn("pollSessionStatus: daemon ListSessions call unusually slow (possible daemon-client stall)",
+				"sessionId", sessionID, "elapsed", elapsed, "err", err)
+		}
 		if err != nil {
 			consecutiveErrors++
 			if consecutiveErrors >= 5 {
