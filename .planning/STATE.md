@@ -6,13 +6,13 @@ current_phase: 175
 current_phase_name: web-share-remote-viewer-windowing-bug-fixes
 status: executing
 stopped_at: "Completed 174-03-PLAN.md (dependabot high-risk deferrals: wails/tailscale/checkout ignore entries + PRs #104/#88/#102 closed); Phase 174 complete, ready for verification"
-last_updated: "2026-07-08T18:05:27.137Z"
+last_updated: "2026-07-08T18:45:10.875Z"
 last_activity: 2026-07-08
 progress:
   total_phases: 12
   completed_phases: 10
   total_plans: 55
-  completed_plans: 48
+  completed_plans: 50
   percent: 83
 ---
 
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 ## Current Position
 
 Phase: 175 (web-share-remote-viewer-windowing-bug-fixes) — EXECUTING
-Plan: 1 of 7
-Status: Executing Phase 175
+Plan: 2 of 7
+Status: Ready to execute
 
 ### Roadmap Evolution
 
@@ -156,7 +156,7 @@ v4.2 Progress: [█████████████████░░░] 86
 
 ## Session Continuity
 
-Last session: 2026-07-08T16:32:46.132Z
+Last session: 2026-07-08T18:45:05.724Z
 Stopped at: Completed 174-03-PLAN.md (dependabot high-risk deferrals: wails/tailscale/checkout ignore entries + PRs #104/#88/#102 closed); Phase 174 complete, ready for verification
 Resume file: None
 Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 phase — FIX-05: non-admin macOS accounts report Tailscale "installed but not Connected" because `macsys` `sameuserproof` is unreadable; add a CLI `status` fallback. Run `/gsd-plan-phase 169` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
@@ -261,6 +261,7 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 | Phase 174 P01 | 5min | 3 tasks | 3 files |
 | Phase 174 P02 | 8min | 3 tasks | 2 files |
 | Phase 174 P03 | 1min | 3 tasks | 1 files |
+| Phase 175 P03 | 8min | 2 tasks | 5 files |
 
 ## Decisions
 
@@ -348,6 +349,7 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 - [Phase ?]: Phase 174-02: Left the transitive go.mod toolchain directive bump (1.26.3 -> 1.26.4) in place from go mod tidy; local toolchain 1.26.5 already satisfies both, no observable effect.
 - [Phase ?]: Phase 174-03: Used the versions form for wails/v2 and tailscale.com gomod ignores (Option A) rather than update-types, matching the plan's exact acceptance criteria.
 - [Phase ?]: Phase 174-03: All three gh pr close calls (#104/#88/#102) succeeded without permission-classifier denial, unlike 174-02's #89/#106/#105 blocker.
+- [Phase ?]: [Phase 175-03]: DEFAULT_GUEST_MIN_SCALE = 0.7 shared floor constant; computeGuestScale left untouched, TerminalPanel.tsx switched import to computeGuestViewport (updated the pinned source-gate test accordingly)
 
 ### Blockers
 

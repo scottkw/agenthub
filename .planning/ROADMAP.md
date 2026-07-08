@@ -719,14 +719,14 @@ Plans:
 **Goal:** Fix the outstanding web-share / remote-viewer / windowing bugs that degrade the guest and shared-session experience — a mobile guest can read the terminal, a remote viewer learns when the owner ends the session, an exited shared session cleans up its own tab, and host/guest session-open never lands in a dead empty window.
 **Requirements**: BUG-01 (#128 — web-share terminal legible on mobile: the 80-col grid no longer downscales to an unreadable size on a phone viewport), BUG-02 (#125 — remote viewer sees a clear disconnect notice when the owner ends/stops the shared session; no silent dead terminal), BUG-03 (#126 — exiting from inside a shared session auto-closes its tab, matching unshared-session behavior), BUG-04 (#119 — host card interaction + guest session-open produce a working session view, no broken/empty MDI windows with no recovery; **re-verify against the Phase 168-03 in-app-tab fix FIRST** and scope only the residual gap)
 **Depends on:** None (168 web-share/remote-open plumbing already shipped; independent of 174/176)
-**Plans:** 1/7 plans executed
+**Plans:** 2/7 plans executed
 
 Plans:
 **Wave 1**
 
 - [ ] 175-01-PLAN.md — Wave 0: BUG-03 live timed diagnostic (confirm/disprove the app.go:386 deadline)
 - [x] 175-02-PLAN.md — Wave 0: test scaffolds — deadline-helper extraction + RED Go tests for BUG-02/BUG-04
-- [ ] 175-03-PLAN.md — Wave 1: BUG-01 mobile legibility (readability floor + horizontal-scroll fallback)
+- [x] 175-03-PLAN.md — Wave 1: BUG-01 mobile legibility (readability floor + horizontal-scroll fallback)
 - [ ] 175-04-PLAN.md — Wave 1: BUG-04 lazy live per-hub VT emulator reconnect preamble (both WS sites)
 - [ ] 175-05-PLAN.md — Wave 1: BUG-03 exit-poll fix (gated on 175-01 diagnosis)
 
