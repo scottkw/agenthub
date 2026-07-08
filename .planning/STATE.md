@@ -82,7 +82,7 @@ v4.2 Progress: [█████████████████░░░] 86
 | 169 | Tailscale Detection Fix | FIX-05 | ⬜ Not started — next: /gsd-plan-phase 169 (#120; orthogonal, non-admin macOS test env) |
 | 170 | Public Share Access Codes (read) | FNL-08 | ✅ DONE — 4/4 + code-verified 14/14 + M-46 live UAT PASSED (2026-07-06); live blocker fixed (5a92ddae: public URL → /join?code=) |
 | 171 | Public Full-Access (RW) Sharing | FNL-09 | ⬜ Not started — reopen phase; SPEC-FIRST: /gsd-spec-phase 171 |
-| 172 | Hub-card Layout & Badge Refinement | TBD (design polish) | ⬜ Not started — frontend-only; mockups first, then /gsd-plan-phase 172 |
+| 172 | Hub-card Layout & Badge Refinement | D-01..D-07 | ✅ DONE — 1/1 plan; verified passed; UAT 6/6 PASS (2026-07-08, D5 theme parity confirmed; UAT-06 Open/Share↔preview spacing found + fixed inline c7a5b69b) |
 
 **Total:** 26 requirements mapped across 5 phases (100% coverage). *(2026-07-01: +FIX-04 #121 phantom viewer count into Phase 168; +FIX-05 #120 Tailscale detection split into new Phase 169.)*
 
