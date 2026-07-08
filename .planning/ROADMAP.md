@@ -647,13 +647,13 @@ Plans:
 **Goal:** Consolidate the Hub session card's three inconsistent metadata treatments (`Running`/`Local` icon+text, `/bin/zsh` outlined pill, `INTERNET` filled green pill on its own row) into ONE consistent chip row (agent · origin · exposure) with tighter vertical rhythm — while deliberately KEEPING the INTERNET chip the one prominent colored/filled chip (security-exposure signal that must stay unmissable + colorblind-safe per user_colorblind). Making the other chips quieter/outlined makes INTERNET pop MORE by contrast. Frontend-only (Hub card component + style.css); no backend.
 **Requirements**: TBD (design-polish phase; user flagged 2026-07-05, critique captured in commit 4402b44e)
 **Depends on:** None (frontend-only, independent of Funnel phases 170/171)
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 **Approach note:** User wanted 2-3 throwaway HTML mockups (frontend-design skill / /gsd-sketch) to compare chip-row treatments BEFORE touching code. Done — Sketch 001 (`.planning/sketches/001-hub-card-chip-row/`), WINNER = Variant B (7px rounded-rect quiet chips, dedicated exposure line, fully-muted origin). Plan builds to Variant B.
 
 Plans:
 
-- [ ] 172-01-PLAN.md — Consolidate the Hub card into one chip row (agent · origin quiet chips + dedicated INTERNET/FULL ACCESS exposure line + muted uptime·viewers·Connected meta line); style.css both themes + SessionCard.tsx restructure + vitest structure coverage + TESTING.md reconcile (D-01..D-07)
+- [x] 172-01-PLAN.md — Consolidate the Hub card into one chip row (agent · origin quiet chips + dedicated INTERNET/FULL ACCESS exposure line + muted uptime·viewers·Connected meta line); style.css both themes + SessionCard.tsx restructure + vitest structure coverage + TESTING.md reconcile (D-01..D-07)
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
