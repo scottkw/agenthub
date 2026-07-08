@@ -6512,6 +6512,75 @@ textarea {
   }
 }
 
+/* =====================================================================
+   Phase 173 (SM-03/SM-07) — Share segmented control (.share-segbar/.share-seg*)
+   All colors via var(--hub-*) tokens only. Colorblind-safe: the Full-access
+   segment's "danger" state is an inset box-shadow ring + the ⚠ glyph/text in
+   the label (rendered by the component), never a hue swap. Owner is
+   colorblind (see project memory) — verify at source, not by eye.
+   ===================================================================== */
+
+.share-segbar {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--hub-radius-md);
+  background: var(--hub-surface);
+  border: 1px solid var(--hub-border);
+}
+
+.share-seg {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 5px;
+  border: none;
+  border-radius: var(--hub-radius-sm);
+  background: transparent;
+  color: var(--hub-text-muted);
+  cursor: pointer;
+  line-height: 1.15;
+}
+
+.share-seg__main {
+  font-size: 12.5px;
+  font-weight: 580;
+}
+
+.share-seg__sub {
+  font-size: 10px;
+  opacity: 0.82;
+}
+
+.share-seg.is-active {
+  background: var(--hub-share-seg-active-bg);
+  color: var(--hub-text-primary);
+}
+
+/* COLORBLIND-SAFE (SM-07): inset ring is the primary non-color cue for the
+   active Full-access segment — reinforces the ⚠ glyph + "Full access" text
+   rendered by the component, not a hue swap on the active background. */
+.share-seg.is-active.is-danger {
+  box-shadow: inset 0 0 0 1px var(--hub-destructive);
+}
+
+.share-seg.is-active.is-danger .share-seg__sub {
+  color: var(--hub-destructive);
+  opacity: 1;
+}
+
+.share-seg:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.share-seg:focus-visible {
+  outline: 2px solid var(--hub-accent);
+  outline-offset: 2px;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Phase 154 — Chat UI: ChatMessage (chat-msg__*) BEM classes
    TOKEN RULE: no hardcoded hex — only var(--hub-*) tokens (except the
