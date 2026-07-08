@@ -4,17 +4,17 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 173
 current_phase_name: share-modal-three-tab-segmented-redesign
-status: executing
-stopped_at: Completed 173-06-PLAN.md
-last_updated: "2026-07-08T12:57:44.306Z"
+status: verifying
+stopped_at: Completed 173-07-PLAN.md — Phase 173 (Share Modal Three-Tab Segmented Redesign) fully executed, ready for /gsd-verify-work 173
+last_updated: "2026-07-08T13:11:41.362Z"
 last_activity: 2026-07-08
 last_activity_desc: Phase 173 execution started
 progress:
   total_phases: 9
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 44
-  completed_plans: 43
-  percent: 89
+  completed_plans: 44
+  percent: 100
 ---
 
 # Project State
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 ## Current Position
 
-Phase: 173 (share-modal-three-tab-segmented-redesign) — EXECUTING
+Phase: 173 (share-modal-three-tab-segmented-redesign) — READY FOR VERIFICATION
 Plan: 7 of 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 
 - **170 Public Share Access Codes (read)** — reusable share-lifetime join code for the INTERNET (PUBLIC) link (FNL-08). UAT found the public link shows no join code (unlike RO/Full) → typing the URL dead-ends on a code page with no code. Root cause: join codes are 5-min single-use (`api.go:259`), wrong for a public share → needs per-code TTL + reusable semantics tied to funnel expiry, read-only only. **170-01 EXECUTED 2026-07-05** (commits 70f2f8ad/fa35b928/1618255b/cc864779/eb119e4c): `JoinCodeManager.IssueReusable`/`Revoke` + reusable-conditional `Exchange` delete, proven at unit layer (4 new tests, 6 pre-existing untouched) AND at the public `/join/exchange` HTTP boundary (new `internal/webserver/join_test.go` — reusable read code resolves twice, single-use code still fails on 2nd try). **170-02 EXECUTED 2026-07-05** (commits 3cb05dea/5f0bb981/d38a9689/835bbaa4, RED/GREEN TDD): `issueCapabilitiesForSession` mints the reusable public read code from the read-only `rTok` ONLY (never `wTok`), caches it per session (idempotent — no rotation on re-issue), and surfaces it on `IssueCapabilitiesResponse.PublicReadCode` (`""` for non-Funnel sessions); `handleSetSessionFunnel` captures `min(ExpiresIn, 8h)` as the per-code TTL; `disableFunnelForSession` (the single teardown chokepoint) revokes the cached code on all 4 in-process triggers (toggle-off, web-share-off, session-exit, auto-expiry timer — daemon-stop intentionally excluded, bypasses this chokepoint by design). Wails TS binding (`models.ts`) regenerated for Wave 3. **170-03 EXECUTED 2026-07-06** (commits b05e22ce/3c93ec57/e10b6067/2ec5c1c5/7b5cfa54): Share modal INTERNET (PUBLIC) section renders `<CodeDisplay label="Public join code (reusable):" code={publicReadCode} />`; `SessionShareModal` threads `resp.publicReadCode` from the existing warm-up round-trip and clears it on disable. Deviation: the type field went into the *actually-imported* hand-authored stub `frontend/src/wailsjs/go/main/App.d.ts` (not just the unused generated `models.ts`) — required for `tsc --noEmit` to pass. Frontend gate: `tsc --noEmit` clean + `vite build` OK + 2335 vitest pass. **170-04 EXECUTED 2026-07-06** (commits 805dbf87/d1c8ddda): TESTING.md reconciled — counts already correct (528 total: 375 Go/142 vitest/9 PW/2 build), added Section-5 category with **M-46** live off-tailnet reusable-code-join + teardown item; `check-traceability-paths.sh` exits 0. **PHASE VERIFIED (code) 2026-07-06** — gsd-verifier: 14/14 must-haves VERIFIED including the security-critical read-only-only mint (`IssueReusable(rTok, …)`, never `wTok`); status `human_needed`, sole open item = M-46 (needs real Funnel tailnet + 2 off-tailnet devices). ROADMAP/REQUIREMENTS completion markers reverted to pending per user (keep-pending-UAT). NEXT = `/gsd-verify-work 170` (record live M-46 pass → phase complete).
 - **171 Public Full-Access (RW) Sharing** — opt-in public read-write behind a hard consent gate + single-use write code (FNL-09). Supersedes today's ACCIDENTAL public write (issueCapabilitiesForSession rebases both read+write caps to the funnel base by timing; funnel exposes whole mux, no read-only downgrade). **SPEC-FIRST** (internet RCE): `/gsd-spec-phase 171` → discuss → `/gsd-secure-phase` → plan.
@@ -150,8 +150,8 @@ v4.2 Progress: [█████████████████░░░] 86
 
 ## Session Continuity
 
-Last session: 2026-07-08T12:57:44.296Z
-Stopped at: Completed 173-06-PLAN.md
+Last session: 2026-07-08T13:11:41.352Z
+Stopped at: Completed 173-07-PLAN.md — Phase 173 (Share Modal Three-Tab Segmented Redesign) fully executed, ready for /gsd-verify-work 173
 Resume file: None
 Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 phase — FIX-05: non-admin macOS accounts report Tailscale "installed but not Connected" because `macsys` `sameuserproof` is unreadable; add a CLI `status` fallback. Run `/gsd-plan-phase 169` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
 
@@ -250,6 +250,7 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 | Phase 173 P03 | 5min | 2 tasks | 2 files |
 | Phase 173 P05 | 13min | 3 tasks | 6 files |
 | Phase 173 P06 | 55min | 3 tasks | 5 files |
+| Phase 173 P07 | 12min | 2 tasks | 1 files |
 
 ## Decisions
 
@@ -328,3 +329,5 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 - [Phase ?]: Phase 173-05: InternetReadOnlyTab's ShareLinkCard receives the pre-computed /join?code=... exchange URL (never the raw funnelUrl cap link) as its url prop, so Copy/Open/QR can never leak the ephemeral capability token
 - [Phase 173]: Phase 173-06: funnelError renders in both the transient confirm view and inside .hub-share-modal__tabpanel — the full-access gate-confirm failure sets the same slot but fires once past the confirm view
 - [Phase 173]: Phase 173-06: React.act() wrapping (not bare flushSync+setTimeout(0)) required for async-RPC-then-passive-effect test sequences — verified flake-free across 20+ repeated runs
+- [Phase ?]: Phase 173-07: Suite Manifest correction pattern reused (171-04 precedent) — new dated note stating old->new counts, not editing a prior plan's note
+- [Phase ?]: Phase 173-07: check-traceability-paths.sh's grep -oP is unreliable on macOS BSD grep (false-OK, zero paths checked); validated path correctness manually via equivalent Python regex instead
