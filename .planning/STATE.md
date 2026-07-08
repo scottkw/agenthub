@@ -6,13 +6,13 @@ current_phase: 174
 current_phase_name: dependency-updates-dependabot-hygiene
 status: executing
 stopped_at: Completed 174-01-PLAN.md (4 low-risk CI-action Dependabot bumps applied + PRs closed); next = 174-02
-last_updated: "2026-07-08T16:15:45.478Z"
+last_updated: "2026-07-08T16:26:02.416Z"
 last_activity: 2026-07-08
 progress:
   total_phases: 12
   completed_phases: 9
   total_plans: 48
-  completed_plans: 46
+  completed_plans: 47
   percent: 75
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 ## Current Position
 
 Phase: 174 (dependency-updates-dependabot-hygiene) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 
 ### Roadmap Evolution
@@ -156,7 +156,7 @@ v4.2 Progress: [█████████████████░░░] 86
 
 ## Session Continuity
 
-Last session: 2026-07-08T16:15:45.468Z
+Last session: 2026-07-08T16:26:02.406Z
 Stopped at: Completed 174-01-PLAN.md (4 low-risk CI-action Dependabot bumps applied + PRs closed); next = 174-02
 Resume file: None
 Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 phase — FIX-05: non-admin macOS accounts report Tailscale "installed but not Connected" because `macsys` `sameuserproof` is unreadable; add a CLI `status` fallback. Run `/gsd-plan-phase 169` to begin. Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
@@ -259,6 +259,7 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 | Phase 173 P07 | 12min | 2 tasks | 1 files |
 | Phase 173 P08 | 4min | 3 tasks | 5 files |
 | Phase 174 P01 | 5min | 3 tasks | 3 files |
+| Phase 174 P02 | 8min | 3 tasks | 2 files |
 
 ## Decisions
 
@@ -342,3 +343,9 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 - [Phase ?]: Phase 173-08: funnelOn resync effect keyed only on session.funnelActive (not funnelOn) to avoid stomping handleFunnelEnable's optimistic setFunnelOn(true) during warm-up
 - [Phase ?]: Phase 173-08: Internet toggle checked/aria-checked stays funnelOn || riskPanelOpen; only the TEXT state label is gated strictly on funnelOn (pending window renders 'Confirm…')
 - [Phase 174]: Phase 174-01: Applied 4 low-risk CI-action Dependabot bumps (setup-go, pnpm/action-setup, attest-build-provenance, action-gh-release) directly on v4.2-funnel-sharing rather than merging Dependabot PRs into main; closed PRs #114/#113/#103/#85 citing Phase 174.
+- [Phase ?]: Phase 174-02: Committed Task 1 (coder/websocket) and Task 2 (x/term + nfpm) as two separate atomic commits rather than the plan's suggested single Task-3 combined commit, for independent bisectability.
+- [Phase ?]: Phase 174-02: Left the transitive go.mod toolchain directive bump (1.26.3 -> 1.26.4) in place from go mod tidy; local toolchain 1.26.5 already satisfies both, no observable effect.
+
+### Blockers
+
+- Phase 174-02: Dependabot PRs #89, #106, #105 remain OPEN — gh pr close blocked by runtime's auto-mode permission classifier (external-system-write guardrail). Go module bumps themselves done/verified/committed. Needs user to explicitly authorize closing these PRs or close manually (see 174-02-PLAN.md Task 3 for exact comment text).
