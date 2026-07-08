@@ -186,13 +186,16 @@ export interface SessionCardProps {
  * Colorblind-safe: every status renders icon + text label.
  * Color is reinforcement only (see STATUS_CONFIG hex comments above).
  *
- * Layout:
- *   ROW 1: status-indicator | InlineSessionName | CLI badge
- *   ROW 2: origin marker (Local / peer hostname)
- *   ROW 3: uptime/duration + viewer count (only when >0)
- *   ROW 4: exit-code chip (only when stopped with non-zero exit)
- *   ROW 5: Open button (when live, Phase 131)
- *   ROW 6: MiniPreview (CARD-07 plain-text snapshot; NO xterm)
+ * Layout (Phase 172 — consolidated chip row, Sketch 001 Variant B winner):
+ *   HEADER: InlineSessionName + ChatBadge
+ *   STATUS ROW: status-indicator (icon + label, spin/attention) — stays the
+ *     primary top-line signal, NOT chipified (D-03)
+ *   EXIT CHIP: "Exited {code}" (only when stopped with non-zero exit)
+ *   CHIP ROW: agent chip · origin chip · exposure cluster (INTERNET / FULL
+ *     ACCESS filled badges forced onto their own right-aligned line, D-01/D-04/D-05)
+ *   META LINE: uptime · viewer count · Connected/Available, muted (D-06)
+ *   ACTIONS: Open (when live, Phase 131) / Share
+ *   PREVIEW: MiniPreview (CARD-07 plain-text snapshot; NO xterm)
  *
  * Dimming (CARD-08): stopped-ok cards get hub-card--dim; stopped-err cards do NOT.
  */
@@ -306,6 +309,37 @@ export function SessionCard({
   function handleAssign(groupId: string) {
     onAssignGroup?.(memberKeyForSession, groupId)
     setMenuOpen(false)
+  }
+
+  // Phase 172 / D-06: consolidated meta line — uptime · viewers · Connected/Available,
+  // each separated by a muted dot. Built as an array so a separator only renders
+  // between two items that are both actually present (no dangling leading/trailing dot).
+  const metaItems: React.ReactNode[] = []
+  if (timeText) {
+    metaItems.push(<span className="hub-card__uptime">{timeText}</span>)
+  }
+  if (viewerCount > 0) {
+    metaItems.push(
+      <span className="hub-card__viewers">
+        <EyeIcon className="hub-card__viewers-icon" aria-hidden="true" />
+        <span>
+          {viewerCount} {viewerCount === 1 ? 'viewer' : 'viewers'}
+        </span>
+      </span>
+    )
+  }
+  if (isRemote) {
+    // COLORBLIND-SAFE: LinkIcon (connected) + GlobeAltIcon (available) carry the state;
+    // color is reinforcement only. Hex source: --hub-accent, --hub-text-muted.
+    metaItems.push(
+      <span className={`hub-card__conn${isConnected ? ' hub-card__conn--connected' : ''}`}>
+        {isConnected ? (
+          <><LinkIcon className="hub-card__conn-icon" aria-hidden="true" /><span>Connected</span></>
+        ) : (
+          <><GlobeAltIcon className="hub-card__conn-icon" aria-hidden="true" /><span>Available</span></>
+        )}
+      </span>
+    )
   }
 
   return (
@@ -451,8 +485,8 @@ export function SessionCard({
         <ChatBadge count={unreadCount ?? 0} hasMention={hasChatMention ?? false} />
       </div>
 
-      {/* ROW 1: status indicator (left) · colored session-type chip (right) */}
-      {/* CR-01: hub-card__row1 matches CSS definition (was hub-card__row hub-card__row--primary) */}
+      {/* STATUS ROW: status indicator — stays the primary top-line signal, NOT
+          chipified (D-03). CR-01: hub-card__row1 matches CSS definition. */}
       <div className="hub-card__row1">
         {/* ATTN-01: attention icon — inline left of status icon; COLORBLIND-SAFE: BellAlertIcon carries state */}
         {isAttention && (
@@ -468,61 +502,7 @@ export function SessionCard({
           />
           <span className="hub-card__status-label">{displayLabel}</span>
         </span>
-
-        {/* CLI badge — colored by session type; the card's data-agent drives the chip tint
-            so it matches the left spine + tab dot. COLORBLIND-SAFE: chip text is the cli name. */}
-        <span className="hub-card__badge">
-          {cli}
-        </span>
       </div>
-
-      {/* ROW 2: origin (color-coded Local/Remote, #5) · uptime + viewers right-aligned (#4) */}
-      {/* CR-01: hub-card__row2 matches CSS definition (was hub-card__row hub-card__row--origin) */}
-      <div className="hub-card__row2">
-        {/* COLORBLIND-SAFE: the Local/Remote icon carries the meaning; color is reinforcement. */}
-        <span className={`hub-card__origin hub-card__origin--${isLocal ? 'local' : 'remote'}`}>
-          {isLocal ? (
-            <>
-              <ComputerDesktopIcon className="hub-card__origin-icon" aria-hidden="true" />
-              <span>Local</span>
-            </>
-          ) : (
-            <>
-              <GlobeAltIcon className="hub-card__origin-icon" aria-hidden="true" />
-              <span>{hostname}</span>
-            </>
-          )}
-        </span>
-
-        {/* Meta group: uptime + viewer count, right-aligned on the origin line
-            (was a separate indented row3 — IN-04 fix). */}
-        <span className="hub-card__row2-meta">
-          {timeText && <span className="hub-card__uptime">{timeText}</span>}
-          {viewerCount > 0 && (
-            <span className="hub-card__viewers">
-              <EyeIcon className="hub-card__viewers-icon" aria-hidden="true" />
-              <span>
-                {viewerCount} {viewerCount === 1 ? 'viewer' : 'viewers'}
-              </span>
-            </span>
-          )}
-        </span>
-      </div>
-
-      {/* ROW 2b: connection indicator — remote cards only (CARD-03)
-          COLORBLIND-SAFE: LinkIcon (connected) + GlobeAltIcon (available) carry the state;
-          color is reinforcement only. Hex source: --hub-accent, --hub-text-muted. */}
-      {isRemote && (
-        <div className="hub-card__row2b">
-          <span className={`hub-card__conn${isConnected ? ' hub-card__conn--connected' : ''}`}>
-            {isConnected ? (
-              <><LinkIcon className="hub-card__conn-icon" aria-hidden="true" /><span>Connected</span></>
-            ) : (
-              <><GlobeAltIcon className="hub-card__conn-icon" aria-hidden="true" /><span>Available</span></>
-            )}
-          </span>
-        </div>
-      )}
 
       {/* ROW 4: exit-code chip (only for non-zero exit) */}
       {/* CR-01: hub-card__row4 matches CSS definition (was hub-card__row hub-card__row--exit) */}
@@ -533,30 +513,72 @@ export function SessionCard({
         </div>
       )}
 
-      {/* Phase 166 / FUI-03 — internet exposure badge.
-          COLORBLIND-SAFE: GlobeAltIcon shape + "INTERNET" text carry state; color is reinforcement only.
-          Dark hex #43ddb2 / light hex #0d7a5c — verify at source, NOT by eye (user is colorblind). */}
-      {session.funnelActive && (
-        <span className="hub-internet-badge">
-          <GlobeAltIcon className="hub-internet-badge__icon" aria-hidden="true" />
-          <span className="hub-internet-badge__label">INTERNET</span>
-        </span>
-      )}
+      {/* Phase 172 / D-01/D-04/D-05 — consolidated chip row: agent · origin · exposure.
+          Sketch 001 Variant B (winner): rounded-rect quiet chips for agent + origin,
+          the exposure cluster (INTERNET / FULL ACCESS) is the only FILLED chips and is
+          forced onto its own right-aligned line by .hub-card__exposure. */}
+      <div className="hub-card__chiprow">
+        {/* Agent chip — colored by session type; the card's data-agent drives the chip
+            tint so it matches the left spine + tab dot. COLORBLIND-SAFE: chip text is
+            the cli name; color is reinforcement only. */}
+        <span className="hub-card__chip hub-card__chip--agent">{cli}</span>
 
-      {/* Phase 171 / FNL-09 — FULL ACCESS (public write) badge.
-          COLORBLIND-SAFE: LockOpenIcon shape + "FULL ACCESS" text + notched
-          clip-path badge geometry carry the state; color is reinforcement
-          only. Dark hex #f7768e / light hex #c0394f — verify at source, NOT
-          by eye (user is colorblind). Read-then-write order: rendered AFTER
-          .hub-internet-badge so both may coexist (read-many, write-one). It
-          clears independently of funnelActive (RW teardown keeps the read
-          badge, D-10) — gated solely on session.funnelWriteActive. */}
-      {session.funnelWriteActive && (
-        <span className="hub-fullaccess-badge">
-          <LockOpenIcon className="hub-fullaccess-badge__icon" aria-hidden="true" />
-          <span className="hub-fullaccess-badge__label">FULL ACCESS</span>
+        {/* Origin chip — fully muted (D-01/Sketch pin, no green-local/blue-remote color
+            coding). COLORBLIND-SAFE: the ComputerDesktopIcon/GlobeAltIcon shape + text
+            label carry the Local/Remote meaning; this chip carries no color signal. */}
+        <span className="hub-card__chip hub-card__chip--origin">
+          {isLocal ? (
+            <>
+              <ComputerDesktopIcon className="hub-card__chip-icon" aria-hidden="true" />
+              <span>Local</span>
+            </>
+          ) : (
+            <>
+              <GlobeAltIcon className="hub-card__chip-icon" aria-hidden="true" />
+              <span>{hostname}</span>
+            </>
+          )}
         </span>
-      )}
+
+        {(session.funnelActive || session.funnelWriteActive) && (
+          <span className="hub-card__exposure">
+            {/* Phase 166 / FUI-03 — internet exposure badge.
+                COLORBLIND-SAFE: GlobeAltIcon shape + "INTERNET" text carry state; color is reinforcement only.
+                Dark hex #43ddb2 / light hex #0d7a5c — verify at source, NOT by eye (user is colorblind). */}
+            {session.funnelActive && (
+              <span className="hub-internet-badge">
+                <GlobeAltIcon className="hub-internet-badge__icon" aria-hidden="true" />
+                <span className="hub-internet-badge__label">INTERNET</span>
+              </span>
+            )}
+
+            {/* Phase 171 / FNL-09 — FULL ACCESS (public write) badge.
+                COLORBLIND-SAFE: LockOpenIcon shape + "FULL ACCESS" text + notched
+                clip-path badge geometry carry the state; color is reinforcement
+                only. Dark hex #f7768e / light hex #c0394f — verify at source, NOT
+                by eye (user is colorblind). Read-then-write order: rendered AFTER
+                .hub-internet-badge so both may coexist (read-many, write-one). It
+                clears independently of funnelActive (RW teardown keeps the read
+                badge, D-10) — gated solely on session.funnelWriteActive. */}
+            {session.funnelWriteActive && (
+              <span className="hub-fullaccess-badge">
+                <LockOpenIcon className="hub-fullaccess-badge__icon" aria-hidden="true" />
+                <span className="hub-fullaccess-badge__label">FULL ACCESS</span>
+              </span>
+            )}
+          </span>
+        )}
+      </div>
+
+      {/* Phase 172 / D-06: muted meta line — uptime · viewers · Connected/Available. */}
+      <div className="hub-card__meta">
+        {metaItems.map((item, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <span className="hub-card__meta-dot" aria-hidden="true">·</span>}
+            {item}
+          </React.Fragment>
+        ))}
+      </div>
 
       {/* ROW 5: actions — Open (re-attach terminal tab; LOCAL live sessions only, WR-01,
           Phase 131 UAT follow-up) and Share, side by side as real bordered buttons.

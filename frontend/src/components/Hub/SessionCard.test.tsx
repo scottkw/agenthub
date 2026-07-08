@@ -204,14 +204,16 @@ describe('SessionCard', () => {
 
   it('local session (empty hostname) shows "Local" with ComputerDesktopIcon', () => {
     const { container } = renderCard(makeSession({ hostname: '' }))
-    const origin = container.querySelector('.hub-card__origin')
+    // Phase 172: origin marker is now the muted .hub-card__chip--origin chip.
+    const origin = container.querySelector('.hub-card__chip--origin')
     expect(origin).not.toBeNull()
     expect(origin!.textContent).toContain('Local')
   })
 
   it('remote session shows peer hostname with GlobeAltIcon', () => {
     const { container } = renderCard(makeSession({ hostname: 'remote-peer.tail' }))
-    const origin = container.querySelector('.hub-card__origin')
+    // Phase 172: origin marker is now the muted .hub-card__chip--origin chip.
+    const origin = container.querySelector('.hub-card__chip--origin')
     expect(origin).not.toBeNull()
     expect(origin!.textContent).toContain('remote-peer.tail')
   })
@@ -220,8 +222,10 @@ describe('SessionCard', () => {
 
   it('renders CLI badge with cli name as text', () => {
     const { container } = renderCard(makeSession({ cli: 'claude' }))
-    // WR-03/CR-01: badge now uses hub-card__badge (Hub text-chip) not tab__agent-badge dot
-    const badge = container.querySelector('.hub-card__badge')
+    // Phase 172: agent chip is now .hub-card__chip--agent (was .hub-card__badge,
+    // superseded — .hub-card__badge itself is kept in style.css only because
+    // HubModal.tsx's session picker chip still consumes it).
+    const badge = container.querySelector('.hub-card__chip--agent')
     expect(badge).not.toBeNull()
     // CLI name should be visible text
     expect(badge!.textContent).toContain('claude')

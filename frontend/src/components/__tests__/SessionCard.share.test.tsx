@@ -171,13 +171,15 @@ describe('SessionCard — Share button (D-12/D-13)', () => {
 describe('CARD-02: Local vs remote origin indicator', () => {
   it('local card renders ComputerDesktopIcon and "Local" text', () => {
     const { container: c } = renderCard({ session: localSession, isRemote: false })
-    const origin = c.querySelector('.hub-card__origin')
+    // Phase 172: origin marker is now the muted .hub-card__chip--origin chip.
+    const origin = c.querySelector('.hub-card__chip--origin')
     expect(origin?.textContent).toContain('Local')
     expect(origin?.querySelector('svg')).not.toBeNull()
   })
   it('remote card renders GlobeAltIcon and hostname text', () => {
     const { container: c } = renderCard({ session: remoteSession, isRemote: true })
-    const origin = c.querySelector('.hub-card__origin')
+    // Phase 172: origin marker is now the muted .hub-card__chip--origin chip.
+    const origin = c.querySelector('.hub-card__chip--origin')
     expect(origin?.textContent).toContain('remote.host')
     expect(origin?.querySelector('svg')).not.toBeNull()
   })
