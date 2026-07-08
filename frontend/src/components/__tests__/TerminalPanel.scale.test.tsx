@@ -1,16 +1,25 @@
 /**
  * Phase 157 VIEW-04/05 — TerminalPanel guest honor + scale behavioral tests.
+ * Phase 175-03 BUG-01 — extended with floor-aware guest viewport (readability
+ * floor + horizontal-scroll fallback) behavioral tests.
  *
  * Guest path: a RelayClient onResize(cols,rows) callback calls term.resize(cols,rows)
- *   then applies a CSS transform via computeGuestScale. Guest never calls sendResize.
- * Host path: fitTerminal + sendResize on open preserved; no transform applied.
+ *   then applies a CSS transform via computeGuestViewport, toggling the
+ *   .terminal-guest--scroll-x class when the natural scale falls below the
+ *   readability floor. Guest never calls sendResize.
+ * Host path: fitTerminal + sendResize on open preserved; no transform applied,
+ *   scroll-x class never toggled.
  *
- * Source-inspection assertions pin the isGuest gate and computeGuestScale import;
+ * Source-inspection assertions pin the isGuest gate and computeGuestViewport import;
  * behavioral assertions use mock-captured RelayClient callbacks to drive onResize.
  *
- * jsdom limitation: clientWidth/clientHeight are 0, so computeGuestScale returns 0
- * (min(0/gridW, 0/gridH)). Tests assert transform IS set (not empty) and matches
- * /^scale\(/ — the jsdom-derived value (0) is a test-env artifact, not a bug.
+ * jsdom limitation: clientWidth/clientHeight default to 0, so the natural scale is
+ * always 0 (min(0/gridW, 0/gridH)) unless a test explicitly overrides clientWidth/
+ * clientHeight via Object.defineProperty. Without an override, computeGuestViewport
+ * clamps to DEFAULT_GUEST_MIN_SCALE with overflowX=true (0 is below any floor) — a
+ * test-env artifact, not a bug. Tests that need to exercise the above-floor /
+ * below-floor branches explicitly override clientWidth/clientHeight on the
+ * .terminal-session-container node before invoking onResize.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import React from 'react'
@@ -189,6 +198,7 @@ class MockResizeObserver {
 
 // ─── Import SUT after all mocks ───────────────────────────────────────────────
 import { TerminalPanel } from '../TerminalPanel'
+import { DEFAULT_GUEST_MIN_SCALE } from '../../lib/terminalScale'
 
 // ─── Shared test helpers ──────────────────────────────────────────────────────
 
@@ -207,9 +217,9 @@ function makeBaseProps(overrides: Partial<React.ComponentProps<typeof TerminalPa
 // ─── Source-inspection tests ──────────────────────────────────────────────────
 
 describe('Phase 157 TerminalPanel — source gates (VIEW-04/05)', () => {
-  it('imports computeGuestScale from terminalScale', () => {
+  it('imports computeGuestViewport from terminalScale (BUG-01 floor-aware helper)', () => {
     expect(src).toContain("from '../lib/terminalScale'")
-    expect(src).toContain('computeGuestScale')
+    expect(src).toContain('computeGuestViewport')
   })
 
   it('computes isGuest = remote || !!wsURL', () => {
@@ -380,6 +390,46 @@ describe('Phase 157 TerminalPanel — guest path behavioral (VIEW-04/05)', () =>
       expect(s).toBeLessThanOrEqual(1)
     }
   })
+
+  // BUG-01: narrow guest viewport — natural scale falls below the readability
+  // floor, so the scale clamps at the floor and the horizontal-scroll fallback
+  // class is applied instead of shrinking further.
+  it('guest: narrow container clamps to the readability floor and adds the scroll-x class', () => {
+    mountGuest(true)
+    const node = container.querySelector('.terminal-session-container') as HTMLElement
+    // grid = 80cols*9px x 24rows*17px = 720x408. A 50x50 container is far below
+    // the floor at any scale > 0.
+    Object.defineProperty(node, 'clientWidth', { value: 50, configurable: true })
+    Object.defineProperty(node, 'clientHeight', { value: 50, configurable: true })
+    const onResize = hoisted.lastCallbacks?.['onResize'] as
+      | ((cols: number, rows: number) => void)
+      | undefined
+
+    flushSync(() => { onResize?.(80, 24) })
+
+    expect(hoisted.lastElement?.style.transform).toBe(`scale(${DEFAULT_GUEST_MIN_SCALE})`)
+    expect(node.classList.contains('terminal-guest--scroll-x')).toBe(true)
+    expect(hoisted.sendResizeCalls).toHaveLength(0)
+  })
+
+  // BUG-01: wide guest viewport (container >= grid) — natural scale caps at 1.0
+  // (never upscale, VIEW-04/05 invariant), which is always >= the floor, so no
+  // horizontal-scroll fallback is applied.
+  it('guest: wide container caps at scale(1) with no scroll-x class', () => {
+    mountGuest(true)
+    const node = container.querySelector('.terminal-session-container') as HTMLElement
+    // grid = 720x408; a 2000x2000 container is far larger than the grid.
+    Object.defineProperty(node, 'clientWidth', { value: 2000, configurable: true })
+    Object.defineProperty(node, 'clientHeight', { value: 2000, configurable: true })
+    const onResize = hoisted.lastCallbacks?.['onResize'] as
+      | ((cols: number, rows: number) => void)
+      | undefined
+
+    flushSync(() => { onResize?.(80, 24) })
+
+    expect(hoisted.lastElement?.style.transform).toBe('scale(1)')
+    expect(node.classList.contains('terminal-guest--scroll-x')).toBe(false)
+  })
 })
 
 // ─── Behavioral tests — host path ────────────────────────────────────────────
@@ -442,6 +492,16 @@ describe('Phase 157 TerminalPanel — host path invariance (VIEW-04/05)', () => 
     // Host element must have NO scale transform
     expect(t).toBe('')
   })
+
+  // BUG-01: host path never toggles the guest-only scroll-x fallback class —
+  // the host PTY grid and its container are unaffected by the guest fix.
+  it('host: never gains the terminal-guest--scroll-x class', () => {
+    mountHost()
+    const node = container.querySelector('.terminal-session-container') as HTMLElement
+    const onOpen = hoisted.lastCallbacks?.['onOpen'] as (() => void) | undefined
+    flushSync(() => { onOpen?.() })
+    expect(node.classList.contains('terminal-guest--scroll-x')).toBe(false)
+  })
 })
 
 // ─── CSS gate (style.css source inspection) ───────────────────────────────────
@@ -458,5 +518,18 @@ describe('Phase 157 style.css — guest scale CSS', () => {
     expect(xtermRuleIdx).toBeGreaterThan(-1)
     const ruleBlock = css.slice(xtermRuleIdx, css.indexOf('}', xtermRuleIdx) + 1)
     expect(ruleBlock).toContain('transform-origin: top left')
+  })
+
+  // BUG-01: the horizontal-scroll fallback class must enable overflow-x.
+  it('style.css contains .terminal-guest--scroll-x with overflow-x: auto', () => {
+    const { readFileSync } = require('node:fs')
+    const { resolve, dirname } = require('node:path')
+    const { fileURLToPath } = require('node:url')
+    const __dir = dirname(fileURLToPath(import.meta.url))
+    const css = readFileSync(resolve(__dir, '../../style.css'), 'utf-8')
+    const ruleIdx = css.indexOf('.terminal-guest--scroll-x')
+    expect(ruleIdx).toBeGreaterThan(-1)
+    const ruleBlock = css.slice(ruleIdx, css.indexOf('}', ruleIdx) + 1)
+    expect(ruleBlock).toContain('overflow-x: auto')
   })
 })

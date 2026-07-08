@@ -11,7 +11,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links'
 import { SerializeAddon } from '@xterm/addon-serialize'
 import { ProgressAddon, type IProgressState } from '@xterm/addon-progress'
 import { RelayClient } from '../lib/relayClient'
-import { computeGuestScale } from '../lib/terminalScale'
+import { computeGuestViewport, DEFAULT_GUEST_MIN_SCALE } from '../lib/terminalScale'
 import { isSoftwareWebGL } from '../lib/webglProbe'
 import { isXtermFocused } from '../lib/isXtermFocused'
 import { FindBar, type FindBarSearchOptions } from './FindBar/FindBar'
@@ -163,12 +163,19 @@ export function TerminalPanel({
   const isGuestRef = useRef<boolean>(false)
   isGuestRef.current = remote || !!wsURL
 
-  // Phase 157 VIEW-05: scale helper for the guest path. Reads cell metrics
-  // from xterm's private renderService (same source as fitTerminal) to avoid
-  // transform-feedback oscillation (Pitfall 6). Called from both the
-  // RelayClient onResize callback and the container ResizeObserver.
-  // useCallback([]) is correct: the function only reads from refs whose .current
-  // is always up-to-date.
+  // Phase 157 VIEW-05 / Phase 175-03 BUG-01: scale helper for the guest path.
+  // Reads cell metrics from xterm's private renderService (same source as
+  // fitTerminal) to avoid transform-feedback oscillation (Pitfall 6). Called
+  // from both the RelayClient onResize callback and the container
+  // ResizeObserver. useCallback([]) is correct: the function only reads from
+  // refs whose .current is always up-to-date.
+  //
+  // BUG-01 (#128): below DEFAULT_GUEST_MIN_SCALE the grid would keep
+  // shrinking to unreadable text on a narrow phone viewport. computeGuestViewport
+  // clamps at the floor and reports overflowX so the guest container can
+  // switch to horizontal scroll instead of shrinking further. Only the guest
+  // path toggles the scroll-x class — recomputeScale is never called on the
+  // host path, but the isGuestRef.current guard makes that invariant explicit.
   const recomputeScale = useCallback(() => {
     const term = termRef.current
     const container = containerRef.current
@@ -180,13 +187,17 @@ export function TerminalPanel({
     const cellW: number = dims.css.cell.width
     const cellH: number = dims.css.cell.height
     if (cellW === 0 || cellH === 0) return
-    const s = computeGuestScale(
+    const { scale: s, overflowX } = computeGuestViewport(
       container.clientWidth,
       container.clientHeight,
       term.cols * cellW,
       term.rows * cellH,
+      DEFAULT_GUEST_MIN_SCALE,
     )
     term.element.style.transform = `scale(${s})`
+    if (isGuestRef.current) {
+      container.classList.toggle('terminal-guest--scroll-x', overflowX)
+    }
   }, [])
 
   // Phase 94 SRC-01/02: FindBar UI state. Owned at TerminalPanel level so

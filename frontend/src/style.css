@@ -81,6 +81,22 @@
   touch-action: pan-y;
 }
 
+/* Phase 175-03 BUG-01 (#128): guest-only horizontal-scroll fallback.
+   Applied by TerminalPanel.recomputeScale() when the floor-aware guest
+   scale (computeGuestViewport) reports overflowX=true — the narrow-viewport
+   grid has clamped at the readability floor instead of shrinking further, so
+   the guest scrolls horizontally to read the rest of the line. Overrides
+   only the x-axis of the base .terminal-session-container overflow:hidden
+   rule above; vertical scroll continues to be handled internally by xterm's
+   own viewport (unaffected). touch-action adds pan-x alongside the base
+   pan-y so a horizontal swipe scrolls the container instead of being
+   swallowed. Host panels never receive this class (guest-only toggle in
+   recomputeScale). */
+.terminal-guest--scroll-x {
+  overflow-x: auto;
+  touch-action: pan-x pan-y;
+}
+
 /* ─── Reset ─────────────────────────────────────────────────────── */
 * {
   margin: 0;
