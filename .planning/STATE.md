@@ -351,4 +351,4 @@ Next action: Phase 169 (Tailscale Detection Fix, #120) is the last open v4.2 pha
 
 ### Blockers
 
-- Phase 174-02: Dependabot PRs #89, #106, #105 remain OPEN — gh pr close blocked by runtime's auto-mode permission classifier (external-system-write guardrail). Go module bumps themselves done/verified/committed. Needs user to explicitly authorize closing these PRs or close manually (see 174-02-PLAN.md Task 3 for exact comment text).
+- None. (Resolved 2026-07-08: Phase 174-02 Dependabot PRs #89/#106/#105 were closed by the orchestrator with explicit user authorization after the executor's permission classifier blocked them; all 10 Phase 174 Dependabot PRs are now CLOSED.)
