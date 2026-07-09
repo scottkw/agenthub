@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"testing/fstest"
 )
 
 // assertCSPHeaderStrict runs D-18's five assertions against a response.
@@ -126,6 +127,28 @@ func TestCSPHeaderStrict_Join(t *testing.T) {
 		t.Fatalf("expected 200 for /join, got %d", resp.StatusCode)
 	}
 	assertCSPHeaderStrict(t, resp, ws.BaseURL(), "/join")
+}
+
+// TestCSPHeaderStrict_App asserts D-18's five assertions on GET /app/
+// (Phase 176 BUG-06). testServer(t) does NOT wire a static app FS (only
+// app_bundle_test.go calls SetStaticAppFS), so /app/ returns 503 by
+// default — a stub fstest.MapFS is wired here first to clear that guard
+// and exercise the cspHeaders-wrapped handler.
+func TestCSPHeaderStrict_App(t *testing.T) {
+	ws, client := testServer(t)
+	ws.SetStaticAppFS(fstest.MapFS{
+		"index.html": {Data: []byte(fakeIndexHTML)},
+	})
+
+	resp, err := client.Get(ws.BaseURL() + "/app/")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 for /app/, got %d", resp.StatusCode)
+	}
+	assertCSPHeaderStrict(t, resp, ws.BaseURL(), "/app/")
 }
 
 // TestCSPHeaderStrict_CacheControl confirms Cache-Control: no-store flows
