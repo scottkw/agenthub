@@ -4,7 +4,20 @@
 found + fixed 3 issues. **M-51 is the ONLY open item.** All other work is committed and clean.
 `go test ./...`, relay+webserver `-race`, `tsc`, and vitest are all green.
 
-## The one remaining task
+## ✅ CODE FIX LANDED — 2026-07-08, commit `8268155c`
+
+The eager-emulator fix is **implemented, TDD-tested, and committed** (`fix(175): eager-build live
+emulator from first PTY byte`). `recordFrame` now builds + feeds the emulator from the first PTY
+byte; `EnsureLiveEmulator` is a safety no-op (no more bootstrap-from-scrollback); dead
+`stripMsgOutputBytes` removed. New RED→GREEN test
+`TestReconnectPreamble_EagerEmulatorCapturesHeaderBeforeWrap` guards it. Gates all green: `go build`,
+`go vet`, relay `-race`, webserver `-race`, full `go test ./...`.
+
+**REMAINING = the live re-test only** (needs the user + a rebuilt prod app — see "Live re-test"
+below). Once it passes, record **M-51 PASS** in `175-UAT.md` and finalize the phase (hand-edit
+STATE/ROADMAP; do NOT run `gsd query phase.complete`).
+
+## The one remaining task (DONE — kept for reference)
 
 Make the per-hub VT emulator **eager**: build it and feed it from the **first PTY byte** (in the
 Run() drain loop), instead of lazily on the first guest connect. This is the agreed fix for the
