@@ -64,6 +64,15 @@ func main() {
 }
 
 func runGUI() {
+	// Linux/Wayland only: WebKit2GTK's DMABUF GPU renderer hangs on first
+	// interaction under Wayland compositors (BUG-05 / #124). Respect any
+	// user-supplied value — never overwrite an existing setting.
+	if goruntime.GOOS == "linux" {
+		if _, ok := os.LookupEnv("WEBKIT_DISABLE_DMABUF_RENDERER"); !ok {
+			os.Setenv("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
+		}
+	}
+
 	daemon.AugmentServicePath() // Ensure CLIs in /usr/local/bin, Homebrew, volta, nvm are on PATH
 	app := NewApp()
 
