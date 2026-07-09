@@ -410,6 +410,9 @@ The path column must contain a repo-relative file path ending in `.go`, `.ts`, `
 | BUG-02 | frontend/src/components/__tests__/SessionEndedBanner.test.tsx | vitest | Phase 175-06 (v4.2, new file): 6 tests including the accessibility contract (`role="status"`, `aria-live="polite"`) and a hostile-string injection guard proving the raw `CloseEvent.reason` is never rendered into the DOM — only the fixed generic copy "Session ended — the owner stopped this session." is shown. |
 | BUG-01 | frontend/src/lib/terminalScale.test.ts | vitest | Phase 175-03 (v4.2, extended in place — no new file): 9 new tests for `computeGuestViewport(containerW, containerH, gridW, gridH, minScale)` — above-floor natural scale, below-floor clamp + `overflowX` signal, upscale cap at 1.0, exact-floor-boundary, zero/negative-dim guard, default `DEFAULT_GUEST_MIN_SCALE=0.7` fallback. The pre-existing VIEW-05 helper `computeGuestScale` is untouched. |
 | BUG-01 | frontend/src/components/__tests__/TerminalPanel.scale.test.tsx | vitest | Phase 175-03 (v4.2, extended in place — no new file): source-gate test updated from pinning `computeGuestScale` to pinning `computeGuestViewport`; new narrow-viewport (floor-clamp + `.terminal-guest--scroll-x` class), wide-viewport (`scale(1)`, no scroll-x class), and host-path (never gains the scroll-x class) behavioral tests, plus a CSS-gate test for `.terminal-guest--scroll-x` in `style.css`. |
+| BUG-06 | internal/webserver/csp_integration_test.go | Go | Phase 176-02 (v4.2): `TestCSPHeaderStrict_App` — GET /app/ (with stub `staticAppFS` wired via `SetStaticAppFS`) returns 200 with the strict Content-Security-Policy header via `assertCSPHeaderStrict`; proves the `/app/` route now flows through `ws.cspHeaders`, closing the previously-unprotected public Funnel-exposed guest SPA surface. |
+
+BUG-07 (#127, Phase 176-03): no traceability row added — the live dev-browser repro returned a DOES-NOT-REPRODUCE verdict (BRANCH B), so no code or test changed. Closure evidence lives in `176-03-SUMMARY.md` (screenshot + computed-style/geometry readout of `.hub-card__preview-line` and its child spans) rather than a new/updated test file.
 
 ---
 
@@ -834,6 +837,23 @@ The alias-set wire contract, client-side validateAlias, alias-control component 
   4. Repeat with the host exiting the alt-screen TUI (returning to the normal buffer) and reconnecting a guest again; confirm the guest correctly reflects normal-buffer mode.
   - _Why not automatable:_ requires a live daemon, a real long-running full-screen TUI to force an actual ring wrap, and a late-joining/reconnecting guest exercising the real timing — the emulator/`RenderSnapshot()` reconstruction logic is unit-tested in `internal/relay/scrollback_altscreen_test.go`, but the live end-to-end wrap-then-reconnect race is not.
   - _Source:_ Phase 175-04 (BUG-04, #119 Problem 2); 175-04-SUMMARY.md D4 rationale (`human_judgment: true`); 175-VALIDATION.md Manual-Only Verifications.
+
+### Category AA — Platform & Hardening Bug Fixes (BUG-05..07)
+
+- **M-52** Live Linux/Wayland GUI launch — no segfault, working menu bar, no DMABUF freeze (BUG-05, #124): confirm the darwin-guarded role menus and the Linux-only `WEBKIT_DISABLE_DMABUF_RENDERER` env guard (176-01) actually fix the reporter's dead-on-arrival Linux desktop bug on a real Linux/Wayland box.
+  1. On the reporter's environment class (Pop!_OS 24.04 / COSMIC / Wayland / x86_64 / WebKit2GTK 4.1, `.deb` install), launch the GUI and confirm it starts with NO segfault (previously: Wails' GTK backend dereferenced a nil SubMenu from the unconditional macOS role menus).
+  2. Confirm the File and Help menu bar is present and functional (these submenus are unconditional, unaffected by the darwin guard).
+  3. Confirm hamburger/UI interactions do NOT freeze — the WebKit2GTK DMABUF GPU-renderer freeze under Wayland should no longer occur with `WEBKIT_DISABLE_DMABUF_RENDERER=1` set (unless the user already had the var set, which is respected and left alone).
+  - _Why not automatable:_ requires a real Linux/Wayland compositor to exercise the GTK backend menu construction and the WebKit2GTK renderer; this macOS dev box cannot cross-run the Linux desktop path. Per D-11, the reporter's own from-source verification on Pop!_OS 24.04/COSMIC/Wayland is accepted as sufficient to ship — this item is OPPORTUNISTIC (not release-blocking), tracked for a future confirmation pass.
+  - _Source:_ Phase 176-01 (BUG-05, #124); 176-01-SUMMARY.md D3 rationale (`human_judgment: true`).
+
+- **M-53** Production-build `/app/` CSP console sweep (BUG-06, #123, D-06): confirm the newly-added `ws.cspHeaders` wrap on `/app/` (176-02) does not break the public guest SPA in a real browser.
+  1. Produce a production build: `wails build -tags "webkit2_41,wailsassets"` (see M-34 for the same build-tag precedent — `/app/` 503s under `wails dev`/plain `go build` since no SPA bundle is embedded).
+  2. Load `/app/` (directly, or via a share/Funnel URL redirect) and confirm the SPA renders normally.
+  3. Open the browser DevTools console and confirm there is no Content-Security-Policy violation that breaks functionality — check inline scripts, `wasm-unsafe-eval`, `connect-src` (SSE + WS relay), `font-src`, and `img-src data:` in particular (the same policy already proven clean on `/dashboard`/`/join`/`/sessions/{id}`).
+  4. If a genuine violation is found, relax ONLY that specific directive (D-07 — no blanket loosening); otherwise no action needed.
+  - _Why not automatable:_ requires a production Vite build (not `wails dev`) and a real browser DevTools console read — `TestCSPHeaderStrict_App` proves the header is present on a 200 response, but not that the live SPA is violation-free in an actual browser. This item is OPPORTUNISTIC (release-time), not ship-blocking.
+  - _Source:_ Phase 176-02 (BUG-06, #123); 176-02-SUMMARY.md D2 rationale (`human_judgment: true`).
 
 ---
 
