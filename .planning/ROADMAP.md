@@ -756,6 +756,17 @@ Plans:
 
 - [x] 176-04-PLAN.md — TESTING.md reconciliation: M-52/M-53 manual items + traceability rows + suite manifest [Wave 2]
 
+### Phase 177: Close gap: FNL-09 — wire funnelWriteActive through app.go ListSessions to the native GUI FULL ACCESS badge
+
+**Goal:** Wire the daemon's `SessionInfo.FunnelWriteActive` field across the app.go Wails bridge (SessionInfo struct + ListSessions conversion) AND the frontend runtime bindings (`models.ts` declaration + `createFrom` copy) so the native GUI's colorblind-safe FULL ACCESS exposure indicator — Hub-card badge, session-tab icon, and share-modal teardown resync — actually renders in the shipped desktop app. Add a daemon↔app.go struct-parity regression test so the seam can never silently drop a funnel field again, and reconcile TESTING.md.
+**Requirements**: FNL-09
+**Depends on:** Phase 176
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 177 to break down)
+
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
 *Full v1.1 details: .planning/milestones/v1.1-ROADMAP.md*
