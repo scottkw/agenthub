@@ -5,8 +5,8 @@ milestone_name: Funnel Sharing & Polish
 current_phase: 175
 current_phase_name: web-share-remote-viewer-windowing-bug-fixes
 status: verified
-stopped_at: Phase 175 UAT PASSED 4/4 (2026-07-08) — M-48/M-49/M-52 clean; M-51 passes for ALL agent TUIs (primary use case). Single low-priority residual (macOS `top`-only header garble on late-join after ring wrap) deferred to issue #130 with full specifics, accepted by user. Phase 175 verified/complete; next = Phase 176 (Platform & Hardening Bug Fixes).
-last_updated: "2026-07-08T23:59:00.000Z"
+stopped_at: Phase 176 context gathered
+last_updated: "2026-07-09T04:02:01.508Z"
 last_activity: 2026-07-08
 progress:
   total_phases: 12
@@ -156,9 +156,9 @@ v4.2 Progress: [█████████████████░░░] 86
 
 ## Session Continuity
 
-Last session: 2026-07-08T19:53:21.356Z
-Stopped at: Completed 175-07-PLAN.md (TESTING.md regression registration — phase 175 fully executed); ready for /gsd-verify-work 175
-Resume file: None
+Last session: 2026-07-09T04:02:01.491Z
+Stopped at: Phase 176 context gathered
+Resume file: .planning/phases/176-platform-hardening-bug-fixes/176-CONTEXT.md
 Next action: Phase 175 (web-share-remote-viewer-windowing-bug-fixes) plans 01-04 complete (01: BUG-03 live diagnosis — deadline not root cause; 02: RED test scaffolding for BUG-02/BUG-04; 03: BUG-01 web-share readability floor; 04: BUG-04 live per-hub VT emulator + reconnect preamble). Continue with 175-05 (BUG-03 fix, gated on the 175-01 live diagnosis), 175-06 (BUG-02 WS close-reason, unskips session_ended_test.go), 175-07 (final wave: TESTING.md reconciliation + new M-NN manual UAT items, including 175-04's deferred live two-client alt-screen reconnect UAT and the pre-existing Suite Manifest gap logged in 175's deferred-items.md). Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
 
 ## Decisions (carry-forward from v4.1 — architecture reference)
