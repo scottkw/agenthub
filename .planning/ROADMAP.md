@@ -746,10 +746,14 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
+**Wave 1**
 
 - [ ] 176-01-PLAN.md — BUG-05 (#124): darwin-guard the role menus + Linux DMABUF env guard in main.go [Wave 1]
 - [ ] 176-02-PLAN.md — BUG-06 (#123): wrap /app/ route in ws.cspHeaders + TestCSPHeaderStrict_App [Wave 1]
 - [ ] 176-03-PLAN.md — BUG-07 (#127): live-repro mini-preview first, then fix+test or close-as-already-fixed [Wave 1]
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 176-04-PLAN.md — TESTING.md reconciliation: M-52/M-53 manual items + traceability rows + suite manifest [Wave 2]
 
 ---
