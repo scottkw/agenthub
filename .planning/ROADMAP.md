@@ -761,12 +761,12 @@ Plans:
 **Goal:** Wire the daemon's `SessionInfo.FunnelWriteActive` field across the **app.go Wails bridge** (SessionInfo struct field + ListSessions conversion) — the sole load-bearing runtime fix — so the serialized ListSessions JSON carries `funnelWriteActive`, App.js passes it through raw, the already-correct `App.d.ts`-typed consumers receive it, and the native GUI's colorblind-safe FULL ACCESS exposure indicator (Hub-card badge, session-tab icon, share-modal teardown resync) actually renders in the shipped desktop app. (The frontend is already wired — `App.d.ts` declares the field since Phase 171-02; the non-imported `wailsjs/wailsjs/go/models.ts` tree is optional hygiene only.) Add a genuine Go struct-parity/serialization regression test so the seam can never silently drop a funnel field again, and reconcile TESTING.md.
 **Requirements**: FNL-09
 **Depends on:** Phase 176
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 
 - [x] 177-01-PLAN.md — Wire the seam: app.go SessionInfo `FunnelWriteActive` field + ListSessions copy (load-bearing runtime fix); frontend verify-only + optional non-imported models.ts hygiene [Wave 1] (FNL-09)
-- [ ] 177-02-PLAN.md — Regression guard: genuine Go struct-parity/serialization round-trip test asserting the real app.go JSON (not stub text) + optional App.d.ts contract assertion + TESTING.md reconcile [Wave 2] (FNL-09)
+- [x] 177-02-PLAN.md — Regression guard: genuine Go struct-parity/serialization round-trip test asserting the real app.go JSON (not stub text) + optional App.d.ts contract assertion + TESTING.md reconcile [Wave 2] (FNL-09)
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
