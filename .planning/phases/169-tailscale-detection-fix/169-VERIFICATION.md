@@ -1,3 +1,15 @@
+---
+status: passed
+phase: 169-tailscale-detection-fix
+verified: 2026-07-05
+requirements_verified: [FIX-05]
+human_verification_deferred: [M-45]
+note: >-
+  Goal achieved (re-scoped to honest permission-aware detection). Code-verified inline
+  (spawned verifier died on an API error mid-run). Sole open item M-45 (non-admin macsys
+  live acceptance) is env-only and deferred/accepted at v4.2 milestone close.
+---
+
 # Phase 169 — Verification (tailscale-detection-fix)
 
 **Requirement:** FIX-05 (Issue #120)

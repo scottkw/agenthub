@@ -157,6 +157,10 @@ v4.2 Progress: [█████████████████░░░] 86
 | docs_debt | **REQUIREMENTS.md never extended to Phases 174–176** (BUG-01..07) — `requirements.mark-complete` returns not_found; ROADMAP.md is the traceability source for these ad-hoc bug-fix phases (precedent 172/173) | pending (dedicated docs pass before milestone closeout) |
 | v4.3+ | web-plugin-hot-swap (#112 SKIPPED): web guests lost /api/plugin-config + SSE after Phase 159 redirect | FIX-01 in v4.2 Phase 168 addresses this |
 | v4.3+ | Device-share automation via Tailscale admin API (FUT-01) | Out of scope for v4.2 per Issue #107 |
+| deferred_limitation | **#130** — macOS `top` header garble on guest late-join after VT scrollback ring-wrap (Phase 175 M-51); agent TUIs (Claude Code / Gemini CLI / OpenCode) render clean | deferred (low priority; owner-accepted to pass Phase 175; issue #130 filed with repro + next diagnostic) |
+| docs_todo | Help guide: document Tailscale Funnel admin prerequisites (todo 2026-06-30) | pending (docs enhancement, non-blocking) |
+
+_Acknowledged at v4.2 milestone close (2026-07-09, override_closeout): the above were reviewed and accepted as deferred. Phase 166/177 UAT are `passed` with 0 pending scenarios (audit flags them only because their status ≠ "complete"); Phase 167 M-41 is the sole real UAT deferral (win/linux notification delivery, needs those OSes). No blockers._
 
 ## Session Continuity
 
