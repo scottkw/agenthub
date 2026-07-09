@@ -205,6 +205,50 @@ func TestReconnectPreamble_EmulatorFallbackAfterWrap(t *testing.T) {
 	}
 }
 
+// TestReconnectPreamble_EmulatorWhenMainScreenRingWrapped is the M-51 guard:
+// a MAIN-SCREEN full-screen app (top/htop on macOS render in the main screen via
+// absolute cursor positioning, NOT the alternate screen) whose 256 KiB ring has
+// WRAPPED must reconnect from the emulator's complete snapshot — NOT the raw,
+// now-incomplete tail (which replays scrambled columns). This fails under the old
+// alt-screen-only discriminator, which took the raw branch for any non-alt-screen
+// session regardless of ring truncation.
+func TestReconnectPreamble_EmulatorWhenMainScreenRingWrapped(t *testing.T) {
+	r, w := io.Pipe()
+	hub := NewHub("preamble-mainscreen-wrapped-test", r, w, DefaultScrollbackBytes, nil)
+	done := make(chan struct{})
+	go func() { hub.Run(); close(done) }()
+	defer func() { _ = w.Close(); <-done }()
+
+	// Main-screen output only — NO alt-screen enter sequence anywhere.
+	if _, err := w.Write([]byte("early main-screen content\r\n")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	hub.EnsureLiveEmulator()
+
+	filler := bytes.Repeat([]byte("y"), 4*1024)
+	total := 0
+	for total <= DefaultScrollbackBytes+4*1024 {
+		if _, err := w.Write(filler); err != nil {
+			t.Fatalf("write filler: %v", err)
+		}
+		total += len(filler)
+	}
+	testutil.WaitFor(t, 2*time.Second, func() bool { return hub.scrollback.Truncated() }, "ring never reported truncated")
+
+	raw := hub.ScrollbackSnapshot()
+	if bytes.Contains(raw, []byte(altScreenEnter)) {
+		t.Fatalf("fixture invalid: unexpected alt-screen marker present")
+	}
+	got := hub.ReconnectPreamble()
+	if len(got) == 0 {
+		t.Fatal("ReconnectPreamble returned nothing")
+	}
+	if bytes.Equal(got, raw) {
+		t.Errorf("main-screen session with a WRAPPED ring must reconnect from the emulator's "+
+			"complete snapshot, not the incomplete raw tail (M-51 top garble)")
+	}
+}
+
 // TestLiveEmulatorFollowsResize is the CR-01 regression guard (code review
 // 175-REVIEW.md): the live per-hub VT emulator is built once at the initial PTY
 // size in EnsureLiveEmulator and must follow later authoritative PTY resizes,

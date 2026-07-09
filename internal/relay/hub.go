@@ -1,7 +1,6 @@
 package relay
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -977,52 +976,50 @@ func (h *Hub) RenderSnapshot() []byte {
 }
 
 // ReconnectPreamble returns the byte stream a newly-connecting client should
-// replay to catch up to the live session. It chooses between two strategies to
-// reconcile two previously-fixed bugs that are in tension:
+// replay to catch up to the live session. The discriminator is whether the raw
+// 256 KiB scrollback ring still holds the FULL session history:
 //
-//   - #109 ("Video issues on guest" — layout garble when host and guest screen
-//     sizes differ; fixed in Phase 157 by pushing the host grid then replaying
-//     the RAW byte history so the guest's xterm ends up byte-for-byte identical
-//     to the host TUI, letting live differential repaints apply cleanly).
-//   - BUG-04 / #119 Problem 2 (a blank/garbled reconnect when the raw 256 KiB
-//     scrollback ring has wrapped PAST a full-screen TUI's one-time ESC[?1049h
-//     alt-screen-enter marker, so raw replay paints alt-screen content into the
-//     wrong buffer).
+//   - Ring INTACT (not truncated) — replay the RAW byte history. This is
+//     byte-faithful: the guest's xterm ends up identical to the host TUI, so
+//     live differential repaints apply cleanly. This is Phase 157's fix for
+//     #109 ("Video issues on guest" — layout garble across different host/guest
+//     screen sizes) and is the common case.
 //
-// DEFAULT — byte-faithful RAW replay (restores #109). Used whenever raw replay
-// is sufficient: the session is NOT in the alternate screen, OR the
-// alt-screen-enter marker is still present in the ring.
+//   - Ring WRAPPED (truncated — oldest bytes dropped) — raw replay is now
+//     INCOMPLETE: any content a full-screen app positioned before the cutoff and
+//     never rewrote (top/htop's static columns, vim's screen, a long Claude
+//     scrollback) is missing, so a raw tail replays scrambled/partial (the M-51
+//     top garble). The live per-hub emulator — continuously fed since the first
+//     connection — holds the COMPLETE current screen, so its RenderSnapshot()
+//     (which re-establishes alt-screen mode when applicable) is the correct
+//     source. This subsumes BUG-04 / #119 Problem 2 (the alt-screen ESC[?1049h
+//     wrap) as one instance of the general "history lost" condition.
 //
-// FALLBACK — the emulator-derived RenderSnapshot (prepends the mode marker).
-// Used ONLY when the emulator reports IsAltScreen() AND the raw ring no longer
-// contains altScreenEnterSeq (it wrapped past it). This is the rare long-running
-// full-screen-TUI late-reconnect case where raw replay would be blank/garbled;
-// the emulator snapshot is the lesser evil and the TUI's next full repaint
-// re-syncs the guest.
-//
-// Callers MUST call EnsureLiveEmulator first (so the fallback path has a current
-// emulator to render + IsAltScreen to consult). Returns nil when there is
-// nothing to replay, matching the pre-existing `len(snapshot) > 0` call-site
-// guard.
+// Callers MUST call EnsureLiveEmulator first (so the wrapped-ring path has a
+// current emulator to render). Returns nil when there is nothing to replay,
+// matching the pre-existing `len(snapshot) > 0` call-site guard.
 func (h *Hub) ReconnectPreamble() []byte {
 	raw := h.ScrollbackSnapshot()
 
-	h.emuMu.Lock()
-	altScreen := h.liveEmu != nil && h.liveEmu.IsAltScreen()
-	h.emuMu.Unlock()
-
-	// Raw replay is byte-faithful and correct unless we are in the alternate
-	// screen AND the ring has wrapped past the mode-enter marker.
-	if !altScreen || bytes.Contains(raw, []byte(altScreenEnterSeq)) {
+	// Ring still holds the whole session — raw replay is complete + byte-faithful.
+	if !h.scrollback.Truncated() {
 		if len(raw) == 0 {
 			return nil
 		}
 		return raw
 	}
 
-	// Alt-screen and the ring wrapped past ESC[?1049h — raw replay would be
-	// broken; fall back to the emulator's reconstructed current screen.
-	return h.RenderSnapshot()
+	// Ring wrapped — raw is incomplete; prefer the emulator's complete snapshot.
+	if snap := h.RenderSnapshot(); len(snap) > 0 {
+		return snap
+	}
+
+	// Emulator unavailable (should not happen after EnsureLiveEmulator) — fall
+	// back to the incomplete raw tail rather than sending nothing.
+	if len(raw) == 0 {
+		return nil
+	}
+	return raw
 }
 
 // Cols returns the current PTY column width as set by the host-authority resize
