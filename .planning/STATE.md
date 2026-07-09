@@ -3,17 +3,18 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 177
-current_phase_name: close-gap-fnl-09-wire-funnelwriteactive-through-app-go-lists
-status: verifying
-stopped_at: Completed 177-02-PLAN.md (Go regression guard + TESTING.md reconciliation) -- both plans of Phase 177 done, ready for phase verification
-last_updated: "2026-07-09T17:19:58.503Z"
+status: complete
+stopped_at: Phase 177 COMPLETE (FNL-09) -- both plans executed, gsd-verifier 8/9 (code-verified), M-46-class live UAT PASSED (FULL ACCESS badge renders on cap mint + clears on teardown in shipped native GUI, owner-confirmed 2026-07-09)
+last_updated: "2026-07-09T17:35:29.875Z"
 last_activity: 2026-07-09
+last_activity_desc: Phase 177 complete
 progress:
   total_phases: 13
   completed_phases: 13
   total_plans: 61
   completed_plans: 61
   percent: 100
+current_phase_name: close-gap-fnl-09-wire-funnelwriteactive-through-app-go-lists
 ---
 
 # Project State
@@ -27,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 ## Current Position
 
-Phase: 177 (close-gap-fnl-09-wire-funnelwriteactive-through-app-go-lists) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
+Phase: 177
+Plan: 2/2 complete
+Status: Phase 177 complete — FNL-09 verified + UAT passed (native GUI FULL ACCESS badge live)
 
 ### Roadmap Evolution
 
@@ -42,7 +43,7 @@ Status: Phase complete — ready for verification
 - **171 Public Full-Access (RW) Sharing** — opt-in public read-write behind a hard consent gate + single-use write code (FNL-09). Supersedes today's ACCIDENTAL public write (issueCapabilitiesForSession rebases both read+write caps to the funnel base by timing; funnel exposes whole mux, no read-only downgrade). **SPEC-FIRST** (internet RCE): `/gsd-spec-phase 171` → discuss → `/gsd-secure-phase` → plan.
 
 **Live UAT of 165-169 (2026-07-05, prod build on real Funnel tailnet) — Phase 166 Funnel UAT NOW COMPLETE, all 4 PASS (166-UAT.md status→passed):** M-37 (off-tailnet phone QR loads read-only session; public URL 200 off-host), M-38 (daemon 60s auto-expiry → torn down, URL HTTP 000, badge cleared, no manual disable), M-39 (globe + INTERNET badge appears/clears), M-40 (stop tailscale + restart daemon → local mode → toggle greyed + "requires Tailscale" + backend 400 fail-closed; reconnect auto-upgrades → toggle re-enables). **2 Share-modal layout bugs found + fixed live (commit 27d398e7):** (1) `.hub-share-modal` had no height bound → overflowed viewport/clipped; fixed with max-height. (2) that max-height made `__body` a constrained flex column and the risk panel's `overflow:hidden` let flexbox shrink it 202px→39px, clipping the Auto-expire select + Enable CTA → Funnel uncommittable via UI; fixed with `flex-shrink:0`. Both root-caused via dev-browser CSS harness, verified live. OBSERVATION (not blocking, maybe file): daemon does NOT live-downgrade to local mode on a mid-session tailscale drop (stays tailscale-mode w/ stale IP) — local fallback is startup-only; auto-upgrade on reconnect works. REMAINING deferrals: M-41 (notif delivery win/linux, needs those platforms), M-45 (non-admin macsys, env-only). **Phase 172 (Hub-card layout & badge refinement) CREATED 2026-07-05** (`/gsd-phase add`; frontend-only, Depends on: None — independent of Funnel 170/171). NEXT = user wants 2-3 throwaway HTML mockups (frontend-design / /gsd-sketch) BEFORE `/gsd-plan-phase 172`. Design critique captured: the Hub session card (image ref) uses THREE inconsistent metadata treatments — `Running`/`Local` = icon+plain-text, `/bin/zsh` = outlined pill, `INTERNET` = filled green pill on its own row — loosely stacked with no grouping. Direction: consolidate into ONE consistent chip row (agent · origin · exposure) with tighter vertical rhythm, while KEEPING the INTERNET chip the one deliberately-prominent colored/filled chip (it's a security-exposure signal that must stay unmissable + colorblind-safe per [[user_colorblind]]; making others quieter/outlined makes INTERNET pop MORE by contrast). Frontend-only (Hub card component + style.css); no backend. User wants 2-3 throwaway HTML mockups (frontend-design skill) BEFORE touching code. This is a v4.2 phase (milestone reopened). To add: `/gsd-phase add ...` (will become 172).
-Last activity: 2026-07-09
+Last activity: 2026-07-09 — Phase 177 complete
 
 ```
 v4.2 Progress: [█████████████████░░░] 86% (6/7 phases — 165 ✅, 166 ✅ (+2 modal fixes 2026-07-05), 167 ✅ (M-41 deferred), 168 ✅, 169 ✅ (M-45 deferred), 170 ✅ (M-46 live UAT PASSED 2026-07-06, fix 5a92ddae); 171 ⬜ spec-first)
