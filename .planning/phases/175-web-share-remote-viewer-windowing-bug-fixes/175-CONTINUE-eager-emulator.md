@@ -4,18 +4,33 @@
 found + fixed 3 issues. **M-51 is the ONLY open item.** All other work is committed and clean.
 `go test ./...`, relay+webserver `-race`, `tsc`, and vitest are all green.
 
-## ✅ CODE FIX LANDED — 2026-07-08, commit `8268155c`
+## ✅ TWO CODE FIXES LANDED — M-51 needed BOTH
 
-The eager-emulator fix is **implemented, TDD-tested, and committed** (`fix(175): eager-build live
-emulator from first PTY byte`). `recordFrame` now builds + feeds the emulator from the first PTY
-byte; `EnsureLiveEmulator` is a safety no-op (no more bootstrap-from-scrollback); dead
-`stripMsgOutputBytes` removed. New RED→GREEN test
-`TestReconnectPreamble_EagerEmulatorCapturesHeaderBeforeWrap` guards it. Gates all green: `go build`,
-`go vet`, relay `-race`, webserver `-race`, full `go test ./...`.
+M-51 turned out to have **two** distinct root causes. Both are now fixed, TDD-tested, committed.
 
-**REMAINING = the live re-test only** (needs the user + a rebuilt prod app — see "Live re-test"
-below). Once it passes, record **M-51 PASS** in `175-UAT.md` and finalize the phase (hand-edit
-STATE/ROADMAP; do NOT run `gsd query phase.complete`).
+1. **Eager build** — commit `8268155c` (`fix(175): eager-build live emulator from first PTY byte`).
+   `recordFrame` builds + feeds the emulator from the first PTY byte; `EnsureLiveEmulator` is a
+   safety no-op (no more bootstrap-from-scrollback); dead `stripMsgOutputBytes` removed. Guard:
+   `TestReconnectPreamble_EagerEmulatorCapturesHeaderBeforeWrap`. This fixed the STATIC-geometry
+   case but a residual header garble remained on the live prod app (2026-07-08 UAT, image #8).
+
+2. **Rebuild-on-resize** — commit `44078d41` (`fix(175): rebuild live emulator empty on resize`).
+   Root cause via GSD debug session `.planning/debug/m51-top-header-garble.md`: mid-session
+   geometry resize churn drove `resizeLiveEmulator` → `xvt.Emulator.Resize()`, a DESTRUCTIVE
+   truncate/pad that left `top`'s header rows structurally stale (never self-heal; body does).
+   Fix: `resizeLiveEmulator` now DISCARDS + rebuilds an empty emulator at the new geometry — the
+   imminent SIGWINCH redraw repopulates a clean screen. Guard:
+   `TestLiveEmulatorResizeDiscardsStaleContent`. Gates all green (build, vet, relay `-race`,
+   webserver `-race`, full `go test ./...`).
+
+**REMAINING = the live re-test only** (needs the user + a rebuilt prod app). The re-test MUST now
+include **resizing the TerminalPanel / window (or letting xterm.js FitAddon settle) while `top`
+runs** — that is the trigger the first prod build hit. Once it passes, record **M-51 PASS** in
+`175-UAT.md` and finalize the phase (hand-edit STATE/ROADMAP; do NOT run `gsd query phase.complete`).
+
+**Known follow-up (NOT M-51):** per-chunk query-strip boundary gap in `recordFrame` — a query/DSR
+seq split across a PTY-read chunk escapes `liveEmuQueryStripPattern`. Latent defense-in-depth only;
+recorded in the debug session. Fix separately if it ever matters.
 
 ## The one remaining task (DONE — kept for reference)
 
