@@ -4,9 +4,9 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 176
 current_phase_name: platform-hardening-bug-fixes
-status: verified
-stopped_at: Phase 176 VERIFIED (code) — 7/10 must-haves confirmed; 3 opportunistic manual UAT items (M-52 Linux/Wayland GUI+DMABUF, M-53 prod /app/ CSP console sweep) deferred to release-time. Code review found+fixed 2 regressions (WR-01 Windows menu scope-creep, WR-02 /app/ hashed-asset no-store). v4.2 = all 12 phases code-complete.
-last_updated: "2026-07-09T13:46:57.882Z"
+status: complete
+stopped_at: Phase 176 COMPLETE — UAT passed 3/3, 0 issues. M-53 (prod /app/ CSP console sweep) VERIFIED LIVE 2026-07-09 on a real prod Wails build over Tailscale Funnel via dev-browser: strict /app/ CSP header byte-matches spec, zero violations, all SPA resources 200, terminal+WebSocket+chat render clean. M-52 (Linux/Wayland GUI) pass-by-acceptance (owner has no Linux box; #124 reporter validated the main.go platform-guard fix from source). BUG-07 pass (automated live-repro). VERIFICATION.md canonicalized human_needed→passed. v4.2 = ALL 12 phases (165-176) complete + verified. NEXT = ship v4.2.
+last_updated: "2026-07-09T18:30:00.000Z"
 last_activity: 2026-07-09
 progress:
   total_phases: 12
@@ -23,13 +23,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 176 — platform-hardening-bug-fixes
+**Current focus:** v4.2 milestone COMPLETE (all 12 phases) — ready to ship
 
 ## Current Position
 
-Phase: 176 (platform-hardening-bug-fixes) — VERIFIED (code); M-52 accepted-by-reporter (no owner Linux box), M-53 sole remaining live item (opportunistic prod-build CSP sweep)
+Phase: 176 (platform-hardening-bug-fixes) — COMPLETE; UAT passed 3/3, 0 issues (2026-07-09)
 Plan: 4 of 4
-Status: 4/4 plans done + code-verified 7/10 (3 opportunistic manual items deferred, non-blocking). BUG-05 (#124) main.go menu darwin→!linux guard + Linux DMABUF env guard; BUG-06 (#123) /app/ wrapped in cspHeaders; BUG-07 (#127) DOES-NOT-REPRODUCE (fixed by Phase 172, live-repro evidence). Code review fixed 2 regressions (89329c54): WR-01 Windows menu scope-creep (GOOS!=linux), WR-02 /app/ hashed-asset no-store caching + regression test. Full Go + vitest suites green; no cross-phase regressions. v4.2 = all 12 phases code-complete. NEXT: /gsd-verify-work 176 to record M-52/M-53, then ship v4.2.
+Status: COMPLETE. UAT 3/3 pass — M-53 (prod /app/ CSP sweep) VERIFIED LIVE 2026-07-09 (real prod Wails build over Tailscale Funnel; dev-browser sweep: strict /app/ CSP header byte-matches spec, 0 violations, all SPA resources 200, terminal+WS+chat clean); M-52 (Linux/Wayland GUI) pass-by-acceptance (#124 reporter validated main.go platform-guard from source; owner has no Linux box); BUG-07 (#127) pass (automated live-repro, fixed by Phase 172). VERIFICATION.md human_needed→passed. BUG-05 (#124) main.go menu !linux guard + Linux DMABUF env guard; BUG-06 (#123) /app/ wrapped in cspHeaders. Code review fixed 2 regressions (89329c54): WR-01 Windows menu scope-creep, WR-02 /app/ hashed-asset no-store caching + test. v4.2 = ALL 12 phases (165-176) complete + verified. NEXT: ship v4.2 (`/gsd-ship` or `/gsd-complete-milestone v4.2`); close GitHub #123/#124/#127 at ship.
 
 ### Roadmap Evolution
 
