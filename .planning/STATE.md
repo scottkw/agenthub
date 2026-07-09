@@ -4,15 +4,15 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 177
 current_phase_name: close-gap-fnl-09-wire-funnelwriteactive-through-app-go-lists
-status: planned
+status: executing
 stopped_at: "Phase 177 PLANNED 2026-07-09 (/gsd-plan-phase 177) — 2 plans, plan-checker PASSED. Gap-closure for the v4.2 milestone-audit §3 finding (FNL-09/FUI-03 write-half): the native-GUI colorblind-safe FULL ACCESS exposure indicator is silently dead because `funnelWriteActive` is dropped at the app.go Wails seam. CORRECTED the audit at source: the app imports the SessionInfo TYPE from the hand-authored `App.d.ts` stub (already declares funnelWriteActive since 171-02) and the runtime value from `App.js` `ListSessions = () => Call(...)` — a RAW passthrough with no createFrom; the double-nested `wailsjs/wailsjs/go/models.ts` tree is imported by NOTHING. So the SOLE load-bearing fix = app.go SessionInfo struct field + ListSessions copy (serializes funnelWriteActive into the JSON App.js passes through). 177-01 (Wave 1): app.go wiring + frontend verify-only/optional hygiene. 177-02 (Wave 2): genuine Go struct-parity/serialization round-trip regression guard (asserts real app.go JSON, NOT App.d.ts stub text — closes the funnelBinding.contract.test.tsx blind spot per [[feedback_tests_encoding_same_wrong_assumption]]) + TESTING.md reconcile. Discuss+research skipped (audit is the completed research). NEXT = /gsd-execute-phase 177."
-last_updated: "2026-07-09T18:40:00.000Z"
+last_updated: "2026-07-09T17:05:05.307Z"
 last_activity: 2026-07-09
 progress:
   total_phases: 13
   completed_phases: 12
   total_plans: 61
-  completed_plans: 59
+  completed_plans: 60
   percent: 92
 ---
 
@@ -23,13 +23,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 177 — close the v4.2 milestone-audit §3 integration gap (FNL-09 native-GUI FULL ACCESS indicator) before shipping v4.2
+**Current focus:** Phase 177 — close-gap-fnl-09-wire-funnelwriteactive-through-app-go-lists
 
 ## Current Position
 
-Phase: 177 (close-gap-fnl-09-wire-funnelwriteactive-through-app-go-lists) — PLANNED 2026-07-09; 2 plans, plan-checker PASSED
-Plan: 0 of 2 (planned, not yet executed)
-Status: PLANNED. Milestone-audit gap-closure. app.go is the sole load-bearing fix (funnelWriteActive dropped at the Wails seam; frontend already typed via App.d.ts + App.js raw passthrough; the double-nested models.ts tree is imported by nothing). 177-01 = app.go SessionInfo field + ListSessions copy (+ frontend verify-only). 177-02 = genuine Go struct-parity/serialization regression guard (asserts real app.go JSON, not stub text) + TESTING.md reconcile. Corrected the audit's models.ts claim at source. Discuss/research skipped (audit is complete research). NEXT = `/gsd-execute-phase 177`. — Prior: Phase 176 COMPLETE. UAT 3/3 pass — M-53 (prod /app/ CSP sweep) VERIFIED LIVE 2026-07-09 (real prod Wails build over Tailscale Funnel; dev-browser sweep: strict /app/ CSP header byte-matches spec, 0 violations, all SPA resources 200, terminal+WS+chat clean); M-52 (Linux/Wayland GUI) pass-by-acceptance (#124 reporter validated main.go platform-guard from source; owner has no Linux box); BUG-07 (#127) pass (automated live-repro, fixed by Phase 172). VERIFICATION.md human_needed→passed. BUG-05 (#124) main.go menu !linux guard + Linux DMABUF env guard; BUG-06 (#123) /app/ wrapped in cspHeaders. Code review fixed 2 regressions (89329c54): WR-01 Windows menu scope-creep, WR-02 /app/ hashed-asset no-store caching + test. v4.2 = ALL 12 phases (165-176) complete + verified. NEXT: ship v4.2 (`/gsd-ship` or `/gsd-complete-milestone v4.2`); close GitHub #123/#124/#127 at ship.
+Phase: 177 (close-gap-fnl-09-wire-funnelwriteactive-through-app-go-lists) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 
 ### Roadmap Evolution
 
@@ -159,7 +159,7 @@ v4.2 Progress: [█████████████████░░░] 86
 
 ## Session Continuity
 
-Last session: 2026-07-09T13:45:58.082Z
+Last session: 2026-07-09T16:56:26.810Z
 Stopped at: Completed 176-04-PLAN.md (TESTING.md reconciliation) -- all 4 plans of Phase 176 done, ready for phase verification
 Resume file: 
 None
@@ -273,6 +273,7 @@ None
 | Phase 176 P02 | 8min | 2 tasks | 2 files |
 | Phase 176 P03 | 14min | 2 tasks | 0 files |
 | Phase 176 P04 | 9min | 2 tasks | 1 files |
+| Phase 177 P01 | 6min | 2 tasks | 2 files |
 
 ## Decisions
 
@@ -375,6 +376,8 @@ None
 - [Phase ?]: Phase 176-03: BUG-07 mini-preview live repro DOES-NOT-REPRODUCE -- BRANCH B taken, zero code change (D-04); GitHub #127 closure deferred to phase-level verification alongside sibling #124/#123
 - [Phase 176-04]: No BUG-07 Section 4 traceability row added -- 176-03 took BRANCH B (DOES-NOT-REPRODUCE, zero code change); closure justification lives in 176-03-SUMMARY.md evidence only
 - [Phase 176-04]: Suite Manifest note states counts unchanged (net +0 new test files) -- verified independently via scoped find commands, no invented bump
+- [Phase ?]: [Phase 177-01]: app.go is the sole load-bearing FunnelWriteActive fix -- App.js ListSessions is a raw Call passthrough and App.d.ts already types the field (171-02)
+- [Phase ?]: [Phase 177-01]: Preserved the pre-existing uncommitted SetSessionFunnelWriteResponse addition in models.ts while adding the optional D-03 hygiene lines
 
 ### Blockers
 
