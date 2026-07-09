@@ -1,7 +1,7 @@
 ---
 phase: 177-close-gap-fnl-09-wire-funnelwriteactive-through-app-go-lists
 verified: 2026-07-09T12:30:00Z
-status: human_needed
+status: passed
 score: 8/9 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
@@ -16,7 +16,7 @@ human_verification:
 **Phase Goal:** Wire the daemon's `SessionInfo.FunnelWriteActive` field across the app.go Wails bridge (SessionInfo struct field + ListSessions conversion) — the sole load-bearing runtime fix — so the serialized ListSessions JSON carries `funnelWriteActive`, App.js passes it through raw, the already-correct `App.d.ts`-typed consumers receive it, and the native GUI's colorblind-safe FULL ACCESS exposure indicator (Hub-card badge, session-tab icon, share-modal teardown resync) actually renders. Add a genuine Go struct-parity/serialization regression test so the seam can never silently drop a funnel field again, and reconcile TESTING.md.
 
 **Verified:** 2026-07-09
-**Status:** human_needed
+**Status:** passed
 **Re-verification:** No — initial verification
 
 ## Goal Achievement
