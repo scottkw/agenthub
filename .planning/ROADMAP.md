@@ -761,11 +761,12 @@ Plans:
 **Goal:** Wire the daemon's `SessionInfo.FunnelWriteActive` field across the app.go Wails bridge (SessionInfo struct + ListSessions conversion) AND the frontend runtime bindings (`models.ts` declaration + `createFrom` copy) so the native GUI's colorblind-safe FULL ACCESS exposure indicator — Hub-card badge, session-tab icon, and share-modal teardown resync — actually renders in the shipped desktop app. Add a daemon↔app.go struct-parity regression test so the seam can never silently drop a funnel field again, and reconcile TESTING.md.
 **Requirements**: FNL-09
 **Depends on:** Phase 176
-**Plans:** 0 plans
+**Plans:** 2 plans
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 177 to break down)
+- [ ] 177-01-PLAN.md — Wire FunnelWriteActive across the app.go bridge (struct + ListSessions) and the frontend models.ts runtime binding (declaration + createFrom) [Wave 1]
+- [ ] 177-02-PLAN.md — Add the daemon↔app.go funnel-field parity regression guard (D-05) and reconcile TESTING.md [Wave 2]
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
