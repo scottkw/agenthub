@@ -2490,3 +2490,71 @@ func TestHandleGetSessionStyledTailLines(t *testing.T) {
 		t.Errorf("GET /sessions/%s/styled-tail?n=999: want 200, got %d", cr.ID, status2)
 	}
 }
+
+// TestHandleWebServe_ToggleOffDisconnectsWebViewers is the M-49 / BUG-02 (#125)
+// regression guard: disabling web-serving for a session must proactively close
+// its existing web-origin viewers (so the guest sees the disconnect banner
+// instead of a silently frozen "dead terminal"), while leaving local-origin
+// subscribers untouched. Before the fix the disable path only cleared grants +
+// Funnel and left open guest sockets hanging idle with no close event.
+func TestHandleWebServe_ToggleOffDisconnectsWebViewers(t *testing.T) {
+	api, _, socketPath := testDaemon(t)
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP: "127.0.0.1",
+		Port:   0,
+		FQDN:   "test.local",
+	}, api.engine.Manager())
+	if err != nil {
+		t.Fatalf("NewWebServer for test: %v", err)
+	}
+	api.SetWebServerForTest(ws)
+	configureCapabilityStateForTest(t, api, ws)
+
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"toggle-off-disc","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+	t.Cleanup(func() { rawDelete(t, socketPath, "/sessions/"+cr.ID) })
+
+	// Enable web-serving so the disable path below is the one under test.
+	if status, b := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":true}`); status != http.StatusNoContent {
+		t.Fatalf("toggle-on: want 204, got %d; body: %s", status, b)
+	}
+
+	hub, ok := api.engine.Manager().Get(cr.ID)
+	if !ok {
+		t.Fatalf("hub for session %s not found", cr.ID)
+	}
+
+	webClosed := make(chan struct{}, 1)
+	localClosed := make(chan struct{}, 1)
+	sig := func(ch chan struct{}) func() {
+		return func() {
+			select {
+			case ch <- struct{}{}:
+			default:
+			}
+		}
+	}
+	hub.Subscribe(&relay.Subscriber{Msgs: make(chan []byte, 256), CloseSlow: sig(webClosed), Origin: "web"})
+	hub.Subscribe(&relay.Subscriber{Msgs: make(chan []byte, 256), CloseSlow: sig(localClosed), Origin: "local"})
+
+	// Disable web-serving — M-49/BUG-02: existing web viewers MUST be disconnected.
+	if status, b := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":false}`); status != http.StatusNoContent {
+		t.Fatalf("toggle-off: want 204, got %d; body: %s", status, b)
+	}
+
+	select {
+	case <-webClosed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("web-origin viewer was NOT disconnected on web-serve toggle-off (M-49/BUG-02: silent dead terminal)")
+	}
+
+	select {
+	case <-localClosed:
+		t.Fatal("toggle-off closed the local-origin subscriber — must be untouched")
+	case <-time.After(150 * time.Millisecond):
+		// expected: local subscriber untouched
+	}
+}

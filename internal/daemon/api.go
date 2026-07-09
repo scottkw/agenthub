@@ -1382,6 +1382,14 @@ func (a *API) handleWebServe(w http.ResponseWriter, r *http.Request) {
 	}
 	ws.DisableSession(id)
 	ws.ClearGrants(id) // D-15: permanent grant clear on toggle-off
+	// M-49 / BUG-02 (#125): the owner stopping the share must give each remote
+	// viewer a disconnect notice, not a silently frozen terminal. Proactively
+	// close the session's web-origin viewers (same mechanism as the "Disconnect
+	// all viewers" path) so their WS close fires the guest disconnect banner.
+	// Local-origin subscribers (the owner's own attach) are left untouched.
+	if hub, ok := a.engine.Manager().Get(id); ok {
+		hub.DisconnectWebViewers()
+	}
 	// Phase 165 / FNL-05: web-share-off also tears down Funnel for this session
 	// (site 2). Routes through the ref-counted disableFunnelForSession helper so
 	// a sibling Funnel session is never cut off prematurely (Anti-Pattern 3).
