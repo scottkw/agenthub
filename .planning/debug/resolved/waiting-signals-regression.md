@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "Phase 167 regression: session 'waiting' state no longer fires native toast, tab attention dot, or Hub card glowing border — all three broke together."
 created: 2026-07-01T00:00:00.000Z
 updated: 2026-07-01T00:00:00.000Z

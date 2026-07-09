@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "FIX-03 (168-03) remote-open via ⋯ 'Open in browser' opens an in-app web-session tab whose terminal is (A) blank (blinking cursor, no PTY output) and (B) only fills the top ~half of the pane with a dead dark band below. The Phase-134 card-body-click modal path streams the SAME remote session fine."
 created: 2026-07-02
 updated: 2026-07-02
