@@ -1124,6 +1124,40 @@
 - Model mix: executor on Sonnet (per config), planning/review on Opus; heavy reliance on live UAT + the full-scope integration-checker subagent for the parity and NOTIF-01 closures.
 - Close-out was reconciliation-heavy, not code: 6 implemented-but-unregistered requirement IDs backfilled into REQUIREMENTS.md, an override closeout for the release-time-deferred M-25 install, and hand-fixing GSD-transition staleness. The code had effectively landed across the 14 phases before the audit ran.
 
+## Milestone: v4.2 — Funnel Sharing & Polish
+
+**Shipped:** 2026-07-09 (tag v4.2, merged to `main` via fast-forward, unpushed until release)
+**Phases:** 13 (165-177) | **Plans:** 61 | **Requirements:** 45/45 (M-37–M-40 / M-41 / M-45 live UATs deferred to release-time)
+
+### What Was Built
+- Tailscale Funnel public-sharing backend + frontend: persisted `LocalClient`, `EnableFunnel`/`DisableFunnel`, Funnel-aware Origin/BaseURL/share-URL builders, four-path teardown, auto-expiry, colorblind-safe INTERNET exposure indicator + risk-gated two-step enable + in-app Sharing Guide (Phases 165-166). The load-bearing proxy fix was a co-located plain-HTTP loopback hop behind Tailscale's single public TLS termination — after two naive proxy-target dead-ends (IP→SNI-fail→502, FQDN→ingress-loop→hang) were disproven live.
+- Public **read-only** reusable share-lifetime join code (FNL-08, Phase 170) and **consent-gated read/write** "FULL ACCESS" — hold-to-confirm typed acknowledgment, single-use write code, expiry clamp, STRIDE threat model, and the closed-write-perimeter invariant (FNL-09, spec-first Phase 171); the final app.go-Wails-bridge wiring gap for the FULL ACCESS indicator was closed by gap-closure Phase 177.
+- Three-tab segmented Share modal that walls the public-write flow off entirely (#129, Phase 173), awaiting-input native notifications (macOS UNUserNotificationCenter / win+linux beeep, edge-triggered, default OFF, Phase 167), Hub-card refinement (Phase 172), and a large sweep: #112/#115/#116/#117/#118/#120/#121 (Phase 168-169), web-share/remote-viewer/windowing #119/#125/#126/#128 (Phase 175), platform hardening #123/#124/#127 (Phase 176), Dependabot hygiene (Phase 174).
+
+### What Worked
+- **The milestone integration audit earned its keep.** It found the one load-bearing gap — FNL-09's `funnelWriteActive` silently dropped at the app.go Wails bridge — that every phase-local green gate had certified as passing. A tiny gap-closure phase (177) closed it cleanly without disturbing the 12 shipped phases.
+- **Spec-first for the RCE-severity feature.** Public read/write (171) was designed consent-gate-first (`/gsd-spec-phase` → discuss → secure → plan) before any code, and the closed-write-perimeter invariant was asserted at source — the accidental pre-existing public-write path was closed as part of it.
+- **Live 2-machine + off-tailnet UAT was the real verifier.** Every feature-killing defect (the 502/hang proxy dead-ends, the #109 screen-share regression from 175-04, the 170 cap-link-vs-join-code blocker, the 167 wails-dev crash, the FNL-09 dead indicator) was caught by live UAT, not by the green suite.
+
+### What Was Inefficient
+- **The false-green test trap recurred all milestone.** `funnelBinding.contract.test.tsx` asserted `App.d.ts` stub text (not the real Go bridge); 175-04's rendered-grid preamble regressed the hard-won Phase-157 byte-faithful screen-share; the 167 tests used fakes that couldn't catch the wails-dev crash. Fix pattern that stuck: a genuine round-trip guard (177-02's reflection struct-parity Go test).
+- **GSD transition tooling corrupted STATE repeatedly.** `phase.complete` (167/168/170/176/177) and `milestone.complete` (this close) regressed `status`/`stopped_at`/counters. Every transition needed backup → run → diff → restore/hand-edit. Non-trivial recurring tax.
+- **Executor subagent API-500 / stream-idle stalls** forced inline recovery on 166 and 175 (zero-commit crashes + watchdog stalls), and scope grew mid-flight — the milestone reopened twice (added 170/171 after live Funnel UAT, then 172-177 after UI polish + a bug/Dependabot sweep).
+
+### Patterns Established
+- **Gap-closure phase** as the clean response to an integration-audit finding: scope one seam, add a durable regression guard, don't reopen shipped phases.
+- **Round-trip / struct-parity regression guard** to kill a false-green contract test (assert the real serialization boundary, not a stub).
+- **Backup + diff + hand-edit** as the standing protocol for every GSD `*.complete` transition on this project.
+- **Colorblind-safe verification at source** (hex constants + text labels in code, owner judges perceptibility live) — extended to the FULL ACCESS badge and the segmented-control danger ring.
+
+### Key Lessons
+- A `[x]` checkbox, a green test, and a phase-local "passed" are not proof of a working feature — cross-phase integration audit + live multi-surface UAT are where load-bearing gaps actually surface. This milestone proved it three separate ways.
+- When repeated model-based fixes fail (the #130 `top`-header saga: 3 fixes, still garbled), the discriminating question — "what's DIFFERENT about the one failing case?" — beats another patch; the user's "only `top` breaks, agents render clean" observation reframed the whole bug and led to accepting it as a documented limitation.
+
+### Cost Observations
+- Model mix: executors on Sonnet (per config), orchestration/planning/review/verification on Opus; heavy reliance on live 2-machine + off-tailnet UAT and the integration-checker subagent for the Funnel and FNL-09 closures.
+- ~10-day cycle (2026-06-30 → 2026-07-09) across many sessions, twice-reopened scope. The final close was reconciliation-heavy (169 verification-filename/frontmatter fix, stale debug-session resolution, ROADMAP collapse, hand-fixing the milestone.complete STATE regression) — the code had landed across the 13 phases well before the audit ran.
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
