@@ -1021,6 +1021,13 @@ func (ws *WebServer) setupRoutes() {
 	// tier: no capability gate here — the React bundle is static client code,
 	// and any /api/ call it makes is independently gated.
 	//
+	// Phase 176 BUG-06 — wrapped in ws.cspHeaders (D-05): the guest SPA is
+	// exposed to the public internet via Funnel and previously served with
+	// NO Content-Security-Policy header. Reuses the existing strict policy
+	// verbatim (same as /dashboard, /join, /sessions/{id}); no capability
+	// gate exists here to nest inside, so cspHeaders wraps the handler
+	// literal outermost.
+	//
 	// Phase 120 WR-02 — caching policy: index.html is forced Cache-Control:
 	// no-store via serveIndex so clients always pick up the latest entry
 	// point. Other /app/* assets (hashed JS/CSS bundles) inherit Go's
@@ -1031,7 +1038,7 @@ func (ws *WebServer) setupRoutes() {
 	// against a fresh index.html. If a future deploy ships unhashed assets
 	// under /app/, this contract breaks — wrap the FileServerFS call in
 	// assetsNoStore (as /assets/ does) before that lands.
-	mux.HandleFunc("GET /app/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /app/", ws.cspHeaders(func(w http.ResponseWriter, r *http.Request) {
 		appFS := ws.staticAppFS
 		if appFS == nil {
 			http.Error(w, "app bundle not configured", http.StatusServiceUnavailable)
@@ -1064,7 +1071,7 @@ func (ws *WebServer) setupRoutes() {
 			return
 		}
 		stripped.ServeHTTP(w, r)
-	})
+	}))
 }
 
 // serveIndex serves the React bundle's index.html with the correct
