@@ -494,20 +494,41 @@ func (h *Hub) recordFrame(frame, raw []byte) {
 }
 
 // resizeLiveEmulator propagates an authoritative PTY resize to the live per-hub
-// VT emulator (CR-01). EnsureLiveEmulator builds the emulator once at the
-// initial PTY size and it would otherwise never follow later resizes, leaving
-// RenderSnapshot's reconnect preamble mis-dimensioned after a guest-driven grid
-// change (the core BUG-04 multi-viewer path via ResizeClient's min-arbiter).
-// Takes ONLY emuMu (never hub.mu): EnsureLiveEmulator acquires emuMu→hub.mu, so
-// this MUST be called after hub.mu is released, or the reverse lock order would
-// deadlock. No-op until the emulator exists.
+// VT emulator (CR-01) by DISCARDING the old emulator and rebuilding an EMPTY one
+// at the new geometry — NOT by calling xvt.Emulator.Resize() in place.
+//
+// Why rebuild instead of resize (M-51, debug session m51-top-header-garble):
+// xvt.Emulator.Resize() is a DESTRUCTIVE, non-reflow grid truncate/pad (shrink
+// drops columns/rows via slice truncation; grow pads with blanks). After a
+// mid-session geometry change, content laid out for the PRE-resize geometry
+// survives on the wrong rows. A full-screen app (top/htop/vim) FULLY redraws on
+// SIGWINCH — the real PTY resize (resizeFn, called right after this in
+// ResizeClient) delivers that SIGWINCH — so the correct post-resize screen is
+// derivable ENTIRELY from the redraw bytes that follow. Any surviving pre-resize
+// content is stale, wrong-geometry garbage that never self-heals (top only
+// re-lays-out its header on resize, then patches numbers in place forever after),
+// which was the residual M-51 header garble. Starting empty lets the imminent
+// SIGWINCH redraw repopulate a clean screen.
+//
+// The common case (no resize for the session's life) is unaffected: the eager
+// build in recordFrame feeds a single emulator continuously, so completeness
+// after a raw-ring wrap (the original BUG-04 fix) is preserved. recordFrame's
+// nil-guard means if output arrives before this rebuild's first frame, the feed
+// simply lands in the freshly-built emulator.
+//
+// Takes ONLY emuMu (never hub.mu): callers acquire emuMu→hub.mu via Cols()/Rows()
+// elsewhere, so this MUST be called after hub.mu is released, or the reverse lock
+// order would deadlock. No-op until the emulator exists (recordFrame will build
+// at the current geometry on the first frame).
 func (h *Hub) resizeLiveEmulator(cols, rows int) {
 	h.emuMu.Lock()
 	defer h.emuMu.Unlock()
 	if h.liveEmu == nil {
 		return
 	}
-	h.liveEmu.Resize(cols, rows)
+	emu := xvt.NewEmulator(cols, rows)
+	emu.SetScrollbackSize(liveEmulatorScrollbackLines)
+	h.liveEmu = emu
 }
 
 // broadcast sends frame to all current subscribers using a non-blocking send.

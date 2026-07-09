@@ -378,3 +378,67 @@ func TestLiveEmulatorFollowsResize(t *testing.T) {
 			"not follow the PTY resize (CR-01: RenderSnapshot would be mis-dimensioned)", gotW, gotH)
 	}
 }
+
+// TestLiveEmulatorResizeDiscardsStaleContent is the M-51 resize-churn guard
+// (debug session m51-top-header-garble). xvt.Emulator.Resize() is a DESTRUCTIVE,
+// non-reflow grid truncate/pad: after a mid-session geometry change, content laid
+// out for the PRE-resize geometry persists on the wrong rows. A full-screen app
+// (top/htop/vim) fully redraws on SIGWINCH, so the CORRECT post-resize screen is
+// derivable entirely from post-resize bytes; any surviving pre-resize content is
+// stale, wrong-geometry garbage that never self-heals (top only re-lays-out its
+// header on resize, so a partial in-place body update afterwards never rewrites
+// the header rows). This is the residual M-51 header garble.
+//
+// The fix rebuilds the live emulator EMPTY at the new geometry on every resize,
+// so pre-resize content cannot survive into the reconnect preamble. This test is
+// RED with the old destructive emu.Resize() (the STALE header at row 1 survives
+// the shrink and a subsequent lower-row body update never touches it) and GREEN
+// once resizeLiveEmulator discards + rebuilds.
+func TestLiveEmulatorResizeDiscardsStaleContent(t *testing.T) {
+	r, w := io.Pipe()
+	hub := NewHub("resize-discard-stale-test", r, w, DefaultScrollbackBytes, nil)
+	done := make(chan struct{})
+	go func() { hub.Run(); close(done) }()
+	defer func() { _ = w.Close(); <-done }()
+
+	// A full-screen app writes a positioned header at row 1 (absolute home) — the
+	// structural header top draws ONCE and only patches in place thereafter.
+	if _, err := w.Write([]byte("\x1b[H" + "STALE-HEADER")); err != nil {
+		t.Fatalf("write header: %v", err)
+	}
+	// Synchronize: wait until the eagerly-built emulator has actually rendered the
+	// header before we resize (otherwise the feed could race the resize).
+	testutil.WaitFor(t, 2*time.Second, func() bool {
+		return bytes.Contains(hub.RenderSnapshot(), []byte("STALE-HEADER"))
+	}, "emulator never captured the pre-resize header")
+
+	// A local viewer's geometry change churns the PTY/emulator grid (window resize,
+	// sidebar toggle, font-size change, or xterm.js FitAddon's mount-then-settle
+	// double-fit). ResizeClient's min-arbiter drives resizeLiveEmulator(40,10).
+	sub := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "local"}
+	hub.Subscribe(sub)
+	if err := hub.ResizeClient(sub, 40, 10); err != nil {
+		t.Fatalf("ResizeClient: %v", err)
+	}
+
+	// After the resize, top emits a partial in-place body update at a LOWER row —
+	// it does NOT rewrite the row-1 header (top only re-lays-out the header on the
+	// SIGWINCH redraw itself, which a real full redraw would have fully replaced).
+	// This models the state where the header rows are left untouched post-resize.
+	if _, err := w.Write([]byte("\x1b[3H" + "new-body-row")); err != nil {
+		t.Fatalf("write body update: %v", err)
+	}
+	testutil.WaitFor(t, 2*time.Second, func() bool {
+		return bytes.Contains(hub.RenderSnapshot(), []byte("new-body-row"))
+	}, "emulator never captured the post-resize body update")
+
+	// The reconnect preamble must NOT carry pre-resize content: a rebuilt-empty
+	// emulator holds only post-resize bytes. If STALE-HEADER survives, the guest
+	// sees a header laid out for the wrong geometry (the M-51 garble).
+	got := hub.RenderSnapshot()
+	if bytes.Contains(got, []byte("STALE-HEADER")) {
+		t.Errorf("pre-resize header survived the resize into the reconnect preamble "+
+			"(M-51 resize-churn garble): destructive emu.Resize() kept stale row-1 content; "+
+			"got %q", got)
+	}
+}
