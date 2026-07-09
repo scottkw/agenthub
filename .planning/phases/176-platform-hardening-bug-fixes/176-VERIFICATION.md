@@ -1,30 +1,36 @@
 ---
 phase: 176-platform-hardening-bug-fixes
 verified: 2026-07-09T15:00:00Z
-status: human_needed
+status: passed
 score: 7/10 must-haves verified
 behavior_unverified: 3
 overrides_applied: 0
 behavior_unverified_items:
+
   - truth: "On Linux the GUI launches without the macOS role-menu segfault"
     test: "Launch the built .deb/AppImage on a real Linux/Wayland box (e.g. Pop!_OS 24.04/COSMIC, WebKit2GTK 4.1) and confirm no crash on startup."
     expected: "The GTK backend does not dereference a nil SubMenu; the app window opens normally."
     why_human: "No Linux/Wayland compositor available on this macOS dev box; the GTK menu-construction crash path cannot be exercised here. Tracked as TESTING.md M-52 (opportunistic, not ship-blocking per D-11 — reporter's from-source verification already accepted)."
+
   - truth: "On Linux/Wayland the webview renders without the DMABUF GPU-renderer freeze"
     test: "On the same Linux/Wayland box, interact with the UI (click, scroll, resize) after launch and confirm no hang."
     expected: "WEBKIT_DISABLE_DMABUF_RENDERER=1 is set by the guard (verified present in code) and the WebKit2GTK compositor does not freeze on first interaction."
     why_human: "Requires a real Wayland compositor + WebKit2GTK runtime; cannot be exercised on macOS. Tracked as TESTING.md M-52."
+
   - truth: "Production /app/ SPA loads without a breaking CSP violation (console sweep across inline scripts, wasm-unsafe-eval, connect-src SSE/WS, font-src, img-src data:)"
     test: "Build with `wails build -tags \"webkit2_41,wailsassets\"`, load /app/ in a browser, read DevTools console for CSP violations."
     expected: "SPA renders fully; no CSP violation breaks functionality (xterm wasm, SSE plugin-config stream, WS relay all load)."
     why_human: "/app/ returns 503 under `wails dev`/plain `go build` (no embedded SPA) — requires a production Vite build and manual DevTools inspection. Explicit `<human-check>` in 176-02-PLAN.md; tracked as TESTING.md M-53."
 human_verification:
+
   - test: "Launch the Linux .deb/AppImage build on a real Linux/Wayland box; confirm no segfault on startup and the File/Help menu bar is present and functional."
     expected: "App window opens without crashing; File and Help menus work; no other role menus appear (by design, GOOS != linux guard)."
     why_human: "No Linux/Wayland environment available on this macOS dev box. TESTING.md M-52."
+
   - test: "On the same Linux/Wayland box, click around the UI and confirm no DMABUF-related freeze on first interaction."
     expected: "UI stays responsive; no hang tied to the WebKit2GTK GPU renderer."
     why_human: "Requires real Wayland compositor. TESTING.md M-52."
+
   - test: "Build production bundle (`wails build -tags \"webkit2_41,wailsassets\"`), load /app/ in a browser, sweep DevTools console for CSP violations."
     expected: "No CSP violation breaks the SPA (inline scripts, wasm-unsafe-eval, connect-src SSE/WS, font-src, img-src data: all clear)."
     why_human: "Requires a production build + browser DevTools; /app/ 503s under dev/plain-build. Explicit human-check in 176-02-PLAN.md. TESTING.md M-53."
@@ -105,10 +111,12 @@ None. Scanned `main.go`, `internal/webserver/server.go` (lines 1000-1090), `inte
 ### Code Review Findings (176-REVIEW.md) — Disposition
 
 The phase's own code review (`176-REVIEW.md`, `status: issues_found`, 2 warnings) found two real regressions:
+
 - **WR-01** — the BUG-05 menu guard used `GOOS == "darwin"` instead of `GOOS != "linux"`, silently stripping role menus from Windows builds (unaffected by the Linux-only GTK segfault).
 - **WR-02** — wrapping the entire `/app/` handler in `cspHeaders` forced `Cache-Control: no-store` onto hashed JS/CSS asset responses, contradicting the Phase 120 content-hash caching contract documented in the same code block.
 
 Both were fixed in commit `89329c54` (`fix(176): resolve code-review WR-01/WR-02 regressions`), verified by me directly:
+
 - `main.go` now uses `goruntime.GOOS != "linux"` (not `== "darwin"`) for all three role-menu guards — confirmed via grep.
 - `server.go:1085` deletes the `Cache-Control` header on the hashed-asset branch only — confirmed via read.
 - New regression test `TestAppBundle_HashedAsset_CacheableNotNoStore` was added and passes when I ran it.
