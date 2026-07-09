@@ -151,6 +151,45 @@ func TestCSPHeaderStrict_App(t *testing.T) {
 	assertCSPHeaderStrict(t, resp, ws.BaseURL(), "/app/")
 }
 
+// TestAppBundle_HashedAsset_CacheableNotNoStore locks the Phase 176 WR-02 fix:
+// the /app/ route is wrapped in cspHeaders (which sets Cache-Control: no-store on
+// every response), but the hashed JS/CSS asset branch must DELETE that header so
+// Vite content-hashed bundles stay browser-cacheable (Phase 120 WR-02 contract).
+// The index.html branch must still carry no-store (served via serveIndex).
+func TestAppBundle_HashedAsset_CacheableNotNoStore(t *testing.T) {
+	ws, client := testServer(t)
+	ws.SetStaticAppFS(fstest.MapFS{
+		"index.html":               {Data: []byte(fakeIndexHTML)},
+		"assets/index-aB12cd34.js": {Data: []byte("console.log('hashed bundle');")},
+	})
+
+	// Hashed asset: CSP still present, but NOT Cache-Control: no-store.
+	assetResp, err := client.Get(ws.BaseURL() + "/app/assets/index-aB12cd34.js")
+	if err != nil {
+		t.Fatalf("Get asset: %v", err)
+	}
+	defer assetResp.Body.Close()
+	if assetResp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 for hashed /app/ asset, got %d", assetResp.StatusCode)
+	}
+	if csp := assetResp.Header.Get("Content-Security-Policy"); csp == "" {
+		t.Errorf("hashed asset: expected CSP header still present (cspHeaders wraps /app/)")
+	}
+	if cc := assetResp.Header.Get("Cache-Control"); cc == "no-store" {
+		t.Errorf("hashed asset: Cache-Control must NOT be no-store — content-hash caching (Phase 120/176 WR-02), got %q", cc)
+	}
+
+	// index.html branch: no-store must still apply (serveIndex sets it).
+	idxResp, err := client.Get(ws.BaseURL() + "/app/")
+	if err != nil {
+		t.Fatalf("Get index: %v", err)
+	}
+	defer idxResp.Body.Close()
+	if cc := idxResp.Header.Get("Cache-Control"); cc != "no-store" {
+		t.Errorf("/app/ index: expected Cache-Control no-store (WR-02 index branch), got %q", cc)
+	}
+}
+
 // TestCSPHeaderStrict_CacheControl confirms Cache-Control: no-store flows
 // through on all three HTML routes (Plan 03's cspHeaders sets it; this
 // integration test confirms it reaches real HTTP responses — Phase 89 D-16).

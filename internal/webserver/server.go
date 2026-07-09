@@ -1038,6 +1038,11 @@ func (ws *WebServer) setupRoutes() {
 	// against a fresh index.html. If a future deploy ships unhashed assets
 	// under /app/, this contract breaks — wrap the FileServerFS call in
 	// assetsNoStore (as /assets/ does) before that lands.
+	//
+	// NOTE (Phase 176): this route is wrapped in ws.cspHeaders, which sets
+	// Cache-Control: no-store on all responses. The hashed-asset branch below
+	// deletes that header (w.Header().Del) so this content-hash caching contract
+	// still holds; do not remove that Del without re-homing the CSP header.
 	mux.HandleFunc("GET /app/", ws.cspHeaders(func(w http.ResponseWriter, r *http.Request) {
 		appFS := ws.staticAppFS
 		if appFS == nil {
@@ -1070,6 +1075,14 @@ func (ws *WebServer) setupRoutes() {
 			serveIndex(w, r, appFS)
 			return
 		}
+		// Phase 176 WR-02: cspHeaders (which now wraps this route) sets
+		// Cache-Control: no-store on every response. That is correct for the
+		// index.html branches (serveIndex re-sets no-store itself) but WRONG for
+		// the hashed JS/CSS bundles served here — they must inherit FileServerFS's
+		// default (no Cache-Control) so browsers cache by content-hash, per the
+		// Phase 120 WR-02 contract documented above. Drop the middleware's
+		// no-store on this branch only to preserve that contract.
+		w.Header().Del("Cache-Control")
 		stripped.ServeHTTP(w, r)
 	}))
 }

@@ -108,9 +108,11 @@ func runGUI() {
 func appMenu() *menu.Menu {
 	m := menu.NewMenu()
 	// 1. AppMenu MUST be first on macOS (STATE.md pitfall)
-	// darwin-only: Wails' GTK backend on Linux dereferences a nil SubMenu on
-	// this role menu and segfaults on launch (BUG-05 / #124).
-	if goruntime.GOOS == "darwin" {
+	// Guarded off on Linux only: Wails' GTK backend dereferences a nil SubMenu
+	// on this role menu and segfaults on launch (BUG-05 / #124). macOS needs it,
+	// and Windows (WebView2) is unaffected and received it before this fix — so
+	// exclude only Linux rather than narrowing to darwin (avoids Windows scope creep).
+	if goruntime.GOOS != "linux" {
 		m.Append(menu.AppMenu())
 	}
 	// 2. File menu (custom — FileMenuRole is commented out in v2.10.2)
@@ -119,13 +121,13 @@ func appMenu() *menu.Menu {
 	fileMenu.AddSeparator()
 	fileMenu.AddText("Close Tab", keys.CmdOrCtrl("w"), nil)
 	// 3. EditMenu — enables Cmd+C/V/X/Z via native NSMenu (MENU-02)
-	// darwin-only: same nil-SubMenu segfault as AppMenu (BUG-05 / #124).
-	if goruntime.GOOS == "darwin" {
+	// Guarded off on Linux only: same nil-SubMenu segfault as AppMenu (BUG-05 / #124).
+	if goruntime.GOOS != "linux" {
 		m.Append(menu.EditMenu())
 	}
 	// 4. Window menu
-	// darwin-only: same nil-SubMenu segfault as AppMenu (BUG-05 / #124).
-	if goruntime.GOOS == "darwin" {
+	// Guarded off on Linux only: same nil-SubMenu segfault as AppMenu (BUG-05 / #124).
+	if goruntime.GOOS != "linux" {
 		m.Append(menu.WindowMenu())
 	}
 	// 5. Help menu (custom — HelpSubMenuRole is commented out in v2.10.2)
