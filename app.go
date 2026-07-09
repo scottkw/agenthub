@@ -50,6 +50,11 @@ type SessionInfo struct {
 	// NOT omitempty: false must serialize so the frontend poll detects expiry
 	// (same rule as BrowseEnabled / HomeDir — silent false-drop is a UAT-class bug).
 	FunnelActive bool `json:"funnelActive"`
+	// Phase 171 / FNL-09: true when the gate-minted public write cap (consent-gated
+	// Full Access write-share) is active for this session. NOT omitempty: false must
+	// serialize so the frontend poll detects a write-share teardown flip (same rule
+	// as FunnelActive / BrowseEnabled / HomeDir — silent false-drop is a UAT-class bug).
+	FunnelWriteActive bool `json:"funnelWriteActive"`
 	// Phase 131 — Hub card fields (CARD-04, CARD-05, CARD-06, GRID-02).
 	// Omitting any of these silently drops them to zero in the Wails RPC
 	// response — same class of UAT bug documented on HomeDir above.
@@ -519,6 +524,10 @@ func (a *App) ListSessions() []SessionInfo {
 			// Phase 165 / FNL-01: propagate Funnel state so the frontend poll
 			// can detect expiry. Omitting silently drops to false (T-165-15).
 			FunnelActive: s.FunnelActive,
+			// Phase 171 / FNL-09: propagate the public write-share cap state so the
+			// frontend poll can detect a write-share teardown flip. Omitting silently
+			// drops to false (T-177-01 — this is the load-bearing runtime fix).
+			FunnelWriteActive: s.FunnelWriteActive,
 			// Phase 131 / CARD-04..06, GRID-02: propagate Hub card fields from
 			// daemon source of truth. Omitting these silently drops them to zero
 			// — the same class of silent-corruption bug documented on HomeDir above.
