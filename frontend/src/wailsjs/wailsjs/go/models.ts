@@ -137,6 +137,22 @@ export namespace daemon {
 		}
 	}
 	
+	export class SetSessionFunnelWriteResponse {
+	    writeUrl: string;
+	    writeCode: string;
+	    expiresAt: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SetSessionFunnelWriteResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.writeUrl = source["writeUrl"];
+	        this.writeCode = source["writeCode"];
+	        this.expiresAt = source["expiresAt"];
+	    }
+	}
 
 }
 
@@ -209,6 +225,7 @@ export namespace main {
 	    homeDir: boolean;
 	    browseEnabled: boolean;
 	    funnelActive: boolean;
+	    funnelWriteActive: boolean;
 	    viewerCount: number;
 	    exitCode?: number;
 	    duration?: number;
@@ -231,6 +248,7 @@ export namespace main {
 	        this.homeDir = source["homeDir"];
 	        this.browseEnabled = source["browseEnabled"];
 	        this.funnelActive = source["funnelActive"];
+	        this.funnelWriteActive = source["funnelWriteActive"];
 	        this.viewerCount = source["viewerCount"];
 	        this.exitCode = source["exitCode"];
 	        this.duration = source["duration"];
