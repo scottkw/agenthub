@@ -162,21 +162,6 @@ var liveEmuQueryStripPattern = regexp.MustCompile(
 		`|\x1b\]1[012];\?(?:\x07|\x1b\\)`, // OSC 10/11/12 color query, BEL- or ST-terminated
 )
 
-// stripMsgOutputBytes drops every relay.MsgOutput (0x01) framing byte from
-// data. Mirrors GetSessionStyledTailLines's inline strip: Hub.Run wraps each
-// PTY-read chunk in a MsgOutput frame via MakeOutputFrame BEFORE appending it
-// to scrollback, so ScrollbackSnapshot() interleaves this framing byte
-// throughout its contents.
-func stripMsgOutputBytes(data []byte) []byte {
-	stripped := make([]byte, 0, len(data))
-	for _, b := range data {
-		if b != MsgOutput {
-			stripped = append(stripped, b)
-		}
-	}
-	return stripped
-}
-
 // NewHub constructs a Hub for the given session.
 // scrollbackBytes controls the scrollback buffer capacity.
 // resizeFn is called when a resize event is received; may be nil.
@@ -489,7 +474,20 @@ func (h *Hub) recordFrame(frame, raw []byte) {
 	defer h.emuMu.Unlock()
 	h.scrollback.Append(frame)
 	if h.liveEmu == nil {
-		return
+		// EAGER BUILD (M-51 fix): construct the emulator on the FIRST frame and
+		// feed it from byte 1, rather than lazily at the first guest connect.
+		// Being fed since the first PTY byte is the ONLY way the emulator can
+		// hold a COMPLETE current screen after the raw ring wraps: a full-screen
+		// app (top/htop) writes structural header rows ONCE via absolute cursor
+		// positioning and thereafter only repaints them in place, so a lazy
+		// bootstrap from an already-truncated ring never sees them and renders a
+		// garbled header. No bootstrap-from-scrollback is needed — this feed IS
+		// the complete history. Later PTY resizes are tracked by resizeLiveEmulator
+		// (CR-01). Lock order matches EnsureLiveEmulator (emuMu → hub.mu via
+		// Cols()/Rows()); no inversion.
+		emu := xvt.NewEmulator(h.Cols(), h.Rows())
+		emu.SetScrollbackSize(liveEmulatorScrollbackLines)
+		h.liveEmu = emu
 	}
 	clean := liveEmuQueryStripPattern.ReplaceAll(raw, nil)
 	h.liveEmu.Write(clean) //nolint:errcheck // emulator Write never returns a meaningful error
@@ -901,18 +899,18 @@ func (h *Hub) ScrollbackSnapshot() []byte {
 	return h.scrollback.Snapshot()
 }
 
-// EnsureLiveEmulator lazily constructs the hub's live per-hub VT emulator on
-// first call (T-175-04-01 — never built for sessions that never get a shared
-// viewer) and bootstraps it once from the CURRENT ScrollbackSnapshot so its
-// state matches the live PTY before Run()'s drain loop starts feeding it
-// further frames. Idempotent: a second call is a no-op — once constructed,
-// the emulator is never rebuilt or re-bootstrapped from scrollback again, so
-// its state survives any later wrap of the raw 256 KiB ring (BUG-04, #119;
-// RESEARCH "Pitfall 3": must feed the LIVE stream continuously, never
-// reconstruct from the truncated ring).
+// EnsureLiveEmulator is a safety no-op now that the emulator is built EAGERLY
+// from the first PTY frame in recordFrame (M-51 fix). Any session that has
+// produced ANY output already has a live emulator that was fed since byte 1, so
+// this returns immediately. It survives only for the degenerate case of a
+// connection accepted BEFORE any PTY output has flowed: there it constructs an
+// EMPTY emulator so RenderSnapshot has something to render. It deliberately does
+// NOT bootstrap from ScrollbackSnapshot — that path was the M-51 bug (bootstrap
+// from an already-wrapped ring misses the one-time header writes), and after the
+// eager build it is dead code: liveEmu is non-nil the moment any frame arrives.
 //
-// Callers (the WS handler sites) should call this once per new connection,
-// before RenderSnapshot, ahead of any reconnect preamble write.
+// Both WS connect sites (relay/server.go, webserver/server.go) still call this
+// before RenderSnapshot; it remains idempotent and cheap.
 func (h *Hub) EnsureLiveEmulator() {
 	h.emuMu.Lock()
 	defer h.emuMu.Unlock()
@@ -920,16 +918,13 @@ func (h *Hub) EnsureLiveEmulator() {
 		return
 	}
 
-	cols, rows := h.Cols(), h.Rows()
-	emu := xvt.NewEmulator(cols, rows)
+	// No output has flowed yet (recordFrame never ran) — build an empty emulator
+	// at the current fallback geometry so RenderSnapshot is well-defined. The
+	// drain loop's recordFrame will feed this same instance once bytes arrive.
+	emu := xvt.NewEmulator(h.Cols(), h.Rows())
 	// T-175-04-01: bound the emulator's own scrollback — it is only ever used
 	// to render the CURRENT screen, never scrolled through.
 	emu.SetScrollbackSize(liveEmulatorScrollbackLines)
-
-	bootstrap := stripMsgOutputBytes(h.ScrollbackSnapshot())
-	clean := liveEmuQueryStripPattern.ReplaceAll(bootstrap, nil)
-	emu.Write(clean) //nolint:errcheck // emulator Write never returns a meaningful error
-
 	h.liveEmu = emu
 }
 

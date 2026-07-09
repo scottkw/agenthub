@@ -249,6 +249,80 @@ func TestReconnectPreamble_EmulatorWhenMainScreenRingWrapped(t *testing.T) {
 	}
 }
 
+// TestReconnectPreamble_EagerEmulatorCapturesHeaderBeforeWrap is the M-51
+// eager-emulator guard. It simulates top's in-place positioned header: a
+// full-screen MAIN-screen app writes a header ONCE at row 1 (absolute cursor
+// home), then only ever repaints a lower body region — it NEVER rewrites the
+// header structure (top overwrites only the changing numbers in place). When
+// the raw 256 KiB ring wraps past that one-time header write and a guest joins
+// LATE (its EnsureLiveEmulator call comes only AFTER the wrap), the emulator
+// can only reconstruct the header if it has been alive and fed since BEFORE the
+// wrap — i.e. eagerly, from the first PTY byte.
+//
+// This is RED with the old lazy build: EnsureLiveEmulator (called late, at the
+// guest connect) bootstraps a FRESH emulator from the already-truncated ring,
+// which no longer contains the header write, so row 1 renders blank/garbled.
+// It is GREEN with the eager build: the emulator saw the header at byte 1 and
+// still holds it in row 1 at reconnect time.
+func TestReconnectPreamble_EagerEmulatorCapturesHeaderBeforeWrap(t *testing.T) {
+	r, w := io.Pipe()
+	hub := NewHub("preamble-eager-header-test", r, w, DefaultScrollbackBytes, nil)
+	done := make(chan struct{})
+	go func() { hub.Run(); close(done) }()
+	defer func() { _ = w.Close(); <-done }()
+
+	// The header is written ONCE at absolute home (row 1) — exactly what a
+	// full-screen app emits at startup and never structurally rewrites.
+	if _, err := w.Write([]byte("\x1b[H" + "HEADER-XYZ")); err != nil {
+		t.Fatalf("write header: %v", err)
+	}
+
+	// DELIBERATELY do NOT call EnsureLiveEmulator here. The realistic M-51
+	// scenario is a LATE-joining guest: the emulator's first (lazy) construction
+	// would come only at the guest connect below, AFTER the ring has wrapped.
+
+	// Body repaints: reposition to row 5 each cycle and rewrite a lower region,
+	// exactly like top's process rows. These never touch row 1, so the header
+	// stays in the emulator grid — but they DO fill the raw ring and wrap it past
+	// the one-time header write above.
+	bodyUpdate := append([]byte("\x1b[5H"), bytes.Repeat([]byte("y"), 40)...)
+	total := len("\x1b[H" + "HEADER-XYZ")
+	for total <= DefaultScrollbackBytes+1024 {
+		if _, err := w.Write(bodyUpdate); err != nil {
+			t.Fatalf("write body update: %v", err)
+		}
+		total += len(bodyUpdate)
+	}
+
+	// Wait until the ring has actually wrapped past the header write — the raw
+	// tail must no longer contain it (fixture-validity + reconnect discriminator).
+	testutil.WaitFor(t, 2*time.Second, func() bool {
+		return hub.scrollback.Truncated() && !bytes.Contains(hub.ScrollbackSnapshot(), []byte("HEADER-XYZ"))
+	}, "ring never wrapped past the header write")
+
+	raw := hub.ScrollbackSnapshot()
+	if bytes.Contains(raw, []byte("HEADER-XYZ")) {
+		t.Fatalf("fixture invalid: raw ring still contains the header write")
+	}
+
+	// A guest joins LATE and its WS handler calls EnsureLiveEmulator for the
+	// first time — AFTER the wrap. The reconnect preamble (wrapped → emulator)
+	// must still carry the header, which is only possible if the emulator was
+	// fed eagerly from the first PTY byte.
+	sub := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "web"}
+	hub.Subscribe(sub)
+	hub.EnsureLiveEmulator()
+
+	got := hub.ReconnectPreamble()
+	if len(got) == 0 {
+		t.Fatal("ReconnectPreamble returned nothing")
+	}
+	if !bytes.Contains(got, []byte("HEADER-XYZ")) {
+		t.Errorf("late-join reconnect preamble lost the one-time header write (M-51): "+
+			"the emulator was not fed before the ring wrapped; got %q", got)
+	}
+}
+
 // TestLiveEmulatorFollowsResize is the CR-01 regression guard (code review
 // 175-REVIEW.md): the live per-hub VT emulator is built once at the initial PTY
 // size in EnsureLiveEmulator and must follow later authoritative PTY resizes,
