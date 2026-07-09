@@ -9,11 +9,13 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"math/big"
 	"net"
 	"os"
+	"reflect"
 	goruntime "runtime"
 	"strings"
 	"sync"
@@ -427,6 +429,159 @@ func TestListSessions_PropagatesFunnelActive(t *testing.T) {
 	}
 	if !got.FunnelActive {
 		t.Error("App.ListSessions dropped FunnelActive=true after SetSessionFunnel(enable) (frontend poll would never see active funnel)")
+	}
+}
+
+// TestSessionInfo_MirrorsDaemonFunnelFields is the regression guard demanded
+// by Phase 177 / FNL-09 D-05: it fails if a future edit adds (or renames) a
+// daemon.SessionInfo funnel-exposure field without mirroring it onto the
+// app.go Wails bridge's SessionInfo. This exercises the REAL Go struct types
+// via reflection — never the App.d.ts stub TEXT, which is exactly the blind
+// spot funnelBinding.contract.test.tsx left open (it only asserts the
+// hand-authored TypeScript stub, not the Go bridge that actually produces
+// the JSON the frontend receives). Any daemon "Funnel*" field without a
+// matching json-tagged field on main.SessionInfo turns this test red.
+func TestSessionInfo_MirrorsDaemonFunnelFields(t *testing.T) {
+	daemonType := reflect.TypeOf(daemon.SessionInfo{})
+	appType := reflect.TypeOf(SessionInfo{})
+
+	// Index app.SessionInfo's json tags (bare name, options stripped) by Go field name.
+	appJSONTags := make(map[string]string, appType.NumField())
+	for i := 0; i < appType.NumField(); i++ {
+		f := appType.Field(i)
+		tag := f.Tag.Get("json")
+		if tag == "" {
+			continue
+		}
+		appJSONTags[strings.Split(tag, ",")[0]] = f.Name
+	}
+
+	found := 0
+	for i := 0; i < daemonType.NumField(); i++ {
+		f := daemonType.Field(i)
+		if !strings.HasPrefix(f.Name, "Funnel") {
+			continue
+		}
+		found++
+		tag := f.Tag.Get("json")
+		if tag == "" {
+			t.Errorf("daemon.SessionInfo.%s has no json tag", f.Name)
+			continue
+		}
+		name := strings.Split(tag, ",")[0]
+		if _, ok := appJSONTags[name]; !ok {
+			t.Errorf("daemon.SessionInfo.%s (json tag %q) has no matching field on app.SessionInfo — "+
+				"the app.go Wails bridge silently drops this funnel-exposure field from the native GUI (T-177-03)",
+				f.Name, name)
+		}
+	}
+	if found == 0 {
+		t.Fatal("no daemon.SessionInfo fields matched the \"Funnel\" prefix — the enumeration matched nothing, " +
+			"so this test would silently guard against nothing")
+	}
+}
+
+// TestListSessions_PropagatesFunnelWriteActive is the regression guard for
+// Phase 177 / FNL-09 (D-05): App.ListSessions must propagate
+// SessionInfo.FunnelWriteActive from the daemon source of truth, and the
+// SERIALIZED JSON must carry the "funnelWriteActive" key even when false
+// (NOT omitempty). Mirrors TestListSessions_PropagatesFunnelActive
+// (T-165-15) for the write-share sibling field. This is the load-bearing
+// guard: App.js's ListSessions binding is a raw Call passthrough with no
+// createFrom/field filtering, so the JSON asserted here directly is exactly
+// what the frontend consumers (FULL ACCESS badge, tab icon, share-modal
+// resync) receive over the wire.
+func TestListSessions_PropagatesFunnelWriteActive(t *testing.T) {
+	if goruntime.GOOS == "windows" {
+		t.Skip("TestListSessions_PropagatesFunnelWriteActive uses Unix domain sockets")
+	}
+	app, api, engine := testAppWithAPI(t)
+
+	if err := api.BootstrapCapabilityState(); err != nil {
+		t.Fatalf("BootstrapCapabilityState: %v", err)
+	}
+
+	tlsCfg, err := webserver.GenerateSelfSignedCert("127.0.0.1")
+	if err != nil {
+		t.Fatalf("GenerateSelfSignedCert: %v", err)
+	}
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP:    "127.0.0.1",
+		Port:      0,
+		FQDN:      "apptest.ts.net",
+		TLSConfig: tlsCfg,
+	}, engine.Manager())
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
+	}
+	fake := &appTestFakeFunnelClient{}
+	ws.SetFunnelClientForTest(fake)
+	ws.SetSigningKey(api.CurrentSigningKey())
+	ws.SetJoinCodes(api.JoinCodes())
+	if err := ws.Start(); err != nil {
+		t.Fatalf("ws.Start: %v", err)
+	}
+	t.Cleanup(func() { _ = ws.Stop() })
+	api.SetWebServerForTest(ws)
+
+	id, err := app.CreateSession("cat", "funnel-write-propagation-session", "", nil, 0, 0)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	// Before minting a write cap, FunnelWriteActive must propagate as false —
+	// and the serialized JSON must still carry the key (not dropped by omitempty).
+	sessions := app.ListSessions()
+	var got *SessionInfo
+	for i := range sessions {
+		if sessions[i].ID == id {
+			got = &sessions[i]
+			break
+		}
+	}
+	if got == nil {
+		t.Fatalf("session %q not found in App.ListSessions (initial)", id)
+	}
+	if got.FunnelWriteActive {
+		t.Error("ListSessions: FunnelWriteActive should be false before SetSessionFunnelWrite (not dropped by omitempty)")
+	}
+	rawJSON, err := json.Marshal(got)
+	if err != nil {
+		t.Fatalf("json.Marshal(initial SessionInfo): %v", err)
+	}
+	if !strings.Contains(string(rawJSON), `"funnelWriteActive":false`) {
+		t.Errorf("serialized SessionInfo JSON missing \"funnelWriteActive\":false — got %s "+
+			"(the frontend poll could never detect a true->false write-share teardown flip if this key were omitted)", rawJSON)
+	}
+
+	// Mint the gate-minted public write cap; FunnelWriteActive should
+	// propagate as true, and the serialized JSON must contain the true value.
+	if _, err := app.SetSessionFunnelWrite(id, 900); err != nil {
+		t.Fatalf("SetSessionFunnelWrite: %v", err)
+	}
+
+	sessions = app.ListSessions()
+	got = nil
+	for i := range sessions {
+		if sessions[i].ID == id {
+			got = &sessions[i]
+			break
+		}
+	}
+	if got == nil {
+		t.Fatalf("session %q not found in App.ListSessions (after mint)", id)
+	}
+	if !got.FunnelWriteActive {
+		t.Fatal("App.ListSessions dropped FunnelWriteActive=true after SetSessionFunnelWrite " +
+			"(the FULL ACCESS badge/tab-icon/share-modal-resync would never render — this is the original bug)")
+	}
+	rawJSON, err = json.Marshal(got)
+	if err != nil {
+		t.Fatalf("json.Marshal(post-mint SessionInfo): %v", err)
+	}
+	if !strings.Contains(string(rawJSON), `"funnelWriteActive":true`) {
+		t.Errorf("serialized SessionInfo JSON missing \"funnelWriteActive\":true — got %s "+
+			"(this is exactly the JSON App.js passes through raw to the FULL ACCESS consumers)", rawJSON)
 	}
 }
 

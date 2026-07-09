@@ -21,6 +21,15 @@ describe('Phase 166 / FNL-01 — hand-authored stub import contract', () => {
     expect(appDts).toContain('funnelActive: boolean')
   })
 
+  it('App.d.ts SessionInfo interface contains funnelWriteActive: boolean', () => {
+    // Phase 177 / FNL-09 (D-05b, optional): mirrors the funnelActive assertion
+    // above for the write-share sibling field. Guards the ACTUALLY-imported
+    // stub only — the load-bearing runtime guard is the Go-side
+    // TestListSessions_PropagatesFunnelWriteActive in app_test.go, which
+    // asserts the real serialized JSON rather than this stub text.
+    expect(appDts).toContain('funnelWriteActive: boolean')
+  })
+
   it('App.d.ts exports SetSessionFunnel with correct 3-arg signature', () => {
     // Guards Pitfall 1: must be in the hand-authored stub, not the generated copy.
     // Also verifies expiresIn: number is present (FNL-07 no-expiry sentinel = 0).
