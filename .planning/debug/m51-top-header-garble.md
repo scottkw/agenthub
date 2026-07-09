@@ -1,6 +1,8 @@
 ---
 slug: m51-top-header-garble
-status: fixed
+status: deferred
+deferred_to_issue: 130
+resolution_summary: "Two root causes found + fixed (eager build 8268155c, rebuild-on-resize 44078d41) — these fixed the agent-TUI / static / resize-churn cases. A THIRD residual (macOS top ONLY: header garble on late-join after ring wrap, from a headless-emulator scroll-region/in-place-update fidelity gap that top never self-heals) is a P-low shell edge case; deferred to issue #130 and accepted by the user 2026-07-08 to finalize Phase 175. Agents (primary use case) pass."
 trigger: "M-51 (Phase 175, BUG-04 / issue #119 P2): a late-joining web-share guest viewing a shared shell session running macOS `top` sees a GARBLED header block (Processes:/Load Avg:/CPU usage:/PhysMem: labels lost or interleaved with process-row content), while the process-row body renders reasonably. This persists AFTER the eager-emulator fix (commit 8268155c) on a freshly rebuilt prod app."
 created: 2026-07-08
 updated: 2026-07-08
@@ -106,6 +108,38 @@ updated: 2026-07-08
   identical structural corruption pattern both times) — not a one-off timing fluke. This
   exactly matches the reported symptom: "structural labels... missing or interleaved with
   fragments of process rows" (header) vs "process-row body renders roughly correctly" (body).
+
+## UPDATE 2026-07-08 (post-fix live UAT) — BOTH FIXES INSUFFICIENT; new discriminating evidence
+
+- timestamp: 2026-07-08 — Live UAT on a rebuilt prod app containing BOTH fixes (8268155c eager
+  build + 44078d41 rebuild-on-resize): `top` header STILL garbled on late-join guest (image #9).
+  So neither the eager-build nor the destructive-resize theory is the (whole) cause. The
+  deterministic unit tests pass but do NOT capture the real failure — my model of `top` is wrong.
+- timestamp: 2026-07-08 — **KEY USER OBSERVATION: `top` is the ONLY thing that garbles. All the
+  AGENT TUIs (Claude Code, Gemini, etc.) display fine on late-join** — including after ring wrap.
+  Agents are AgentHub's primary use case and they pass; `top` (a shell edge case) is the sole
+  failure. #119 is P2.
+- timestamp: 2026-07-08 — **Refined symptom read of image #9:** the garble is NOT "missing
+  labels" — it is PROCESS ROWS bleeding UP into the header region (PID 3131 `bzfilelist`,
+  `Signal Helpe`, `Google Chrom` process rows appear in rows 1–7, right-hand side), while the
+  body process table below renders coherently. Process content reaches header rows only via
+  SCROLLING (unprotected scroll region) or absolute-cursor positioning onto a mis-sized grid.
+- hypothesis (revised, UNVERIFIED): the differentiator is that agent TUIs do frequent FULL
+  differential repaints (alt-screen), so ANY reconstruction error self-heals within ~1 frame;
+  `top` draws its header structure ONCE, protects it with a SCROLL REGION, and thereafter only
+  patches numbers in place (surgical VPA/DCH) — so a reconstruction error in the header is
+  PERMANENT (top never rewrites those cells). The bleed pattern points specifically at
+  scroll-region handling: if the reconstructed/continuously-fed emulator's scroll region does
+  not match the host's, top's process-list scroll pushes rows into the header. This is a
+  headless-emulator FIDELITY gap (charmbracelet/x/vt vs the host xterm.js) and/or a width/height
+  mismatch — NOT the two things already fixed.
+- OPEN GROUND-TRUTH QUESTION (must answer before any fix #3): does the garble exist in the
+  SERVER-SIDE reconnect preamble bytes the guest receives (emulator render or raw replay), or is
+  it introduced CLIENT-SIDE by xterm.js at a mismatched width? Also: which ReconnectPreamble
+  branch fires (raw vs emulator) and is the ring even truncated at join time? Not yet captured.
+- DECISION PENDING (scope): agents pass; `top` is a P2 shell edge case. Chase it further (needs
+  live-path instrumentation + more rebuild cycles) vs. document as a known limitation and
+  finalize. Escalated to the user.
 
 ## Current Focus
 

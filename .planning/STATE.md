@@ -4,9 +4,9 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 175
 current_phase_name: web-share-remote-viewer-windowing-bug-fixes
-status: executing
-stopped_at: Completed 175-07-PLAN.md (TESTING.md regression registration — phase 175 fully executed); ready for /gsd-verify-work 175
-last_updated: "2026-07-08T19:53:21.362Z"
+status: verified
+stopped_at: Phase 175 UAT PASSED 4/4 (2026-07-08) — M-48/M-49/M-52 clean; M-51 passes for ALL agent TUIs (primary use case). Single low-priority residual (macOS `top`-only header garble on late-join after ring wrap) deferred to issue #130 with full specifics, accepted by user. Phase 175 verified/complete; next = Phase 176 (Platform & Hardening Bug Fixes).
+last_updated: "2026-07-08T23:59:00.000Z"
 last_activity: 2026-07-08
 progress:
   total_phases: 12
@@ -27,9 +27,9 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 ## Current Position
 
-Phase: 175 (web-share-remote-viewer-windowing-bug-fixes) — EXECUTING
+Phase: 175 (web-share-remote-viewer-windowing-bug-fixes) — VERIFIED (UAT PASSED 2026-07-08)
 Plan: 7 of 7
-Status: 175-04 complete (BUG-04 live emulator + reconnect preamble); 175-05/06/07 remaining
+Status: UAT 4/4 pass. M-51 passes for all agent TUIs; low-priority macOS `top` residual deferred to issue #130. Next = Phase 176.
 
 ### Roadmap Evolution
 

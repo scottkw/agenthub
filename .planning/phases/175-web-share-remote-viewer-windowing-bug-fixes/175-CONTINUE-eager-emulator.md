@@ -1,5 +1,14 @@
 # Phase 175 — CONTINUE HERE: eager-emulator fix (M-51 header garble)
 
+> ## ✅ CLOSED 2026-07-08 — Phase 175 FINALIZED (M-51 PASS for agents; `top` deferred to #130)
+> Live UAT with BOTH fixes still garbled `top` specifically. Debug (`.planning/debug/m51-top-header-garble.md`)
+> found `top` alone breaks (all agent TUIs render clean) — a headless-emulator scroll-region/in-place-update
+> fidelity gap that `top` never self-heals. User accepted deferring the P-low `top` residual to **issue #130**
+> and passing Phase 175. UAT recorded 4/4 in `175-UAT.md`; STATE `status: verified`. The two fixes below
+> (8268155c eager build, 44078d41 rebuild-on-resize) stay in as correctness improvements. Nothing left to do
+> here — this doc is historical.
+
+
 **Status when paused:** 2026-07-08. Phase 175 executed + verified (human_needed), then LIVE UAT
 found + fixed 3 issues. **M-51 is the ONLY open item.** All other work is committed and clean.
 `go test ./...`, relay+webserver `-race`, `tsc`, and vitest are all green.
