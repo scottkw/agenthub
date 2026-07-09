@@ -13,6 +13,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	goruntime "runtime"
 	"strings"
 
 	"github.com/scottkw/agenthub/internal/daemon"
@@ -98,16 +99,26 @@ func runGUI() {
 func appMenu() *menu.Menu {
 	m := menu.NewMenu()
 	// 1. AppMenu MUST be first on macOS (STATE.md pitfall)
-	m.Append(menu.AppMenu())
+	// darwin-only: Wails' GTK backend on Linux dereferences a nil SubMenu on
+	// this role menu and segfaults on launch (BUG-05 / #124).
+	if goruntime.GOOS == "darwin" {
+		m.Append(menu.AppMenu())
+	}
 	// 2. File menu (custom — FileMenuRole is commented out in v2.10.2)
 	fileMenu := m.AddSubmenu("File")
 	fileMenu.AddText("New Session", keys.CmdOrCtrl("n"), nil)
 	fileMenu.AddSeparator()
 	fileMenu.AddText("Close Tab", keys.CmdOrCtrl("w"), nil)
 	// 3. EditMenu — enables Cmd+C/V/X/Z via native NSMenu (MENU-02)
-	m.Append(menu.EditMenu())
+	// darwin-only: same nil-SubMenu segfault as AppMenu (BUG-05 / #124).
+	if goruntime.GOOS == "darwin" {
+		m.Append(menu.EditMenu())
+	}
 	// 4. Window menu
-	m.Append(menu.WindowMenu())
+	// darwin-only: same nil-SubMenu segfault as AppMenu (BUG-05 / #124).
+	if goruntime.GOOS == "darwin" {
+		m.Append(menu.WindowMenu())
+	}
 	// 5. Help menu (custom — HelpSubMenuRole is commented out in v2.10.2)
 	helpMenu := m.AddSubmenu("Help")
 	helpMenu.AddText("AgentHub on GitHub", nil, openGitHubCallback)
