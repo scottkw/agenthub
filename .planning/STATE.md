@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Funnel Sharing & Polish
-current_phase: 176
-current_phase_name: platform-hardening-bug-fixes
-status: complete
-stopped_at: Phase 176 COMPLETE — UAT passed 3/3, 0 issues. M-53 (prod /app/ CSP console sweep) VERIFIED LIVE 2026-07-09 on a real prod Wails build over Tailscale Funnel via dev-browser: strict /app/ CSP header byte-matches spec, zero violations, all SPA resources 200, terminal+WebSocket+chat render clean. M-52 (Linux/Wayland GUI) pass-by-acceptance (owner has no Linux box; #124 reporter validated the main.go platform-guard fix from source). BUG-07 pass (automated live-repro). VERIFICATION.md canonicalized human_needed→passed. v4.2 = ALL 12 phases (165-176) complete + verified. NEXT = ship v4.2.
-last_updated: "2026-07-09T18:30:00.000Z"
+current_phase: 177
+current_phase_name: close-gap-fnl-09-wire-funnelwriteactive-through-app-go-lists
+status: planned
+stopped_at: "Phase 177 PLANNED 2026-07-09 (/gsd-plan-phase 177) — 2 plans, plan-checker PASSED. Gap-closure for the v4.2 milestone-audit §3 finding (FNL-09/FUI-03 write-half): the native-GUI colorblind-safe FULL ACCESS exposure indicator is silently dead because `funnelWriteActive` is dropped at the app.go Wails seam. CORRECTED the audit at source: the app imports the SessionInfo TYPE from the hand-authored `App.d.ts` stub (already declares funnelWriteActive since 171-02) and the runtime value from `App.js` `ListSessions = () => Call(...)` — a RAW passthrough with no createFrom; the double-nested `wailsjs/wailsjs/go/models.ts` tree is imported by NOTHING. So the SOLE load-bearing fix = app.go SessionInfo struct field + ListSessions copy (serializes funnelWriteActive into the JSON App.js passes through). 177-01 (Wave 1): app.go wiring + frontend verify-only/optional hygiene. 177-02 (Wave 2): genuine Go struct-parity/serialization round-trip regression guard (asserts real app.go JSON, NOT App.d.ts stub text — closes the funnelBinding.contract.test.tsx blind spot per [[feedback_tests_encoding_same_wrong_assumption]]) + TESTING.md reconcile. Discuss+research skipped (audit is the completed research). NEXT = /gsd-execute-phase 177."
+last_updated: "2026-07-09T18:40:00.000Z"
 last_activity: 2026-07-09
 progress:
-  total_phases: 12
+  total_phases: 13
   completed_phases: 12
-  total_plans: 59
+  total_plans: 61
   completed_plans: 59
-  percent: 100
+  percent: 92
 ---
 
 # Project State
@@ -23,13 +23,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v4.2 milestone COMPLETE (all 12 phases) — ready to ship
+**Current focus:** Phase 177 — close the v4.2 milestone-audit §3 integration gap (FNL-09 native-GUI FULL ACCESS indicator) before shipping v4.2
 
 ## Current Position
 
-Phase: 176 (platform-hardening-bug-fixes) — COMPLETE; UAT passed 3/3, 0 issues (2026-07-09)
-Plan: 4 of 4
-Status: COMPLETE. UAT 3/3 pass — M-53 (prod /app/ CSP sweep) VERIFIED LIVE 2026-07-09 (real prod Wails build over Tailscale Funnel; dev-browser sweep: strict /app/ CSP header byte-matches spec, 0 violations, all SPA resources 200, terminal+WS+chat clean); M-52 (Linux/Wayland GUI) pass-by-acceptance (#124 reporter validated main.go platform-guard from source; owner has no Linux box); BUG-07 (#127) pass (automated live-repro, fixed by Phase 172). VERIFICATION.md human_needed→passed. BUG-05 (#124) main.go menu !linux guard + Linux DMABUF env guard; BUG-06 (#123) /app/ wrapped in cspHeaders. Code review fixed 2 regressions (89329c54): WR-01 Windows menu scope-creep, WR-02 /app/ hashed-asset no-store caching + test. v4.2 = ALL 12 phases (165-176) complete + verified. NEXT: ship v4.2 (`/gsd-ship` or `/gsd-complete-milestone v4.2`); close GitHub #123/#124/#127 at ship.
+Phase: 177 (close-gap-fnl-09-wire-funnelwriteactive-through-app-go-lists) — PLANNED 2026-07-09; 2 plans, plan-checker PASSED
+Plan: 0 of 2 (planned, not yet executed)
+Status: PLANNED. Milestone-audit gap-closure. app.go is the sole load-bearing fix (funnelWriteActive dropped at the Wails seam; frontend already typed via App.d.ts + App.js raw passthrough; the double-nested models.ts tree is imported by nothing). 177-01 = app.go SessionInfo field + ListSessions copy (+ frontend verify-only). 177-02 = genuine Go struct-parity/serialization regression guard (asserts real app.go JSON, not stub text) + TESTING.md reconcile. Corrected the audit's models.ts claim at source. Discuss/research skipped (audit is complete research). NEXT = `/gsd-execute-phase 177`. — Prior: Phase 176 COMPLETE. UAT 3/3 pass — M-53 (prod /app/ CSP sweep) VERIFIED LIVE 2026-07-09 (real prod Wails build over Tailscale Funnel; dev-browser sweep: strict /app/ CSP header byte-matches spec, 0 violations, all SPA resources 200, terminal+WS+chat clean); M-52 (Linux/Wayland GUI) pass-by-acceptance (#124 reporter validated main.go platform-guard from source; owner has no Linux box); BUG-07 (#127) pass (automated live-repro, fixed by Phase 172). VERIFICATION.md human_needed→passed. BUG-05 (#124) main.go menu !linux guard + Linux DMABUF env guard; BUG-06 (#123) /app/ wrapped in cspHeaders. Code review fixed 2 regressions (89329c54): WR-01 Windows menu scope-creep, WR-02 /app/ hashed-asset no-store caching + test. v4.2 = ALL 12 phases (165-176) complete + verified. NEXT: ship v4.2 (`/gsd-ship` or `/gsd-complete-milestone v4.2`); close GitHub #123/#124/#127 at ship.
 
 ### Roadmap Evolution
 
@@ -380,3 +380,9 @@ None
 
 - (Resolved 2026-07-08: Phase 174-02 Dependabot PRs #89/#106/#105 were closed by the orchestrator with explicit user authorization after the executor's permission classifier blocked them; all 10 Phase 174 Dependabot PRs are now CLOSED.)
 - REQUIREMENTS.md was never extended to cover Phase 174-176 (BUG-01..07, DIST/DEP items) -- requirements.mark-complete reports BUG-05/06/07 not_found; flagged first in 176-01-SUMMARY.md, out of scope for the TESTING.md-only 176-04 plan; needs a dedicated docs pass before milestone closeout
+
+## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 177 added: Close gap: FNL-09 — wire funnelWriteActive through app.go ListSessions to the native GUI FULL ACCESS badge
