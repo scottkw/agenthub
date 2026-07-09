@@ -1,8 +1,9 @@
 ---
 phase: 175-web-share-remote-viewer-windowing-bug-fixes
 verified: 2026-07-08T22:55:55Z
-status: human_needed
-score: 6/9 must-haves verified
+status: passed
+uat_resolution: "Canonicalized human_needed->passed 2026-07-09. Live UAT complete 2026-07-08 (see 175-UAT.md status=complete): M-48 PASS (mobile readability floor + h-scroll), M-49 PASS (disconnect banner on all 3 owner actions), M-51 PASS for all agent TUIs (Claude Code / Gemini CLI / OpenCode render clean on late-join after ring wrap). The one residual — macOS `top` header garble on late-join after ring wrap — was split to issue #130 (low priority; agents unaffected) and explicitly accepted by the user to pass Phase 175. No open blocking gaps."
+score: 6/9 must-haves verified (+ 3 human items resolved via live UAT; top-header edge case deferred to #130)
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:

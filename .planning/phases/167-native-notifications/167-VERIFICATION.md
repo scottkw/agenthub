@@ -1,8 +1,9 @@
 ---
 phase: 167-native-notifications
 verified: 2026-07-01T12:35:00Z
-status: human_needed
-score: 11/11 must-haves verified
+status: passed
+uat_resolution: "Canonicalized human_needed->passed 2026-07-09. The M-41 core path was verified live on a signed macOS build 2026-07-01 (see 167-UAT.md Tests 1-3 PASS: proactive notification authorization + native OS toast delivered with AgentHub BACKGROUNDED and FOREGROUND). Phase was closed-complete by user directive 2026-07-01 with the remaining items deferred to release-time as non-blocking: Windows/Linux beeep toast delivery (Tests 6-7, need those OSes), toggle-OFF suppression (Test 4), and the optional permission-denied hint (Test 5). Cross-platform delivery remains a tracked live-UAT deferral (M-41 win/linux)."
+score: 11/11 must-haves verified (macOS live M-41 confirmed; win/linux toast delivery deferred, non-blocking)
 behavior_unverified: 0
 overrides_applied: 0
 postverify_fix:
