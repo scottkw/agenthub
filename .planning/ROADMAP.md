@@ -743,7 +743,7 @@ Plans:
 **Goal:** Close the remaining cross-cutting platform and hardening bugs — the Linux GUI launches and renders, the `/app/` route carries a CSP header, and the Hub card mini-preview wraps long lines correctly.
 **Requirements**: BUG-05 (#124 — Linux GUI launches without the macOS-role-menu segfault and the webview renders with no DMABUF freeze; both fixable in `main.go`), BUG-06 (#123 — the `/app/` route serves a Content-Security-Policy header, currently none; carried over from the Phase 168-02 #123 follow-up), BUG-07 (#127 — Hub card mini-preview wraps long lines correctly instead of stacking one character per row / styled-tail preview wrapping)
 **Depends on:** None (independent of 174/175)
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 **Wave 1**
@@ -754,7 +754,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 176-04-PLAN.md — TESTING.md reconciliation: M-52/M-53 manual items + traceability rows + suite manifest [Wave 2]
+- [x] 176-04-PLAN.md — TESTING.md reconciliation: M-52/M-53 manual items + traceability rows + suite manifest [Wave 2]
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

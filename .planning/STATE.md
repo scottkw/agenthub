@@ -4,16 +4,16 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 176
 current_phase_name: platform-hardening-bug-fixes
-status: executing
-stopped_at: Completed 176-02-PLAN.md (BUG-06 /app/ CSP header)
-last_updated: "2026-07-09T13:35:43.203Z"
+status: verifying
+stopped_at: Completed 176-04-PLAN.md (TESTING.md reconciliation) -- all 4 plans of Phase 176 done, ready for phase verification
+last_updated: "2026-07-09T13:46:57.882Z"
 last_activity: 2026-07-09
 progress:
   total_phases: 12
-  completed_phases: 11
+  completed_phases: 12
   total_plans: 59
-  completed_plans: 58
-  percent: 92
+  completed_plans: 59
+  percent: 100
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 Phase: 176 (platform-hardening-bug-fixes) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 
 ### Roadmap Evolution
 
@@ -156,8 +156,8 @@ v4.2 Progress: [█████████████████░░░] 86
 
 ## Session Continuity
 
-Last session: 2026-07-09T13:34:43.470Z
-Stopped at: Completed 176-02-PLAN.md (BUG-06 /app/ CSP header)
+Last session: 2026-07-09T13:45:58.082Z
+Stopped at: Completed 176-04-PLAN.md (TESTING.md reconciliation) -- all 4 plans of Phase 176 done, ready for phase verification
 Resume file: 
 None
 
@@ -269,6 +269,7 @@ None
 | Phase 176 P01 | 3min | 2 tasks | 1 files |
 | Phase 176 P02 | 8min | 2 tasks | 2 files |
 | Phase 176 P03 | 14min | 2 tasks | 0 files |
+| Phase 176 P04 | 9min | 2 tasks | 1 files |
 
 ## Decisions
 
@@ -369,7 +370,10 @@ None
 - [Phase 176]: Phase 176-01: No Linux Edit submenu added (D-09) — deferred unless copy/paste verification proves broken
 - [Phase 176]: Phase 176-02: Reused ws.cspHeaders verbatim on /app/ (D-05) -- no new SPA-tailored CSP policy authored, no capability gate to nest inside so cspHeaders wraps the handler literal outermost
 - [Phase ?]: Phase 176-03: BUG-07 mini-preview live repro DOES-NOT-REPRODUCE -- BRANCH B taken, zero code change (D-04); GitHub #127 closure deferred to phase-level verification alongside sibling #124/#123
+- [Phase 176-04]: No BUG-07 Section 4 traceability row added -- 176-03 took BRANCH B (DOES-NOT-REPRODUCE, zero code change); closure justification lives in 176-03-SUMMARY.md evidence only
+- [Phase 176-04]: Suite Manifest note states counts unchanged (net +0 new test files) -- verified independently via scoped find commands, no invented bump
 
 ### Blockers
 
-- None. (Resolved 2026-07-08: Phase 174-02 Dependabot PRs #89/#106/#105 were closed by the orchestrator with explicit user authorization after the executor's permission classifier blocked them; all 10 Phase 174 Dependabot PRs are now CLOSED.)
+- (Resolved 2026-07-08: Phase 174-02 Dependabot PRs #89/#106/#105 were closed by the orchestrator with explicit user authorization after the executor's permission classifier blocked them; all 10 Phase 174 Dependabot PRs are now CLOSED.)
+- REQUIREMENTS.md was never extended to cover Phase 174-176 (BUG-01..07, DIST/DEP items) -- requirements.mark-complete reports BUG-05/06/07 not_found; flagged first in 176-01-SUMMARY.md, out of scope for the TESTING.md-only 176-04 plan; needs a dedicated docs pass before milestone closeout
