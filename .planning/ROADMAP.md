@@ -743,12 +743,12 @@ Plans:
 **Goal:** Close the remaining cross-cutting platform and hardening bugs — the Linux GUI launches and renders, the `/app/` route carries a CSP header, and the Hub card mini-preview wraps long lines correctly.
 **Requirements**: BUG-05 (#124 — Linux GUI launches without the macOS-role-menu segfault and the webview renders with no DMABUF freeze; both fixable in `main.go`), BUG-06 (#123 — the `/app/` route serves a Content-Security-Policy header, currently none; carried over from the Phase 168-02 #123 follow-up), BUG-07 (#127 — Hub card mini-preview wraps long lines correctly instead of stacking one character per row / styled-tail preview wrapping)
 **Depends on:** None (independent of 174/175)
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 176-01-PLAN.md — BUG-05 (#124): darwin-guard the role menus + Linux DMABUF env guard in main.go [Wave 1]
+- [x] 176-01-PLAN.md — BUG-05 (#124): darwin-guard the role menus + Linux DMABUF env guard in main.go [Wave 1]
 - [ ] 176-02-PLAN.md — BUG-06 (#123): wrap /app/ route in ws.cspHeaders + TestCSPHeaderStrict_App [Wave 1]
 - [ ] 176-03-PLAN.md — BUG-07 (#127): live-repro mini-preview first, then fix+test or close-as-already-fixed [Wave 1]
 

@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Funnel Sharing & Polish
-current_phase: 175
-current_phase_name: web-share-remote-viewer-windowing-bug-fixes
-status: verified
+current_phase: 176
+current_phase_name: platform-hardening-bug-fixes
+status: executing
 stopped_at: Phase 176 context gathered
-last_updated: "2026-07-09T12:54:52.189Z"
+last_updated: "2026-07-09T13:12:35.155Z"
 last_activity: 2026-07-09
 progress:
   total_phases: 12
   completed_phases: 11
-  total_plans: 55
-  completed_plans: 55
+  total_plans: 59
+  completed_plans: 56
   percent: 92
 ---
 
@@ -23,13 +23,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 175 — web-share-remote-viewer-windowing-bug-fixes
+**Current focus:** Phase 176 — platform-hardening-bug-fixes
 
 ## Current Position
 
-Phase: 175 (web-share-remote-viewer-windowing-bug-fixes) — VERIFIED (UAT PASSED 2026-07-08)
-Plan: 7 of 7
-Status: UAT 4/4 pass. M-51 passes for all agent TUIs; low-priority macOS `top` residual deferred to issue #130. Next = Phase 176.
+Phase: 176 (platform-hardening-bug-fixes) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
 
 ### Roadmap Evolution
 
@@ -156,7 +156,7 @@ v4.2 Progress: [█████████████████░░░] 86
 
 ## Session Continuity
 
-Last session: 2026-07-09T04:02:01.491Z
+Last session: 2026-07-09T13:12:35.145Z
 Stopped at: Phase 176 context gathered
 Resume file: .planning/phases/176-platform-hardening-bug-fixes/176-CONTEXT.md
 Next action: Phase 175 (web-share-remote-viewer-windowing-bug-fixes) plans 01-04 complete (01: BUG-03 live diagnosis — deadline not root cause; 02: RED test scaffolding for BUG-02/BUG-04; 03: BUG-01 web-share readability floor; 04: BUG-04 live per-hub VT emulator + reconnect preamble). Continue with 175-05 (BUG-03 fix, gated on the 175-01 live diagnosis), 175-06 (BUG-02 WS close-reason, unskips session_ended_test.go), 175-07 (final wave: TESTING.md reconciliation + new M-NN manual UAT items, including 175-04's deferred live two-client alt-screen reconnect UAT and the pre-existing Suite Manifest gap logged in 175's deferred-items.md). Deferred release-time UATs (Phase 167 M-41, Phase 166 M-37–M-40) are tracked in Deferred Items and run on signed production builds at release time.
@@ -266,6 +266,7 @@ Next action: Phase 175 (web-share-remote-viewer-windowing-bug-fixes) plans 01-04
 | Phase 175 P05 | 6min | 2 tasks | 1 files |
 | Phase 175 P06 | 11min | 2 tasks | 7 files |
 | Phase 175 P07 | 7min | 2 tasks | 2 files |
+| Phase 176 P01 | 3min | 2 tasks | 1 files |
 
 ## Decisions
 
@@ -362,6 +363,8 @@ Next action: Phase 175 (web-share-remote-viewer-windowing-bug-fixes) plans 01-04
 - [Phase 175]: Phase 175-06: Banner shown only on the guest path (isGuest = remote || !!wsURL); no auto-reconnect wired anywhere
 - [Phase ?]: [Phase 175-07]: Suite Manifest Go count corrected 376->139 (real find internal + repo-root count); stale 376 traced to leftover .claude/worktrees/agent-* duplicate checkouts inflating unscoped find sweeps
 - [Phase ?]: [Phase 175-07]: M-50 (BUG-03) written as a standing regression watch reflecting the 175-01 DISPROVED live-diagnosis verdict, not a fresh timed-repro checklist
+- [Phase 176]: Phase 176-01: Aliased stdlib runtime as goruntime rather than renaming the existing Wails runtime import, per plan D-08
+- [Phase 176]: Phase 176-01: No Linux Edit submenu added (D-09) — deferred unless copy/paste verification proves broken
 
 ### Blockers
 
