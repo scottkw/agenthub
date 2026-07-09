@@ -4,8 +4,8 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 176
 current_phase_name: platform-hardening-bug-fixes
-status: verifying
-stopped_at: Completed 176-04-PLAN.md (TESTING.md reconciliation) -- all 4 plans of Phase 176 done, ready for phase verification
+status: verified
+stopped_at: Phase 176 VERIFIED (code) — 7/10 must-haves confirmed; 3 opportunistic manual UAT items (M-52 Linux/Wayland GUI+DMABUF, M-53 prod /app/ CSP console sweep) deferred to release-time. Code review found+fixed 2 regressions (WR-01 Windows menu scope-creep, WR-02 /app/ hashed-asset no-store). v4.2 = all 12 phases code-complete.
 last_updated: "2026-07-09T13:46:57.882Z"
 last_activity: 2026-07-09
 progress:
@@ -27,9 +27,9 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 ## Current Position
 
-Phase: 176 (platform-hardening-bug-fixes) — EXECUTING
+Phase: 176 (platform-hardening-bug-fixes) — VERIFIED (code); human UAT pending on M-52/M-53 (deferred, release-time)
 Plan: 4 of 4
-Status: Phase complete — ready for verification
+Status: 4/4 plans done + code-verified 7/10 (3 opportunistic manual items deferred, non-blocking). BUG-05 (#124) main.go menu darwin→!linux guard + Linux DMABUF env guard; BUG-06 (#123) /app/ wrapped in cspHeaders; BUG-07 (#127) DOES-NOT-REPRODUCE (fixed by Phase 172, live-repro evidence). Code review fixed 2 regressions (89329c54): WR-01 Windows menu scope-creep (GOOS!=linux), WR-02 /app/ hashed-asset no-store caching + regression test. Full Go + vitest suites green; no cross-phase regressions. v4.2 = all 12 phases code-complete. NEXT: /gsd-verify-work 176 to record M-52/M-53, then ship v4.2.
 
 ### Roadmap Evolution
 
@@ -151,6 +151,9 @@ v4.2 Progress: [█████████████████░░░] 86
 | manual_uat | Phase 125 editor on-screen render + CodeMirror Tab/Cmd-V in WebView | pending (live app required) |
 | manual_uat | Phase 126 `$EDITOR` suspend-resume terminal restore | pending (live app required) |
 | manual_uat | Phase 124 home-dir warning banner on-screen | pending (live app required) |
+| manual_uat | **Phase 176 M-52** — Linux/Wayland GUI launch: no macOS-role-menu segfault, working menu bar, no DMABUF freeze on interaction (BUG-05 / #124) | deferred (opportunistic; needs a Linux/Wayland box — unautomatable on macOS dev) |
+| manual_uat | **Phase 176 M-53** — production `/app/` CSP console sweep: `wails build` + DevTools, no CSP violations on the guest SPA (BUG-06 / #123) | deferred (opportunistic; needs signed prod build + browser DevTools) |
+| docs_debt | **REQUIREMENTS.md never extended to Phases 174–176** (BUG-01..07) — `requirements.mark-complete` returns not_found; ROADMAP.md is the traceability source for these ad-hoc bug-fix phases (precedent 172/173) | pending (dedicated docs pass before milestone closeout) |
 | v4.3+ | web-plugin-hot-swap (#112 SKIPPED): web guests lost /api/plugin-config + SSE after Phase 159 redirect | FIX-01 in v4.2 Phase 168 addresses this |
 | v4.3+ | Device-share automation via Tailscale admin API (FUT-01) | Out of scope for v4.2 per Issue #107 |
 
