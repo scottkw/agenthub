@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -973,6 +974,55 @@ func (h *Hub) RenderSnapshot() []byte {
 		content = altScreenEnterSeq + content
 	}
 	return MakeOutputFrame([]byte(content))
+}
+
+// ReconnectPreamble returns the byte stream a newly-connecting client should
+// replay to catch up to the live session. It chooses between two strategies to
+// reconcile two previously-fixed bugs that are in tension:
+//
+//   - #109 ("Video issues on guest" — layout garble when host and guest screen
+//     sizes differ; fixed in Phase 157 by pushing the host grid then replaying
+//     the RAW byte history so the guest's xterm ends up byte-for-byte identical
+//     to the host TUI, letting live differential repaints apply cleanly).
+//   - BUG-04 / #119 Problem 2 (a blank/garbled reconnect when the raw 256 KiB
+//     scrollback ring has wrapped PAST a full-screen TUI's one-time ESC[?1049h
+//     alt-screen-enter marker, so raw replay paints alt-screen content into the
+//     wrong buffer).
+//
+// DEFAULT — byte-faithful RAW replay (restores #109). Used whenever raw replay
+// is sufficient: the session is NOT in the alternate screen, OR the
+// alt-screen-enter marker is still present in the ring.
+//
+// FALLBACK — the emulator-derived RenderSnapshot (prepends the mode marker).
+// Used ONLY when the emulator reports IsAltScreen() AND the raw ring no longer
+// contains altScreenEnterSeq (it wrapped past it). This is the rare long-running
+// full-screen-TUI late-reconnect case where raw replay would be blank/garbled;
+// the emulator snapshot is the lesser evil and the TUI's next full repaint
+// re-syncs the guest.
+//
+// Callers MUST call EnsureLiveEmulator first (so the fallback path has a current
+// emulator to render + IsAltScreen to consult). Returns nil when there is
+// nothing to replay, matching the pre-existing `len(snapshot) > 0` call-site
+// guard.
+func (h *Hub) ReconnectPreamble() []byte {
+	raw := h.ScrollbackSnapshot()
+
+	h.emuMu.Lock()
+	altScreen := h.liveEmu != nil && h.liveEmu.IsAltScreen()
+	h.emuMu.Unlock()
+
+	// Raw replay is byte-faithful and correct unless we are in the alternate
+	// screen AND the ring has wrapped past the mode-enter marker.
+	if !altScreen || bytes.Contains(raw, []byte(altScreenEnterSeq)) {
+		if len(raw) == 0 {
+			return nil
+		}
+		return raw
+	}
+
+	// Alt-screen and the ring wrapped past ESC[?1049h — raw replay would be
+	// broken; fall back to the emulator's reconstructed current screen.
+	return h.RenderSnapshot()
 }
 
 // Cols returns the current PTY column width as set by the host-authority resize

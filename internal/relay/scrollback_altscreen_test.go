@@ -31,6 +31,9 @@ import (
 	"bytes"
 	"io"
 	"testing"
+	"time"
+
+	"github.com/scottkw/agenthub/internal/testutil"
 )
 
 // altScreenEnter is the DEC private-mode sequence a full-screen TUI emits
@@ -112,6 +115,93 @@ func TestScrollbackAltScreenReplay(t *testing.T) {
 	if !bytes.Contains(reconnectPreamble, []byte("x")) {
 		t.Errorf("reconnect preamble does not contain current screen content (filler 'x'): %q",
 			reconnectPreamble)
+	}
+}
+
+// TestReconnectPreamble_RawWhenNotAltScreen is the #109 regression guard: a
+// normal (non-alt-screen) session must replay the BYTE-FAITHFUL raw scrollback,
+// not the emulator's re-rendered grid — the rendered grid desyncs the guest's
+// xterm from the host TUI and reintroduces the guest layout garble (#109).
+func TestReconnectPreamble_RawWhenNotAltScreen(t *testing.T) {
+	r, w := io.Pipe()
+	hub := NewHub("preamble-mainscreen-test", r, w, DefaultScrollbackBytes, nil)
+	done := make(chan struct{})
+	go func() { hub.Run(); close(done) }()
+	defer func() { _ = w.Close(); <-done }()
+
+	// Plain main-screen output with a distinctive escape sequence that would NOT
+	// survive an emulator render unchanged.
+	payload := []byte("\x1b[1mBold\x1b[0m normal line\r\n")
+	if _, err := w.Write(payload); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	testutil.WaitFor(t, 2*time.Second, func() bool { return len(hub.ScrollbackSnapshot()) > 0 }, "scrollback never populated")
+	hub.EnsureLiveEmulator()
+
+	if got, raw := hub.ReconnectPreamble(), hub.ScrollbackSnapshot(); !bytes.Equal(got, raw) {
+		t.Errorf("non-alt-screen must use byte-faithful raw replay (#109); got %q, want raw %q", got, raw)
+	}
+}
+
+// TestReconnectPreamble_RawWhileAltMarkerInRing: an alt-screen session whose
+// ESC[?1049h marker is STILL in the ring must ALSO use raw replay — raw is
+// byte-faithful and self-sufficient here, so #109 stays fixed.
+func TestReconnectPreamble_RawWhileAltMarkerInRing(t *testing.T) {
+	r, w := io.Pipe()
+	hub := NewHub("preamble-alt-marker-present-test", r, w, DefaultScrollbackBytes, nil)
+	done := make(chan struct{})
+	go func() { hub.Run(); close(done) }()
+	defer func() { _ = w.Close(); <-done }()
+
+	if _, err := w.Write([]byte(altScreenEnter + "alt content line\r\n")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	testutil.WaitFor(t, 2*time.Second, func() bool { return bytes.Contains(hub.ScrollbackSnapshot(), []byte(altScreenEnter)) }, "alt marker never appeared in ring")
+	hub.EnsureLiveEmulator()
+
+	raw := hub.ScrollbackSnapshot()
+	if !bytes.Contains(raw, []byte(altScreenEnter)) {
+		t.Fatalf("fixture invalid: marker already gone from ring")
+	}
+	if got := hub.ReconnectPreamble(); !bytes.Equal(got, raw) {
+		t.Errorf("alt-screen with marker still in ring must use raw replay (#109); got rendered grid instead")
+	}
+}
+
+// TestReconnectPreamble_EmulatorFallbackAfterWrap: only once the ring has
+// wrapped PAST the alt-screen-enter marker does the preamble fall back to the
+// emulator snapshot (BUG-04 #119 Problem 2) — the sole case where raw replay
+// would be blank/garbled.
+func TestReconnectPreamble_EmulatorFallbackAfterWrap(t *testing.T) {
+	r, w := io.Pipe()
+	hub := NewHub("preamble-alt-wrapped-test", r, w, DefaultScrollbackBytes, nil)
+	done := make(chan struct{})
+	go func() { hub.Run(); close(done) }()
+	defer func() { _ = w.Close(); <-done }()
+
+	pre := []byte(altScreenEnter + "alt-screen content line 1\r\n")
+	if _, err := w.Write(pre); err != nil {
+		t.Fatalf("write preamble: %v", err)
+	}
+	hub.EnsureLiveEmulator()
+
+	filler := bytes.Repeat([]byte("x"), 4*1024)
+	total := len(pre)
+	for total <= DefaultScrollbackBytes+len(pre) {
+		if _, err := w.Write(filler); err != nil {
+			t.Fatalf("write filler: %v", err)
+		}
+		total += len(filler)
+	}
+	testutil.WaitFor(t, 2*time.Second, func() bool { return !bytes.Contains(hub.ScrollbackSnapshot(), []byte(altScreenEnter)) }, "ring never wrapped past alt marker")
+
+	raw := hub.ScrollbackSnapshot()
+	got := hub.ReconnectPreamble()
+	if bytes.Equal(got, raw) {
+		t.Errorf("after ring wrapped past the alt marker, expected emulator fallback, got raw replay")
+	}
+	if !bytes.Contains(got, []byte(altScreenEnter)) {
+		t.Errorf("emulator fallback must reconstruct the alt-screen marker; got %q", got)
 	}
 }
 

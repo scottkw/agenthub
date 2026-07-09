@@ -308,18 +308,16 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Phase 175-04 (BUG-04, #119): emit an emulator-derived current-screen
-	// preamble instead of the raw scrollback snapshot — the raw 256 KiB ring
-	// may have wrapped past a full-screen TUI's one-time ESC[?1049h
-	// (alt-screen enter) sequence, leaving alt-screen CONTENT with no
-	// mode-switch marker, which xterm.js paints into the wrong buffer. The
-	// live per-hub emulator (continuously fed by Hub.Run) never loses this
-	// state to ring truncation. EnsureLiveEmulator is idempotent — a no-op
-	// after the first connection to this hub (in practice, this loopback
-	// path is typically that first connection: the desktop owner's own
-	// TerminalPanel/CLI attach).
+	// Phase 175 (BUG-04, #119): replay a catch-up preamble. ReconnectPreamble
+	// picks BYTE-FAITHFUL raw scrollback by default (keeps #109's guest-layout
+	// fix — the guest xterm stays in lockstep with the host TUI) and only falls
+	// back to the emulator-derived current-screen snapshot when the raw 256 KiB
+	// ring has actually wrapped past a full-screen TUI's one-time ESC[?1049h
+	// (alt-screen enter) marker, where raw replay would otherwise be
+	// blank/garbled. EnsureLiveEmulator (continuously fed by Hub.Run) keeps that
+	// fallback available and is idempotent — a no-op after the first connection.
 	hub.EnsureLiveEmulator()
-	if snapshot := hub.RenderSnapshot(); len(snapshot) > 0 {
+	if snapshot := hub.ReconnectPreamble(); len(snapshot) > 0 {
 		if err := conn.Write(ctx, websocket.MessageBinary, snapshot); err != nil {
 			return
 		}
