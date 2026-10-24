@@ -7,7 +7,7 @@ on:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -195,7 +195,8 @@ jobs:
 
   build-linux:
     needs: [validate]
-    runs-on: ubuntu-latest
+    # Pinned: building on a newer Ubuntu raises the glibc floor and breaks the 22.04/24.04 .deb
+    runs-on: ubuntu-24.04
     permissions:
       id-token: write          # attest-build-provenance OIDC signing
       attestations: write      # persist to GH attestations API
