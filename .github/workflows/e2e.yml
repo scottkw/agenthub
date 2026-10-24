@@ -16,7 +16,8 @@ on:
 
 jobs:
   playwright:
-    runs-on: ubuntu-latest
+    # ubuntu-latest moved to 26.04, which the pinned Playwright cannot install browsers on
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Checkout
