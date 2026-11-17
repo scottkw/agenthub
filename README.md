@@ -1,5 +1,12 @@
 # AgentHub
 
+> [!WARNING]
+> **This project is deprecated and no longer maintained.**
+>
+> AgentHub is being forked into a new project with a simpler purpose and UI. This repository will receive no further releases, bug fixes, security updates, or support. Issues and pull requests will not be reviewed.
+>
+> Existing releases remain available for reference, but use them at your own risk.
+
 <p align="center">
   <img src="docs/agenthub-title-logo.png" alt="AgentHub" width="400">
 </p>

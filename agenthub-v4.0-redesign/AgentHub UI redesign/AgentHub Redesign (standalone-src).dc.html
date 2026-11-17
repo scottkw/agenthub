@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<template id="__bundler_thumbnail" data-bg-color="#14151b">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#14151b"/>
+    <rect x="360" y="300" width="480" height="200" rx="56" fill="#7C8CFF"/>
+    <path d="M480 540 L600 280 L720 540" fill="none" stroke="#ffffff" stroke-width="46" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M535 440 H665" fill="none" stroke="#ffffff" stroke-width="46" stroke-linecap="round"/>
+  </svg>
+</template>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;background:#14151b;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;}
+  :root{--accent:#7C8CFF;--accent-soft:color-mix(in srgb,#7C8CFF 16%,transparent);}
+  @keyframes blink{50%{opacity:0;}}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+  *::-webkit-scrollbar{width:11px;height:11px;}
+  *::-webkit-scrollbar-thumb{background:rgba(255,255,255,.11);border-radius:7px;border:3px solid transparent;background-clip:content-box;}
+  *::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2);background-clip:content-box;}
+  *::-webkit-scrollbar-track{background:transparent;}
+</style>
+</helmet>
+<div style="--accent: {{ accent }};--accent-soft:color-mix(in srgb, var(--accent) 16%, transparent);width:100vw;height:100vh;display:flex;flex-direction:column;overflow:hidden;background:#14151b;color:#ECEDF2;font-family:'Plus Jakarta Sans',sans-serif;">
+
+  <!-- ===== TITLEBAR ===== -->
+  <div style="height:42px;flex:none;display:flex;align-items:center;padding:0 16px;background:#1a1c24;border-bottom:1px solid rgba(255,255,255,.06);position:relative;">
+    <div style="display:flex;gap:9px;">
+      <span style="width:12px;height:12px;border-radius:50%;background:#ff5f57;"></span>
+      <span style="width:12px;height:12px;border-radius:50%;background:#febc2e;"></span>
+      <span style="width:12px;height:12px;border-radius:50%;background:#28c840;"></span>
+    </div>
+    <div style="position:absolute;left:0;right:0;text-align:center;font:600 13px/1 'Plus Jakarta Sans',sans-serif;color:#8A8E9C;pointer-events:none;letter-spacing:.01em;">AgentHub</div>
+  </div>
+
+  <div style="flex:1;display:flex;min-height:0;">
+
+    <!-- ===== SIDEBAR ===== -->
+    <div style="width:236px;flex:none;background:#181a21;border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;padding:18px 13px 14px;">
+      <!-- brand -->
+      <div style="display:flex;align-items:center;gap:11px;padding:2px 8px 20px;">
+        <span style="width:32px;height:32px;border-radius:9px;background:linear-gradient(140deg,var(--accent),color-mix(in srgb,var(--accent) 55%,#000));display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px -6px var(--accent);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"><path d="M5 19 L12 4 L19 19"></path><path d="M8.2 13 H15.8"></path></svg>
+        </span>
+        <div>
+          <div style="font:700 16px/1 'Plus Jakarta Sans',sans-serif;color:#F4F5F8;letter-spacing:-.01em;">AgentHub</div>
+          <div style="font:500 10px/1 'JetBrains Mono',monospace;color:#5C6070;margin-top:3px;letter-spacing:.04em;">v3.5</div>
+        </div>
+      </div>
+
+      <!-- new session -->
+      <div onClick="{{ goSessions }}" style="display:flex;align-items:center;justify-content:center;gap:8px;height:40px;border-radius:11px;background:var(--accent);color:#fff;font:600 13.5px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;box-shadow:0 8px 20px -8px var(--accent);margin-bottom:20px;" style-hover="filter:brightness(1.08);">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        New Session
+      </div>
+
+      <!-- nav -->
+      <div onClick="{{ goHome }}" style="position:relative;display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:10px;cursor:pointer;color:#C2C5D2;font:600 13.5px/1 'Plus Jakarta Sans',sans-serif;" style-hover="background:rgba(255,255,255,.04);">
+        <sc-if value="{{ navHome }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;inset:0;background:var(--accent-soft);border-radius:10px;"></span><span style="position:absolute;left:0;top:9px;bottom:9px;width:3px;background:var(--accent);border-radius:0 3px 3px 0;"></span></sc-if>
+        <svg style="position:relative;z-index:1;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 L12 3 L21 10.5"></path><path d="M5 9.5 V20 a1 1 0 0 0 1 1 H18 a1 1 0 0 0 1-1 V9.5"></path></svg>
+        <span style="position:relative;z-index:1;">Home</span>
+      </div>
+      <div onClick="{{ goSessions }}" style="position:relative;display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:10px;cursor:pointer;color:#C2C5D2;font:600 13.5px/1 'Plus Jakarta Sans',sans-serif;" style-hover="background:rgba(255,255,255,.04);">
+        <sc-if value="{{ navSessions }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;inset:0;background:var(--accent-soft);border-radius:10px;"></span><span style="position:absolute;left:0;top:9px;bottom:9px;width:3px;background:var(--accent);border-radius:0 3px 3px 0;"></span></sc-if>
+        <svg style="position:relative;z-index:1;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="2"></rect><rect x="3" y="14" width="18" height="6" rx="2"></rect></svg>
+        <span style="position:relative;z-index:1;">Sessions</span>
+        <span style="position:relative;z-index:1;margin-left:auto;font:600 11px/1 'JetBrains Mono',monospace;color:#5C6070;">4</span>
+      </div>
+      <div onClick="{{ goRemote }}" style="position:relative;display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:10px;cursor:pointer;color:#C2C5D2;font:600 13.5px/1 'Plus Jakarta Sans',sans-serif;" style-hover="background:rgba(255,255,255,.04);">
+        <sc-if value="{{ navRemote }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;inset:0;background:var(--accent-soft);border-radius:10px;"></span><span style="position:absolute;left:0;top:9px;bottom:9px;width:3px;background:var(--accent);border-radius:0 3px 3px 0;"></span></sc-if>
+        <svg style="position:relative;z-index:1;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><line x1="3" y1="12" x2="21" y2="12"></line><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"></path></svg>
+        <span style="position:relative;z-index:1;">Remote</span>
+      </div>
+
+      <!-- active sessions -->
+      <div style="padding:22px 12px 9px;font:700 10px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:#54586A;text-transform:uppercase;">Active · 4</div>
+      <div onClick="{{ selClaude }}" style="position:relative;display:flex;align-items:center;gap:11px;height:38px;padding:0 11px;border-radius:9px;cursor:pointer;" style-hover="background:rgba(255,255,255,.04);">
+        <sc-if value="{{ rowClaude }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;inset:0;background:rgba(255,255,255,.05);border-radius:9px;"></span></sc-if>
+        <span style="position:relative;width:24px;height:24px;border-radius:7px;background:rgba(224,138,102,.16);color:#E8A688;font:600 9.5px/1 'JetBrains Mono',monospace;display:flex;align-items:center;justify-content:center;">CC</span>
+        <span style="position:relative;flex:1;font:600 13px/1 'Plus Jakarta Sans',sans-serif;color:#E2E4EC;">payments</span>
+        <span style="position:relative;width:8px;height:8px;border-radius:50%;background:#4ADE80;box-shadow:0 0 7px #4ADE80;"></span>
+      </div>
+      <div onClick="{{ selCodex }}" style="position:relative;display:flex;align-items:center;gap:11px;height:38px;padding:0 11px;border-radius:9px;cursor:pointer;" style-hover="background:rgba(255,255,255,.04);">
+        <sc-if value="{{ rowCodex }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;inset:0;background:rgba(255,255,255,.05);border-radius:9px;"></span></sc-if>
+        <span style="position:relative;width:24px;height:24px;border-radius:7px;background:rgba(45,212,167,.15);color:#43DDB2;font:600 9.5px/1 'JetBrains Mono',monospace;display:flex;align-items:center;justify-content:center;">CX</span>
+        <span style="position:relative;flex:1;font:600 13px/1 'Plus Jakarta Sans',sans-serif;color:#C9CCD8;">api</span>
+        <span style="position:relative;width:8px;height:8px;border-radius:50%;background:#4ADE80;box-shadow:0 0 7px #4ADE80;"></span>
+      </div>
+      <div onClick="{{ selGemini }}" style="position:relative;display:flex;align-items:center;gap:11px;height:38px;padding:0 11px;border-radius:9px;cursor:pointer;" style-hover="background:rgba(255,255,255,.04);">
+        <sc-if value="{{ rowGemini }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;inset:0;background:rgba(255,255,255,.05);border-radius:9px;"></span></sc-if>
+        <span style="position:relative;width:24px;height:24px;border-radius:7px;background:rgba(91,155,255,.16);color:#7BAEFF;font:600 9.5px/1 'JetBrains Mono',monospace;display:flex;align-items:center;justify-content:center;">GM</span>
+        <span style="position:relative;flex:1;font:600 13px/1 'Plus Jakarta Sans',sans-serif;color:#C9CCD8;">docs</span>
+        <span style="position:relative;width:8px;height:8px;border-radius:50%;background:#FBBF24;"></span>
+      </div>
+      <div onClick="{{ selOpencode }}" style="position:relative;display:flex;align-items:center;gap:11px;height:38px;padding:0 11px;border-radius:9px;cursor:pointer;" style-hover="background:rgba(255,255,255,.04);">
+        <sc-if value="{{ rowOpencode }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;inset:0;background:rgba(255,255,255,.05);border-radius:9px;"></span></sc-if>
+        <span style="position:relative;width:24px;height:24px;border-radius:7px;background:rgba(185,139,255,.16);color:#C4A2FF;font:600 9.5px/1 'JetBrains Mono',monospace;display:flex;align-items:center;justify-content:center;">OC</span>
+        <span style="position:relative;flex:1;font:600 13px/1 'Plus Jakarta Sans',sans-serif;color:#C9CCD8;">infra</span>
+        <span style="position:relative;width:8px;height:8px;border-radius:50%;background:#6B7280;"></span>
+      </div>
+
+      <!-- footer -->
+      <div style="margin-top:auto;display:flex;flex-direction:column;gap:4px;">
+        <div onClick="{{ goSettings }}" style="position:relative;display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:10px;cursor:pointer;color:#C2C5D2;font:600 13.5px/1 'Plus Jakarta Sans',sans-serif;" style-hover="background:rgba(255,255,255,.04);">
+          <sc-if value="{{ navSettings }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;inset:0;background:var(--accent-soft);border-radius:10px;"></span><span style="position:absolute;left:0;top:9px;bottom:9px;width:3px;background:var(--accent);border-radius:0 3px 3px 0;"></span></sc-if>
+          <svg style="position:relative;z-index:1;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 0 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 4.6 15H4a2 2 0 0 1 0-4h.1A1.6 1.6 0 0 0 5.7 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 10 4.6h.1A1.6 1.6 0 0 0 11 3.1V3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V7a1.6 1.6 0 0 0 1.5 1.1h.1a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.4.9z"></path></svg>
+          <span style="position:relative;z-index:1;">Settings</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:11px;padding:11px 12px 2px;margin-top:6px;border-top:1px solid rgba(255,255,255,.06);">
+          <span style="width:9px;height:9px;border-radius:50%;background:#4ADE80;box-shadow:0 0 8px #4ADE80;flex:none;"></span>
+          <div style="min-width:0;">
+            <div style="font:600 12px/1.25 'Plus Jakarta Sans',sans-serif;color:#C9CCD8;">scottkw-mbp</div>
+            <div style="font:500 10px/1.25 'JetBrains Mono',monospace;color:#54586A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">tailnet · connected</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MAIN ===== -->
+    <div style="flex:1;display:flex;flex-direction:column;min-width:0;position:relative;background:#14151b;">
+      <sc-if value="{{ glow }}" hint-placeholder-val="{{ true }}">
+        <div style="position:absolute;top:-160px;left:50%;transform:translateX(-50%);width:760px;height:420px;background:radial-gradient(ellipse at center,var(--accent-soft),transparent 68%);opacity:.5;pointer-events:none;z-index:0;"></div>
+      </sc-if>
+
+      <!-- ============ TERMINAL VIEW ============ -->
+      <sc-if value="{{ isTerminal }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;height:100%;position:relative;z-index:1;min-height:0;">
+          <!-- tab strip -->
+          <div style="height:46px;flex:none;display:flex;align-items:flex-end;gap:4px;padding:0 12px;background:#181a21;border-bottom:1px solid rgba(255,255,255,.06);">
+            <div onClick="{{ selClaude }}" style="position:relative;display:flex;align-items:center;gap:9px;padding:10px 15px;border-radius:10px 10px 0 0;cursor:pointer;font:600 12.5px/1 'Plus Jakarta Sans',sans-serif;">
+              <sc-if value="{{ aClaude }}" hint-placeholder-val="{{ true }}"><span style="position:absolute;inset:0;background:#14151b;border:1px solid rgba(255,255,255,.06);border-bottom:none;border-radius:10px 10px 0 0;"></span><span style="position:absolute;left:10px;right:10px;top:0;height:2.5px;background:var(--accent);border-radius:3px;"></span></sc-if>
+              <span style="position:relative;width:9px;height:9px;border-radius:50%;background:#E08A66;"></span>
+              <span style="position:relative;color:#E8EAF1;">claude 1</span>
+              <span style="position:relative;color:#5C6070;font-size:14px;">×</span>
+            </div>
+            <div onClick="{{ selCodex }}" style="position:relative;display:flex;align-items:center;gap:9px;padding:10px 15px;cursor:pointer;font:600 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#9398A8;" style-hover="color:#C9CCD8;">
+              <sc-if value="{{ aCodex }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;inset:0;background:#14151b;border:1px solid rgba(255,255,255,.06);border-bottom:none;border-radius:10px 10px 0 0;"></span><span style="position:absolute;left:10px;right:10px;top:0;height:2.5px;background:var(--accent);border-radius:3px;"></span></sc-if>
+              <span style="position:relative;width:9px;height:9px;border-radius:50%;background:#2DD4A7;"></span>
+              <span style="position:relative;">codex 2</span>
+              <span style="position:relative;color:#5C6070;font-size:14px;">×</span>
+            </div>
+            <div onClick="{{ selGemini }}" style="position:relative;display:flex;align-items:center;gap:9px;padding:10px 15px;cursor:pointer;font:600 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#9398A8;" style-hover="color:#C9CCD8;">
+              <sc-if value="{{ aGemini }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;inset:0;background:#14151b;border:1px solid rgba(255,255,255,.06);border-bottom:none;border-radius:10px 10px 0 0;"></span><span style="position:absolute;left:10px;right:10px;top:0;height:2.5px;background:var(--accent);border-radius:3px;"></span></sc-if>
+              <span style="position:relative;width:9px;height:9px;border-radius:50%;background:#5B9BFF;"></span>
+              <span style="position:relative;">gemini 3</span>
+              <span style="position:relative;color:#5C6070;font-size:14px;">×</span>
+            </div>
+            <div onClick="{{ selOpencode }}" style="position:relative;display:flex;align-items:center;gap:9px;padding:10px 15px;cursor:pointer;font:600 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#9398A8;" style-hover="color:#C9CCD8;">
+              <sc-if value="{{ aOpencode }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;inset:0;background:#14151b;border:1px solid rgba(255,255,255,.06);border-bottom:none;border-radius:10px 10px 0 0;"></span><span style="position:absolute;left:10px;right:10px;top:0;height:2.5px;background:var(--accent);border-radius:3px;"></span></sc-if>
+              <span style="position:relative;width:9px;height:9px;border-radius:50%;background:#B98BFF;"></span>
+              <span style="position:relative;">opencode 4</span>
+              <span style="position:relative;color:#5C6070;font-size:14px;">×</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;margin-bottom:6px;border-radius:8px;color:#7E8294;cursor:pointer;font-size:19px;" style-hover="background:rgba(255,255,255,.05);color:#C9CCD8;">+</div>
+          </div>
+
+          <!-- path bar -->
+          <div style="height:48px;flex:none;display:flex;align-items:center;gap:14px;padding:0 20px;background:#14151b;border-bottom:1px solid rgba(255,255,255,.05);">
+            <span style="font:500 12.5px/1 'JetBrains Mono',monospace;color:#7E8294;">{{ termPath }}</span>
+            <span style="font:500 12px/1 'JetBrains Mono',monospace;color:#54586A;">· {{ termAgent }}</span>
+            <span style="flex:1;"></span>
+            <div onClick="{{ goFiles }}" style="display:flex;align-items:center;gap:7px;padding:8px 13px;border-radius:9px;border:1px solid rgba(255,255,255,.1);color:#C2C5D2;font:600 12px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;" style-hover="background:rgba(255,255,255,.04);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+              Browse files
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:9px;background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.26);">
+              <span style="width:7px;height:7px;border-radius:50%;background:#4ADE80;box-shadow:0 0 6px #4ADE80;"></span>
+              <span style="font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#6FE6A0;">Shared</span>
+              <div style="display:flex;margin-left:3px;">
+                <span style="width:21px;height:21px;border-radius:50%;background:#5B9BFF;border:2px solid #14151b;font:600 9px/1 'Plus Jakarta Sans',sans-serif;color:#fff;display:flex;align-items:center;justify-content:center;">M</span>
+                <span style="width:21px;height:21px;border-radius:50%;background:#B98BFF;border:2px solid #14151b;margin-left:-7px;font:600 9px/1 'Plus Jakarta Sans',sans-serif;color:#fff;display:flex;align-items:center;justify-content:center;">P</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- terminal body -->
+          <div style="flex:1;background:#14151b;padding:20px 24px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px;line-height:1.7;color:#C7CAD6;overflow:auto;min-height:0;">
+            <sc-if value="{{ aClaude }}" hint-placeholder-val="{{ true }}">
+              <div>
+                <div style="color:#7E8294;">~/dev/payments</div>
+                <div style="margin-top:2px;"><span style="color:#4ADE80;">➜</span> <span style="color:#7BAEFF;">payments</span> claude</div>
+                <div style="display:inline-block;border:1px solid rgba(224,138,102,.55);border-radius:8px;padding:9px 15px;margin:13px 0;background:rgba(224,138,102,.06);">
+                  <div style="color:#F4F5F8;">✻ Welcome to <b style="color:#E8A688;">Claude Code</b> <span style="color:#7E8294;">(Opus 4.8 · 1M context)</span></div>
+                </div>
+                <div style="margin-top:4px;"><span style="color:#7E8294;">&gt;</span> <span style="color:#E8EAF1;">add idempotency keys to the charge endpoint</span></div>
+                <div style="margin-top:13px;"><span style="color:#E08A66;">●</span> <span style="color:#C7CAD6;">I'll add idempotency-key support so retried charges are safe.</span></div>
+                <div style="color:#4ADE80;padding-left:16px;">✓ read app/routers/charge.py</div>
+                <div style="color:#4ADE80;padding-left:16px;">✓ edit app/routers/charge.py <span style="color:#7E8294;">(+18 −2)</span></div>
+                <div style="color:#4ADE80;padding-left:16px;">✓ ran pytest tests/test_charge.py <span style="color:#4ADE80;">12 passed</span></div>
+                <div style="margin-top:13px;"><span style="color:#E08A66;">●</span> <span style="color:#C7CAD6;">Done — the endpoint now rejects duplicate Idempotency-Key values with 409.</span></div>
+                <div style="margin-top:15px;color:#7E8294;">⏎ to continue · /model · esc to interrupt</div>
+                <div style="margin-top:8px;"><span style="color:#7E8294;">&gt;</span> <span style="display:inline-block;width:8px;height:15px;background:var(--accent);vertical-align:middle;margin-left:2px;animation:blink 1.1s steps(1) infinite;"></span></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ aCodex }}" hint-placeholder-val="{{ false }}">
+              <div>
+                <div style="color:#7E8294;">~/dev/api</div>
+                <div style="margin-top:2px;"><span style="color:#4ADE80;">➜</span> <span style="color:#43DDB2;">api</span> codex</div>
+                <div style="margin:11px 0;color:#F4F5F8;"><b style="color:#43DDB2;">OpenAI Codex</b> <span style="color:#7E8294;">gpt-5.4 high</span></div>
+                <div style="margin-top:4px;"><span style="color:#7E8294;">&gt;</span> <span style="color:#E8EAF1;">refactor the rate limiter to a token bucket</span></div>
+                <div style="margin-top:13px;color:#FBBF24;">Planning</div>
+                <div style="padding-left:16px;color:#C7CAD6;">1. extract limiter into middleware/ratelimit.go</div>
+                <div style="padding-left:16px;color:#C7CAD6;">2. swap fixed-window for token bucket</div>
+                <div style="padding-left:16px;color:#C7CAD6;">3. add burst config + tests</div>
+                <div style="margin-top:12px;color:#4ADE80;">✓ middleware/ratelimit.go</div>
+                <div style="color:#4ADE80;">✓ middleware/ratelimit_test.go <span style="color:#7E8294;">ok 0.214s</span></div>
+                <div style="margin-top:13px;color:#C7CAD6;">Applied 2 files. Run the suite? <span style="color:#7E8294;">[y/N]</span></div>
+                <div style="margin-top:8px;"><span style="color:#7E8294;">&gt;</span> <span style="display:inline-block;width:8px;height:15px;background:var(--accent);vertical-align:middle;margin-left:2px;animation:blink 1.1s steps(1) infinite;"></span></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ aGemini }}" hint-placeholder-val="{{ false }}">
+              <div>
+                <div style="color:#7E8294;">~/dev/site</div>
+                <div style="margin-top:2px;"><span style="color:#4ADE80;">➜</span> <span style="color:#7BAEFF;">site</span> gemini</div>
+                <div style="margin:11px 0;color:#F4F5F8;"><b style="color:#7BAEFF;">Gemini CLI</b> <span style="color:#7E8294;">v0.41 · gemini-3-pro</span></div>
+                <div style="margin-top:4px;"><span style="color:#7E8294;">&gt;</span> <span style="color:#E8EAF1;">explain why the build is 40% slower since last week</span></div>
+                <div style="margin-top:13px;"><span style="color:#5B9BFF;">●</span> <span style="color:#C7CAD6;">Comparing the last two CI runs:</span></div>
+                <div style="padding-left:16px;color:#C7CAD6;">· source-map generation was enabled in vite.config.ts <span style="color:#7E8294;">(a4f1c2)</span></div>
+                <div style="padding-left:16px;color:#C7CAD6;">· node bumped 20.11 → 22.14 — cold cache on first run</div>
+                <div style="margin-top:13px;color:#C7CAD6;">Biggest win: set <b style="color:#7BAEFF;">build.sourcemap=false</b> for CI → ~28% faster.</div>
+                <div style="margin-top:15px;color:#7E8294;">using 1 context file (GEMINI.md)</div>
+                <div style="margin-top:8px;"><span style="color:#7E8294;">&gt;</span> <span style="display:inline-block;width:8px;height:15px;background:var(--accent);vertical-align:middle;margin-left:2px;animation:blink 1.1s steps(1) infinite;"></span></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ aOpencode }}" hint-placeholder-val="{{ false }}">
+              <div>
+                <div style="color:#7E8294;">~/dev/infra</div>
+                <div style="margin-top:2px;"><span style="color:#4ADE80;">➜</span> <span style="color:#C4A2FF;">infra</span> opencode</div>
+                <div style="margin:11px 0;color:#F4F5F8;"><b style="color:#C4A2FF;">opencode</b> <span style="color:#7E8294;">1.5.2 · Claude Opus 4.8 via OpenRouter</span></div>
+                <div style="margin-top:4px;"><span style="color:#7E8294;">&gt;</span> <span style="color:#E8EAF1;">write a terraform module for the new S3 bucket</span></div>
+                <div style="margin-top:13px;"><span style="color:#B98BFF;">●</span> <span style="color:#C7CAD6;">Created modules/s3-assets/</span></div>
+                <div style="padding-left:16px;color:#4ADE80;">+ main.tf <span style="color:#7E8294;">bucket, versioning, SSE-KMS</span></div>
+                <div style="padding-left:16px;color:#4ADE80;">+ variables.tf <span style="color:#7E8294;">name, tags, lifecycle_days</span></div>
+                <div style="padding-left:16px;color:#4ADE80;">+ outputs.tf <span style="color:#7E8294;">arn, bucket_domain_name</span></div>
+                <div style="margin-top:13px;"><span style="color:#B98BFF;">●</span> <span style="color:#C7CAD6;">terraform validate → <b style="color:#4ADE80;">Success!</b> The configuration is valid.</span></div>
+                <div style="margin-top:15px;color:#7E8294;">tab to accept · ctrl+. for commands</div>
+                <div style="margin-top:8px;"><span style="color:#7E8294;">&gt;</span> <span style="display:inline-block;width:8px;height:15px;background:var(--accent);vertical-align:middle;margin-left:2px;animation:blink 1.1s steps(1) infinite;"></span></div>
+              </div>
+            </sc-if>
+          </div>
+
+          <!-- status footer -->
+          <div style="height:34px;flex:none;display:flex;align-items:center;gap:16px;padding:0 20px;background:#181a21;border-top:1px solid rgba(255,255,255,.06);font:600 11px/1 'JetBrains Mono',monospace;color:#7E8294;">
+            <span style="display:flex;align-items:center;gap:7px;color:#6FE6A0;"><span style="width:7px;height:7px;border-radius:50%;background:#4ADE80;box-shadow:0 0 6px #4ADE80;"></span>WEB ON</span>
+            <span style="color:#54586A;">Share links live on the Sessions tab</span>
+            <span style="flex:1;"></span>
+            <span>{{ termAgent }}</span>
+            <span style="color:#54586A;">·</span>
+            <span>2 viewers</span>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ WELCOME ============ -->
+      <sc-if value="{{ isWelcome }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;position:relative;z-index:1;overflow:auto;">
+          <div style="width:100%;max-width:540px;">
+            <div style="display:flex;align-items:center;gap:14px;justify-content:center;margin-bottom:10px;">
+              <span style="width:52px;height:52px;border-radius:14px;background:linear-gradient(140deg,var(--accent),color-mix(in srgb,var(--accent) 55%,#000));display:flex;align-items:center;justify-content:center;box-shadow:0 12px 30px -8px var(--accent);">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"><path d="M5 19 L12 4 L19 19"></path><path d="M8.2 13 H15.8"></path></svg>
+              </span>
+              <span style="font:700 30px/1 'Plus Jakarta Sans',sans-serif;color:#F4F5F8;letter-spacing:-.02em;">AgentHub</span>
+            </div>
+            <div style="text-align:center;font:600 14px/1.4 'Plus Jakarta Sans',sans-serif;color:#9398A8;margin-bottom:4px;">AI Coding Session Manager</div>
+            <div style="text-align:center;font:500 12px/1 'JetBrains Mono',monospace;color:#54586A;margin-bottom:38px;">v3.5</div>
+
+            <div style="font:700 10.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:#54586A;text-transform:uppercase;margin-bottom:12px;">Get started</div>
+            <p style="margin:0 0 30px;font:500 14px/1.65 'Plus Jakarta Sans',sans-serif;color:#B7BAC8;">Click <span onClick="{{ selClaude }}" style="color:var(--accent);cursor:pointer;font-weight:600;">+ New Session</span> to spin up any detected AI coding CLI — Claude Code, Codex, Gemini, or OpenCode — then share it across your tailnet in one click.</p>
+
+            <div style="font:700 10.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:#54586A;text-transform:uppercase;margin-bottom:13px;">Installation</div>
+            <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:30px;">
+              <div style="display:flex;align-items:center;gap:14px;background:#1d1f29;border:1px solid rgba(255,255,255,.07);border-radius:11px;padding:13px 16px;">
+                <span style="width:62px;flex:none;font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:var(--accent);">macOS</span>
+                <span style="font:500 12.5px/1 'JetBrains Mono',monospace;color:#C7CAD6;">brew install --cask agenthub</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;background:#1d1f29;border:1px solid rgba(255,255,255,.07);border-radius:11px;padding:13px 16px;">
+                <span style="width:62px;flex:none;font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:var(--accent);">Linux</span>
+                <span style="font:500 12.5px/1 'JetBrains Mono',monospace;color:#C7CAD6;">curl -fsSL https://agenthub.dev/install.sh | sh</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;background:#1d1f29;border:1px solid rgba(255,255,255,.07);border-radius:11px;padding:13px 16px;">
+                <span style="width:62px;flex:none;font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:var(--accent);">Windows</span>
+                <span style="font:500 12.5px/1 'JetBrains Mono',monospace;color:#C7CAD6;">winget install agenthub</span>
+              </div>
+            </div>
+
+            <div style="font:700 10.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:#54586A;text-transform:uppercase;margin-bottom:11px;">Links</div>
+            <a href="#" style="font:600 13px/1 'Plus Jakarta Sans',sans-serif;color:var(--accent);text-decoration:none;">github.com/scottkw/agenthub</a>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ SESSIONS MANAGER ============ -->
+      <sc-if value="{{ isSessions }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;overflow:auto;padding:30px 34px;position:relative;z-index:1;min-height:0;">
+          <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:24px;">
+            <h1 style="margin:0;font:700 23px/1 'Plus Jakarta Sans',sans-serif;color:#F4F5F8;letter-spacing:-.02em;">Sessions</h1>
+            <span style="font:600 13px/1 'Plus Jakarta Sans',sans-serif;color:#7E8294;">4 active</span>
+            <span style="flex:1;"></span>
+            <div onClick="{{ selClaude }}" style="display:flex;align-items:center;gap:8px;padding:9px 15px;border-radius:10px;background:var(--accent);color:#fff;font:600 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;box-shadow:0 8px 20px -8px var(--accent);">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              New Session
+            </div>
+          </div>
+
+          <!-- session card 1 -->
+          <div style="background:#1c1e28;border:1px solid rgba(255,255,255,.07);border-radius:15px;padding:20px 22px;margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:11px;margin-bottom:18px;">
+              <span style="width:9px;height:9px;border-radius:50%;background:#E08A66;"></span>
+              <span style="font:700 15px/1 'Plus Jakarta Sans',sans-serif;color:#F4F5F8;">claude 1</span>
+              <span style="font:600 10.5px/1 'JetBrains Mono',monospace;color:#E8A688;background:rgba(224,138,102,.14);border-radius:6px;padding:5px 9px;">claude-code</span>
+              <span style="font:600 10.5px/1 'JetBrains Mono',monospace;color:#9398A8;background:rgba(255,255,255,.06);border-radius:6px;padding:5px 9px;">demo-mac</span>
+              <span style="flex:1;"></span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:9px;background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.26);font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#6FE6A0;cursor:pointer;"><span style="width:6px;height:6px;border-radius:50%;background:#4ADE80;"></span>Web on</div>
+                <div onClick="{{ goFiles }}" style="padding:7px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.11);font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#C2C5D2;cursor:pointer;" style-hover="background:rgba(255,255,255,.04);">Browse files</div>
+                <div style="padding:7px 12px;border-radius:9px;border:1px solid rgba(248,113,113,.3);font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#F19090;cursor:pointer;" style-hover="background:rgba(248,113,113,.1);">Kill</div>
+              </div>
+            </div>
+            <!-- toggles -->
+            <div style="display:flex;gap:14px;">
+              <div style="flex:1;display:flex;align-items:flex-start;gap:12px;background:#16181f;border:1px solid rgba(255,255,255,.06);border-radius:11px;padding:14px;">
+                <div style="width:38px;height:22px;border-radius:999px;background:rgba(255,255,255,.1);position:relative;flex:none;margin-top:1px;"><span style="position:absolute;left:2px;top:2px;width:18px;height:18px;border-radius:50%;background:#6E7180;"></span></div>
+                <div><div style="font:600 12.5px/1.2 'Plus Jakarta Sans',sans-serif;color:#E2E4EC;margin-bottom:5px;">Enable file writes</div><div style="font:500 11.5px/1.5 'Plus Jakarta Sans',sans-serif;color:#7E8294;">Let viewers create, edit, delete, rename and upload files in the working directory. Off by default.</div></div>
+              </div>
+              <div style="flex:1;display:flex;align-items:flex-start;gap:12px;background:#16181f;border:1px solid rgba(255,255,255,.06);border-radius:11px;padding:14px;">
+                <div style="width:38px;height:22px;border-radius:999px;background:rgba(255,255,255,.1);position:relative;flex:none;margin-top:1px;"><span style="position:absolute;left:2px;top:2px;width:18px;height:18px;border-radius:50%;background:#6E7180;"></span></div>
+                <div><div style="font:600 12.5px/1.2 'Plus Jakarta Sans',sans-serif;color:#E2E4EC;margin-bottom:5px;">Allow file editing</div><div style="font:500 11.5px/1.5 'Plus Jakarta Sans',sans-serif;color:#7E8294;">Full control of the live session plus file browsing. Requires file writes enabled.</div></div>
+              </div>
+            </div>
+            <!-- read-only link -->
+            <div style="display:flex;align-items:center;gap:13px;margin-top:14px;padding:13px 15px;background:#16181f;border:1px solid rgba(255,255,255,.06);border-radius:11px;">
+              <span style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#9398A8;flex:none;">Read-only link</span>
+              <span style="flex:1;font:500 11.5px/1 'JetBrains Mono',monospace;color:#C7CAD6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">https://demo-mac.tailnet.ts.net:7443/s/s17?cap=READCAP</span>
+              <div style="display:flex;gap:7px;flex:none;">
+                <div style="padding:6px 11px;border-radius:8px;background:var(--accent-soft);color:var(--accent);font:600 11px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;">Copy</div>
+                <div style="padding:6px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.11);color:#C2C5D2;font:600 11px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;">Open</div>
+                <div style="padding:6px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.11);color:#C2C5D2;font:600 11px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;">QR</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- session card 2 -->
+          <div style="background:#1c1e28;border:1px solid rgba(255,255,255,.07);border-radius:15px;padding:20px 22px;margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:11px;">
+              <span style="width:9px;height:9px;border-radius:50%;background:#2DD4A7;"></span>
+              <span style="font:700 15px/1 'Plus Jakarta Sans',sans-serif;color:#F4F5F8;">codex 2</span>
+              <span style="font:600 10.5px/1 'JetBrains Mono',monospace;color:#43DDB2;background:rgba(45,212,167,.13);border-radius:6px;padding:5px 9px;">codex</span>
+              <span style="font:600 10.5px/1 'JetBrains Mono',monospace;color:#9398A8;background:rgba(255,255,255,.06);border-radius:6px;padding:5px 9px;">demo-mac</span>
+              <span style="flex:1;"></span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.11);font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#9398A8;cursor:pointer;"><span style="width:6px;height:6px;border-radius:50%;background:#6B7280;"></span>Web off</div>
+                <div onClick="{{ goFiles }}" style="padding:7px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.11);font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#C2C5D2;cursor:pointer;" style-hover="background:rgba(255,255,255,.04);">Browse files</div>
+                <div style="padding:7px 12px;border-radius:9px;border:1px solid rgba(248,113,113,.3);font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#F19090;cursor:pointer;" style-hover="background:rgba(248,113,113,.1);">Kill</div>
+              </div>
+            </div>
+            <div style="margin-top:14px;font:500 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#7E8294;">Web sharing is off. Turn it on to generate a read-only or full-access link for this session.</div>
+          </div>
+
+          <!-- session card 3 (compact) -->
+          <div style="background:#1c1e28;border:1px solid rgba(255,255,255,.07);border-radius:15px;padding:20px 22px;">
+            <div style="display:flex;align-items:center;gap:11px;">
+              <span style="width:9px;height:9px;border-radius:50%;background:#FBBF24;"></span>
+              <span style="font:700 15px/1 'Plus Jakarta Sans',sans-serif;color:#F4F5F8;">gemini 3</span>
+              <span style="font:600 10.5px/1 'JetBrains Mono',monospace;color:#7BAEFF;background:rgba(91,155,255,.14);border-radius:6px;padding:5px 9px;">gemini</span>
+              <span style="font:600 10.5px/1 'JetBrains Mono',monospace;color:#FBBF24;background:rgba(251,191,36,.13);border-radius:6px;padding:5px 9px;">idle 6m</span>
+              <span style="flex:1;"></span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:9px;background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.26);font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#6FE6A0;cursor:pointer;"><span style="width:6px;height:6px;border-radius:50%;background:#4ADE80;"></span>Web on</div>
+                <div onClick="{{ goFiles }}" style="padding:7px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.11);font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#C2C5D2;cursor:pointer;" style-hover="background:rgba(255,255,255,.04);">Browse files</div>
+                <div style="padding:7px 12px;border-radius:9px;border:1px solid rgba(248,113,113,.3);font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#F19090;cursor:pointer;" style-hover="background:rgba(248,113,113,.1);">Kill</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ REMOTE ============ -->
+      <sc-if value="{{ isRemote }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;overflow:auto;padding:30px 34px;position:relative;z-index:1;min-height:0;">
+          <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:24px;">
+            <h1 style="margin:0;font:700 23px/1 'Plus Jakarta Sans',sans-serif;color:#F4F5F8;letter-spacing:-.02em;">Remote peers</h1>
+            <span style="font:600 13px/1 'Plus Jakarta Sans',sans-serif;color:#7E8294;">tailnet · 2 online</span>
+            <span style="flex:1;"></span>
+            <div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.11);font:600 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#C2C5D2;cursor:pointer;" style-hover="background:rgba(255,255,255,.04);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"></path><polyline points="21 4 21 9 16 9"></polyline></svg>
+              Rescan
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <!-- peer 1 -->
+            <div style="background:#1c1e28;border:1px solid rgba(255,255,255,.07);border-radius:15px;padding:20px;">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                <span style="width:38px;height:38px;border-radius:11px;background:rgba(91,155,255,.14);display:flex;align-items:center;justify-content:center;color:#7BAEFF;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></span>
+                <div style="flex:1;"><div style="font:700 14.5px/1.2 'Plus Jakarta Sans',sans-serif;color:#F4F5F8;">kw-laptop</div><div style="font:500 11px/1 'JetBrains Mono',monospace;color:#7E8294;margin-top:4px;">100.84.12.4 · laptop.ts.net</div></div>
+                <span style="display:flex;align-items:center;gap:6px;font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#6FE6A0;"><span style="width:8px;height:8px;border-radius:50%;background:#4ADE80;box-shadow:0 0 7px #4ADE80;"></span>online</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border-radius:10px;background:#16181f;border:1px solid rgba(255,255,255,.06);">
+                <div style="display:flex;align-items:center;gap:9px;"><span style="width:20px;height:20px;border-radius:6px;background:rgba(185,139,255,.16);color:#C4A2FF;font:600 8.5px/1 'JetBrains Mono',monospace;display:flex;align-items:center;justify-content:center;">OC</span><span style="font:600 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#E2E4EC;">infra</span><span style="font:500 11px/1 'JetBrains Mono',monospace;color:#7E8294;">opencode</span></div>
+                <div onClick="{{ selOpencode }}" style="padding:6px 12px;border-radius:8px;background:var(--accent);color:#fff;font:600 11px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;">Attach</div>
+              </div>
+            </div>
+            <!-- peer 2 -->
+            <div style="background:#1c1e28;border:1px solid rgba(255,255,255,.07);border-radius:15px;padding:20px;">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                <span style="width:38px;height:38px;border-radius:11px;background:rgba(45,212,167,.13);display:flex;align-items:center;justify-content:center;color:#43DDB2;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="3"></rect><line x1="10" y1="18" x2="14" y2="18"></line></svg></span>
+                <div style="flex:1;"><div style="font:700 14.5px/1.2 'Plus Jakarta Sans',sans-serif;color:#F4F5F8;">studio-mini</div><div style="font:500 11px/1 'JetBrains Mono',monospace;color:#7E8294;margin-top:4px;">100.91.4.18 · mini.ts.net</div></div>
+                <span style="display:flex;align-items:center;gap:6px;font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#6FE6A0;"><span style="width:8px;height:8px;border-radius:50%;background:#4ADE80;box-shadow:0 0 7px #4ADE80;"></span>online</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:center;padding:16px;border-radius:10px;background:#16181f;border:1px dashed rgba(255,255,255,.1);font:500 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#7E8294;">No shared sessions</div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ SETTINGS ============ -->
+      <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;display:flex;flex-direction:column;position:relative;z-index:1;min-height:0;">
+          <!-- subtabs -->
+          <div style="height:50px;flex:none;display:flex;align-items:center;gap:6px;padding:0 28px;background:#181a21;border-bottom:1px solid rgba(255,255,255,.06);">
+            <span style="position:relative;padding:8px 13px;border-radius:9px;background:var(--accent-soft);color:var(--accent);font:600 12.5px/1 'Plus Jakarta Sans',sans-serif;">Behavior</span>
+            <span style="padding:8px 13px;font:600 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#9398A8;cursor:pointer;">Appearance</span>
+            <span style="padding:8px 13px;font:600 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#9398A8;cursor:pointer;">Web server</span>
+            <span style="padding:8px 13px;font:600 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#9398A8;cursor:pointer;">Security</span>
+            <span style="padding:8px 13px;font:600 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#9398A8;cursor:pointer;">Plugins</span>
+            <span style="padding:8px 13px;font:600 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#9398A8;cursor:pointer;">Paths</span>
+          </div>
+          <div style="flex:1;overflow:auto;padding:26px 34px;min-height:0;">
+            <div style="max-width:680px;">
+              <div style="display:flex;align-items:center;gap:11px;background:#1c1e28;border:1px solid rgba(255,255,255,.07);border-radius:11px;padding:11px 14px;margin-bottom:26px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6E7180" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.5" y2="16.5"></line></svg>
+                <span style="font:500 13px/1 'Plus Jakarta Sans',sans-serif;color:#6E7180;">Search settings…</span>
+              </div>
+
+              <div style="font:700 10.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:#54586A;text-transform:uppercase;margin-bottom:14px;">General</div>
+              <div style="display:flex;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.06);">
+                <div style="flex:1;"><div style="font:600 13.5px/1.2 'Plus Jakarta Sans',sans-serif;color:#E2E4EC;margin-bottom:5px;">Start minimized to system tray</div><div style="font:500 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#7E8294;">Launch with the window hidden. Click the tray icon to open it.</div></div>
+                <div style="width:42px;height:24px;border-radius:999px;background:rgba(255,255,255,.1);position:relative;flex:none;"><span style="position:absolute;left:2px;top:2px;width:20px;height:20px;border-radius:50%;background:#6E7180;"></span></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.06);">
+                <div style="flex:1;"><div style="font:600 13.5px/1.2 'Plus Jakarta Sans',sans-serif;color:#E2E4EC;margin-bottom:5px;">Auto-close tab on exit</div><div style="font:500 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#7E8294;">Close the tab 5 seconds after an agent exits with code 0.</div></div>
+                <div style="width:42px;height:24px;border-radius:999px;background:var(--accent);position:relative;flex:none;"><span style="position:absolute;right:2px;top:2px;width:20px;height:20px;border-radius:50%;background:#fff;"></span></div>
+              </div>
+
+              <div style="font:700 10.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:#54586A;text-transform:uppercase;margin:30px 0 14px;">Appearance</div>
+              <div style="padding:16px 0;border-bottom:1px solid rgba(255,255,255,.06);">
+                <div style="font:600 13.5px/1.2 'Plus Jakarta Sans',sans-serif;color:#E2E4EC;margin-bottom:11px;">Terminal theme</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;width:280px;padding:11px 14px;border-radius:10px;background:#16181f;border:1px solid rgba(255,255,255,.1);font:500 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#C7CAD6;cursor:pointer;">Tomorrow Night <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7E8294" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></div>
+                <div style="margin-top:9px;font:500 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#7E8294;">Applies to sessions created after the change.</div>
+              </div>
+
+              <div style="font:700 10.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:#54586A;text-transform:uppercase;margin:30px 0 14px;">Web server</div>
+              <div style="background:#1c1e28;border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:18px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                  <span style="width:9px;height:9px;border-radius:50%;background:#4ADE80;box-shadow:0 0 7px #4ADE80;"></span>
+                  <span style="font:600 13px/1 'Plus Jakarta Sans',sans-serif;color:#E2E4EC;">Tailscale connected</span>
+                </div>
+                <div style="font:500 12px/1 'JetBrains Mono',monospace;color:#7E8294;margin-bottom:14px;padding-left:19px;">demo-mac.tailnet.ts.net</div>
+                <div style="display:flex;gap:11px;padding:13px;border-radius:10px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"></path></svg>
+                  <div style="font:500 11.5px/1.55 'Plus Jakarta Sans',sans-serif;color:#C2C5D2;"><b style="color:#E9C97A;">Certificate Transparency.</b> Starting the web server provisions a Let's Encrypt cert; your hostname will be permanently visible in public CT logs. Normal and expected.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ FILE BROWSER ============ -->
+      <sc-if value="{{ isFiles }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;height:100%;position:relative;z-index:1;min-height:0;">
+          <div style="height:48px;flex:none;display:flex;align-items:center;gap:13px;padding:0 20px;background:#181a21;border-bottom:1px solid rgba(255,255,255,.06);">
+            <div onClick="{{ selClaude }}" style="display:flex;align-items:center;gap:8px;font:600 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#C2C5D2;cursor:pointer;" style-hover="color:#E8EAF1;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              payments
+            </div>
+            <span style="color:#3C404E;">/</span>
+            <span style="font:600 12.5px/1 'JetBrains Mono',monospace;color:#7E8294;">session/</span>
+            <span style="flex:1;"></span>
+            <span style="font:500 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#7E8294;">8 items</span>
+          </div>
+          <div style="flex:1;display:flex;min-height:0;">
+            <!-- file list -->
+            <div style="width:420px;flex:none;border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;background:#16181f;">
+              <div style="display:flex;align-items:center;padding:11px 18px;font:700 10px/1 'JetBrains Mono',monospace;letter-spacing:.1em;color:#54586A;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.05);">
+                <span style="flex:1;">Name</span><span style="width:70px;text-align:right;">Size</span><span style="width:100px;text-align:right;">Modified</span>
+              </div>
+              <div style="flex:1;overflow:auto;padding:6px 8px;">
+                <div style="display:flex;align-items:center;padding:8px 10px;border-radius:8px;cursor:pointer;" style-hover="background:rgba(255,255,255,.04);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7BAEFF" stroke-width="2" style="margin-right:10px;"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg><span style="flex:1;font:600 12.5px/1 'JetBrains Mono',monospace;color:#D6D9E3;">emptydir</span><span style="width:70px;text-align:right;font:500 11px/1 'JetBrains Mono',monospace;color:#7E8294;">—</span><span style="width:100px;text-align:right;font:500 11px/1 'JetBrains Mono',monospace;color:#7E8294;">06-15</span></div>
+                <div style="display:flex;align-items:center;padding:8px 10px;border-radius:8px;cursor:pointer;" style-hover="background:rgba(255,255,255,.04);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7BAEFF" stroke-width="2" style="margin-right:10px;"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg><span style="flex:1;font:600 12.5px/1 'JetBrains Mono',monospace;color:#D6D9E3;">subdir</span><span style="width:70px;text-align:right;font:500 11px/1 'JetBrains Mono',monospace;color:#7E8294;">—</span><span style="width:100px;text-align:right;font:500 11px/1 'JetBrains Mono',monospace;color:#7E8294;">06-15</span></div>
+                <div style="display:flex;align-items:center;padding:8px 10px;border-radius:8px;cursor:pointer;" style-hover="background:rgba(255,255,255,.04);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7E8294" stroke-width="2" style="margin-right:10px;"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><polyline points="14 3 14 8 19 8"></polyline></svg><span style="flex:1;font:600 12.5px/1 'JetBrains Mono',monospace;color:#D6D9E3;">binary.bin</span><span style="width:70px;text-align:right;font:500 11px/1 'JetBrains Mono',monospace;color:#7E8294;">64 B</span><span style="width:100px;text-align:right;font:500 11px/1 'JetBrains Mono',monospace;color:#7E8294;">06-15</span></div>
+                <div style="display:flex;align-items:center;padding:8px 10px;border-radius:8px;cursor:pointer;" style-hover="background:rgba(255,255,255,.04);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7E8294" stroke-width="2" style="margin-right:10px;"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><polyline points="14 3 14 8 19 8"></polyline></svg><span style="flex:1;font:600 12.5px/1 'JetBrains Mono',monospace;color:#D6D9E3;">hello.txt</span><span style="width:70px;text-align:right;font:500 11px/1 'JetBrains Mono',monospace;color:#7E8294;">14 B</span><span style="width:100px;text-align:right;font:500 11px/1 'JetBrains Mono',monospace;color:#7E8294;">06-15</span></div>
+                <div style="display:flex;align-items:center;padding:8px 10px;border-radius:8px;cursor:pointer;" style-hover="background:rgba(255,255,255,.04);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#43DDB2" stroke-width="2" style="margin-right:10px;"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-5-5L5 21"></path></svg><span style="flex:1;font:600 12.5px/1 'JetBrains Mono',monospace;color:#D6D9E3;">image.png</span><span style="width:70px;text-align:right;font:500 11px/1 'JetBrains Mono',monospace;color:#7E8294;">67 B</span><span style="width:100px;text-align:right;font:500 11px/1 'JetBrains Mono',monospace;color:#7E8294;">06-15</span></div>
+                <div style="display:flex;align-items:center;padding:8px 10px;border-radius:8px;cursor:pointer;" style-hover="background:rgba(255,255,255,.04);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7E8294" stroke-width="2" style="margin-right:10px;"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><polyline points="14 3 14 8 19 8"></polyline></svg><span style="flex:1;font:600 12.5px/1 'JetBrains Mono',monospace;color:#D6D9E3;">large.txt</span><span style="width:70px;text-align:right;font:500 11px/1 'JetBrains Mono',monospace;color:#7E8294;">5.0 MB</span><span style="width:100px;text-align:right;font:500 11px/1 'JetBrains Mono',monospace;color:#7E8294;">06-15</span></div>
+                <div style="position:relative;display:flex;align-items:center;padding:8px 10px;border-radius:8px;cursor:pointer;"><span style="position:absolute;inset:0;background:var(--accent-soft);border-radius:8px;"></span><span style="position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0;"></span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" style="margin-right:10px;position:relative;"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><polyline points="14 3 14 8 19 8"></polyline></svg><span style="position:relative;flex:1;font:600 12.5px/1 'JetBrains Mono',monospace;color:#F4F5F8;">notes.md</span><span style="position:relative;width:70px;text-align:right;font:500 11px/1 'JetBrains Mono',monospace;color:#9398A8;">209 B</span><span style="position:relative;width:100px;text-align:right;font:500 11px/1 'JetBrains Mono',monospace;color:#9398A8;">06-15</span></div>
+              </div>
+            </div>
+            <!-- preview/editor -->
+            <div style="flex:1;display:flex;flex-direction:column;min-width:0;background:#14151b;">
+              <div style="display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.06);">
+                <span style="font:600 13px/1 'JetBrains Mono',monospace;color:#E8EAF1;">notes.md</span>
+                <span style="flex:1;"></span>
+                <div style="padding:7px 14px;border-radius:9px;background:var(--accent);color:#fff;font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;">Save</div>
+                <div style="padding:7px 14px;border-radius:9px;border:1px solid rgba(255,255,255,.11);color:#C2C5D2;font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;">Cancel</div>
+              </div>
+              <div style="flex:1;overflow:auto;padding:16px 0;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.85;min-height:0;">
+                <div style="display:flex;"><span style="width:44px;flex:none;text-align:right;padding-right:16px;color:#41454F;">1</span><span style="color:#7BAEFF;">## Notes</span></div>
+                <div style="display:flex;"><span style="width:44px;flex:none;text-align:right;padding-right:16px;color:#41454F;">2</span><span style="color:#C7CAD6;">A GFM document used by the file-browser e2e suite.</span></div>
+                <div style="display:flex;"><span style="width:44px;flex:none;text-align:right;padding-right:16px;color:#41454F;">3</span><span></span></div>
+                <div style="display:flex;"><span style="width:44px;flex:none;text-align:right;padding-right:16px;color:#41454F;">4</span><span style="color:#7BAEFF;">### Table</span></div>
+                <div style="display:flex;"><span style="width:44px;flex:none;text-align:right;padding-right:16px;color:#41454F;">5</span><span style="color:#C7CAD6;">| Header A | Header B |</span></div>
+                <div style="display:flex;"><span style="width:44px;flex:none;text-align:right;padding-right:16px;color:#41454F;">6</span><span style="color:#C7CAD6;">| --- | --- |</span></div>
+                <div style="display:flex;"><span style="width:44px;flex:none;text-align:right;padding-right:16px;color:#41454F;">7</span><span style="color:#C7CAD6;">| cell 1 | cell 2 |</span></div>
+                <div style="display:flex;"><span style="width:44px;flex:none;text-align:right;padding-right:16px;color:#41454F;">8</span><span></span></div>
+                <div style="display:flex;"><span style="width:44px;flex:none;text-align:right;padding-right:16px;color:#41454F;">9</span><span style="color:#7BAEFF;">### Task list</span></div>
+                <div style="display:flex;"><span style="width:44px;flex:none;text-align:right;padding-right:16px;color:#41454F;">10</span><span style="color:#C7CAD6;">- [x] First task done</span></div>
+                <div style="display:flex;"><span style="width:44px;flex:none;text-align:right;padding-right:16px;color:#41454F;">11</span><span style="color:#C7CAD6;">- [ ] Second task open</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:&quot;100%&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#7C8CFF&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#7C8CFF&quot;,&quot;#2DD4A7&quot;,&quot;#E0875F&quot;,&quot;#5B9BFF&quot;,&quot;#B98BFF&quot;]},&quot;ambientGlow&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { view: 'terminal', agent: 'claude' };
+  renderVals() {
+    const v = this.state.view, a = this.state.agent;
+    const go = (view) => () => this.setState({ view });
+    const selAgent = (agent) => () => this.setState({ view: 'terminal', agent });
+    const paths = { claude: '~/dev/payments', codex: '~/dev/api', gemini: '~/dev/site', opencode: '~/dev/infra' };
+    const names = { claude: 'claude-code', codex: 'codex', gemini: 'gemini', opencode: 'opencode' };
+    return {
+      accent: this.props.accent ?? '#7C8CFF',
+      glow: this.props.ambientGlow ?? true,
+      isTerminal: v === 'terminal', isWelcome: v === 'welcome', isSessions: v === 'sessions',
+      isRemote: v === 'remote', isSettings: v === 'settings', isFiles: v === 'files',
+      navHome: v === 'welcome', navSessions: v === 'sessions', navRemote: v === 'remote', navSettings: v === 'settings',
+      aClaude: a === 'claude', aCodex: a === 'codex', aGemini: a === 'gemini', aOpencode: a === 'opencode',
+      rowClaude: v === 'terminal' && a === 'claude', rowCodex: v === 'terminal' && a === 'codex',
+      rowGemini: v === 'terminal' && a === 'gemini', rowOpencode: v === 'terminal' && a === 'opencode',
+      termPath: paths[a] || paths.claude, termAgent: names[a] || names.claude,
+      goHome: go('welcome'), goSessions: go('sessions'), goRemote: go('remote'),
+      goSettings: go('settings'), goFiles: go('files'),
+      selClaude: selAgent('claude'), selCodex: selAgent('codex'),
+      selGemini: selAgent('gemini'), selOpencode: selAgent('opencode'),
+    };
+  }
+}
+</script>
+</body>
+</html>
